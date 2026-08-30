@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package metadata;
+
+option go_package = "github.com/Ajay01103/go-notion/metadata/gen/pb;pb";
+
+// ─── Request / Response Messages ─────────────────────────────────────────────
+
+message CreateFileRequest {
+  string folder_id = 1;
+  string filename = 2;
+  int64 size_bytes = 3;
+  string content_type = 4;
+  string content_hash = 5; // SHA256 of full file
+  string storage_key = 6; // reference to storage object
+}
+
+message CreateFileResponse {
+  string file_id = 1;
+  string folder_id = 2;
+  string filename = 3;
+  int64 size_bytes = 4;
+  string content_hash = 5;
+  string created_at = 6;
+}
+
+message GetFileRequest {
+  string file_id = 1;
+}
+
+message File {
+  string file_id = 1;
+  string folder_id = 2;
+  string filename = 3;
+  int64 size_bytes = 4;
+  string content_type = 5;
+  string content_hash = 6;
+  int32 version = 7;
+  string created_at = 8;
+  string owner_id = 9;
+  string parent_folder_id = 10;
+}
+
+message ListFolderRequest {
+  string folder_id = 1;
+  string page_token = 2; // for pagination
+  int32 page_size = 3; // default 100
+}
+
+message ListFolderResponse {
+  repeated File files = 1;
+  string next_page_token = 2;
+}
+
+message DeleteFileRequest {
+  string file_id = 1;
+}
+
+message DeleteFileResponse {
+  bool success = 1;
+}
+
+// ─── Service Definition ──────────────────────────────────────────────────────
+
+service MetadataService {
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc GetFile(GetFileRequest) returns (File);
+  rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}

@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package upload;
+
+option go_package = "github.com/Ajay01103/go-notion/upload/gen/pb;pb";
+
+// ─── Request / Response Messages ─────────────────────────────────────────────
+
+message InitUploadRequest {
+  string filename = 1;
+  int64 total_size_bytes = 2;
+  string content_type = 3;
+  string sha256_of_full_file = 4; // optional, enables pre-upload dedup check
+}
+
+message InitUploadResponse {
+  string upload_id = 1;
+  int64 chunk_size_bytes = 2;
+  repeated int64 already_received_offsets = 3; // empty for a fresh upload
+  bool already_complete = 4; // true if file already exists (dedup hit)
+  string object_id = 5; // if dedup hit, reference to existing object
+}
+
+message UploadChunkRequest {
+  string upload_id = 1;
+  int64 offset = 2;
+  bytes data = 3;
+  string sha256_of_chunk = 4;
+}
+
+message UploadChunkAck {
+  string upload_id = 1;
+  int64 offset_persisted = 2;
+  bool is_final = 3;
+}
+
+message GetUploadStatusRequest {
+  string upload_id = 1;
+}
+
+message GetUploadStatusResponse {
+  string upload_id = 1;
+  int64 last_persisted_offset = 2;
+  int64 total_size_bytes = 3;
+  string status = 4; // pending | in_progress | completed | aborted
+}
+
+// ─── Service Definition ──────────────────────────────────────────────────────
+
+service UploadService {
+  rpc InitUpload(InitUploadRequest) returns (InitUploadResponse);
+  rpc UploadChunks(stream UploadChunkRequest) returns (stream UploadChunkAck);
+  rpc GetUploadStatus(GetUploadStatusRequest) returns (GetUploadStatusResponse);
+}

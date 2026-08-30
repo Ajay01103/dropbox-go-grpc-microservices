@@ -1,0 +1,99 @@
+syntax = "proto3";
+
+package auth;
+
+option go_package = "github.com/Ajay01103/go-notion/auth/gen/pb;pb";
+
+// ─── Request / Response Messages ─────────────────────────────────────────────
+
+message RegisterRequest {
+  string email    = 1;
+  string name     = 2;
+  string password = 3;
+}
+
+message LoginRequest {
+  string email    = 1;
+  string password = 2;
+}
+
+// RefreshTokenRequest: the client passes its current refresh token.
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+// LogoutRequest: the client passes its current refresh token so the server
+// can revoke it from Redis
+message LogoutRequest {
+  string refresh_token = 1;
+}
+
+message ValidateTokenRequest {
+  string access_token = 1;
+}
+
+message GetCurrentUserRequest {}
+
+// ─── Responses ───────────────────────────────────────────────────────────────
+
+message GetCurrentUserResponse {
+  string user_id  = 1;
+  string email    = 2;
+  string name     = 3;
+}
+
+// Returned on Register, Login, and RefreshToken.
+
+// Next.js reads these fields and sets them as HttpOnly cookies.
+message AuthResponse {
+  string access_token  = 1;
+  string refresh_token = 2;
+  string user_id       = 3;
+  string name          = 4;
+  string email         = 5;
+}
+
+message LogoutResponse {
+  string message = 1;
+}
+
+message LogoutAllDevicesRequest {
+  string user_id = 1;
+}
+
+message LogoutAllDevicesResponse {
+  string message = 1;
+}
+
+message ValidateTokenResponse {
+  bool   valid    = 1;
+  string user_id  = 2;
+  string email    = 3;
+  string name     = 4;
+}
+
+// ─── Service ─────────────────────────────────────────────────────────────────
+
+service AuthService {
+  // Register a new user, returns a fresh token pair
+  rpc Register(RegisterRequest) returns (AuthResponse);
+
+  // Login an existing user, returns a fresh token pair
+  rpc Login(LoginRequest) returns (AuthResponse);
+
+  // Issue a new access token + rotate the refresh token.
+  // Validates the refresh token JWT and checks revocation state.
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+
+  // Invalidate the refresh token in Redis (logout)
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+
+  // Invalidate all active refresh token families for a user.
+  rpc LogoutAllDevices(LogoutAllDevicesRequest) returns (LogoutAllDevicesResponse);
+
+  // Validate an access token (used by other services / Next.js middleware)
+  rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+
+  // Return info about the currently logged in user based on the bearer token
+  rpc GetCurrentUser(GetCurrentUserRequest) returns (GetCurrentUserResponse);
+}

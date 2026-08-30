@@ -1,0 +1,186 @@
+services:
+  scylladb:
+    image: scylladb/scylla:latest
+    container_name: scylladb-dev
+    ports:
+      - "9042:9042" # Native protocol (CQL)
+      - "9160:9160" # Thrift protocol (legacy)
+      - "7000:7000" # Internode communication
+      - "7001:7001" # Internode communication SSL
+      - "10000:10000" # REST API & Web UI
+    volumes:
+      - scylladb-data:/var/lib/scylla
+    environment:
+      SCYLLA_REPLACE_ADDRESS: 127.0.0.1
+      SCYLLA_LISTEN_ADDRESS: 0.0.0.0
+      SCYLLA_BROADCAST_ADDRESS: 127.0.0.1
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "cqlsh",
+          "-u",
+          "cassandra",
+          "-p",
+          "cassandra",
+          "-e",
+          "select cluster_name from system.local",
+        ]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    networks:
+      - scylladb-network
+
+  rustfs:
+    image: rustfs/rustfs:latest
+    container_name: rustfs-dev
+    ports:
+      - "9000:9000" # S3 API endpoint
+      - "9001:9001" # RustFS console
+    environment:
+      RUSTFS_ROOT_USER: rustfsadmin
+      RUSTFS_ROOT_PASSWORD: rustfsadmin
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+    networks:
+      - scylladb-network
+
+  rustfs-init:
+    image: amazon/aws-cli:2.17.40
+    container_name: rustfs-init
+    depends_on:
+      - rustfs
+    environment:
+      AWS_ACCESS_KEY_ID: rustfsadmin
+      AWS_SECRET_ACCESS_KEY: rustfsadmin
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        echo "Waiting for RustFS S3 endpoint..."
+        until aws --endpoint-url http://rustfs:9000 s3api list-buckets >/dev/null 2>&1; do
+          sleep 2
+        done
+
+        if aws --endpoint-url http://rustfs:9000 s3api head-bucket --bucket uploads >/dev/null 2>&1; then
+          echo "Bucket uploads already exists"
+        else
+          aws --endpoint-url http://rustfs:9000 s3api create-bucket --bucket uploads
+          echo "Created bucket uploads"
+        fi
+    restart: "no"
+    networks:
+      - scylladb-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: redis-dev
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - scylladb-network
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: services/auth/Dockerfile
+    container_name: auth-service-dev
+    ports:
+      - "50051:50051"
+    depends_on:
+      scylladb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SCYLLA_HOSTS: scylladb
+      SCYLLA_PORT: 9042
+      SCYLLA_DATACENTER: datacenter1
+      SCYLLA_REPLICATION_FACTOR: 1
+      SCYLLA_USERNAME: cassandra
+      SCYLLA_PASSWORD: cassandra
+      REDIS_URL: redis://redis:6379
+      AUTH_GRPC_PORT: 50051
+      JWT_SECRET: your-secret-key-change-in-prod
+    networks:
+      - scylladb-network
+    restart: unless-stopped
+
+  upload-service:
+    build:
+      context: .
+      dockerfile: services/upload/Dockerfile
+    container_name: upload-service-dev
+    ports:
+      - "50052:50052"
+    depends_on:
+      scylladb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SCYLLA_HOSTS: scylladb
+      SCYLLA_PORT: 9042
+      SCYLLA_DATACENTER: datacenter1
+      SCYLLA_REPLICATION_FACTOR: 1
+      SCYLLA_USERNAME: cassandra
+      SCYLLA_PASSWORD: cassandra
+      REDIS_URL: redis://redis:6379
+      UPLOAD_GRPC_PORT: 50052
+      CHUNK_SIZE_BYTES: 33554432
+      UPLOAD_STORAGE_PATH: /uploads
+      SESSION_TTL_SECONDS: 86400
+    volumes:
+      - upload-data:/uploads
+    networks:
+      - scylladb-network
+    restart: unless-stopped
+
+  metadata-service:
+    build:
+      context: .
+      dockerfile: services/metadata/Dockerfile
+    container_name: metadata-service-dev
+    ports:
+      - "50053:50053"
+    depends_on:
+      scylladb:
+        condition: service_healthy
+    environment:
+      SCYLLA_HOSTS: scylladb
+      SCYLLA_PORT: 9042
+      SCYLLA_DATACENTER: datacenter1
+      SCYLLA_REPLICATION_FACTOR: 1
+      SCYLLA_USERNAME: cassandra
+      SCYLLA_PASSWORD: cassandra
+      METADATA_GRPC_PORT: 50053
+    networks:
+      - scylladb-network
+    restart: unless-stopped
+
+volumes:
+  scylladb-data:
+    driver: local
+  rustfs-data:
+    driver: local
+  rustfs-logs:
+    driver: local
+  redis-data:
+    driver: local
+  upload-data:
+    driver: local
+
+networks:
+  scylladb-network:
+    driver: bridge

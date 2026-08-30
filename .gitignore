@@ -1,0 +1,19 @@
+**.png
+plan.md
+test_file.mp4
+
+.kiro
+.codegraph
+
+# Binaries
+bin/
+dist/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# OS
+.DS_Store
+Thumbs.db

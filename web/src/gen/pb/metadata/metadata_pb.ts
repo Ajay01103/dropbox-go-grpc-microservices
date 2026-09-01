@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file metadata.proto.
  */
 export const file_metadata: GenFile = /*@__PURE__*/
-  fileDesc("Cg5tZXRhZGF0YS5wcm90bxIIbWV0YWRhdGEijQEKEUNyZWF0ZUZpbGVSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhQKDGNvbnRlbnRfdHlwZRgEIAEoCRIUCgxjb250ZW50X2hhc2gYBSABKAkSEwoLc3RvcmFnZV9rZXkYBiABKAkiiAEKEkNyZWF0ZUZpbGVSZXNwb25zZRIPCgdmaWxlX2lkGAEgASgJEhEKCWZvbGRlcl9pZBgCIAEoCRIQCghmaWxlbmFtZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJIiEKDkdldEZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkizQEKBEZpbGUSDwoHZmlsZV9pZBgBIAEoCRIRCglmb2xkZXJfaWQYAiABKAkSEAoIZmlsZW5hbWUYAyABKAkSEgoKc2l6ZV9ieXRlcxgEIAEoAxIUCgxjb250ZW50X3R5cGUYBSABKAkSFAoMY29udGVudF9oYXNoGAYgASgJEg8KB3ZlcnNpb24YByABKAUSEgoKY3JlYXRlZF9hdBgIIAEoCRIQCghvd25lcl9pZBgJIAEoCRIYChBwYXJlbnRfZm9sZGVyX2lkGAogASgJIk0KEUxpc3RGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRISCgpwYWdlX3Rva2VuGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoBSJMChJMaXN0Rm9sZGVyUmVzcG9uc2USHQoFZmlsZXMYASADKAsyDi5tZXRhZGF0YS5GaWxlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIkChFEZWxldGVGaWxlUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIiUKEkRlbGV0ZUZpbGVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIMqECCg9NZXRhZGF0YVNlcnZpY2USRwoKQ3JlYXRlRmlsZRIbLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXF1ZXN0GhwubWV0YWRhdGEuQ3JlYXRlRmlsZVJlc3BvbnNlEjMKB0dldEZpbGUSGC5tZXRhZGF0YS5HZXRGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSRwoKTGlzdEZvbGRlchIbLm1ldGFkYXRhLkxpc3RGb2xkZXJSZXF1ZXN0GhwubWV0YWRhdGEuTGlzdEZvbGRlclJlc3BvbnNlEkcKCkRlbGV0ZUZpbGUSGy5tZXRhZGF0YS5EZWxldGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkRlbGV0ZUZpbGVSZXNwb25zZUIzWjFnaXRodWIuY29tL0FqYXkwMTEwMy9nby1ub3Rpb24vbWV0YWRhdGEvZ2VuL3BiO3BiYgZwcm90bzM");
+  fileDesc("Cg5tZXRhZGF0YS5wcm90bxIIbWV0YWRhdGEijQEKEUNyZWF0ZUZpbGVSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhQKDGNvbnRlbnRfdHlwZRgEIAEoCRIUCgxjb250ZW50X2hhc2gYBSABKAkSEwoLc3RvcmFnZV9rZXkYBiABKAkiiAEKEkNyZWF0ZUZpbGVSZXNwb25zZRIPCgdmaWxlX2lkGAEgASgJEhEKCWZvbGRlcl9pZBgCIAEoCRIQCghmaWxlbmFtZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJIlcKE1NldFRodW1ibmFpbFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIVCg10aHVtYm5haWxfa2V5GAIgASgJEhgKEHRodW1ibmFpbF9zdGF0dXMYAyABKAkiJwoUU2V0VGh1bWJuYWlsUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIsChlHZXRUaHVtYm5haWxTdGF0dXNSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiTQoaR2V0VGh1bWJuYWlsU3RhdHVzUmVzcG9uc2USFQoNdGh1bWJuYWlsX2tleRgBIAEoCRIYChB0aHVtYm5haWxfc3RhdHVzGAIgASgJIiEKDkdldEZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAki/gEKBEZpbGUSDwoHZmlsZV9pZBgBIAEoCRIRCglmb2xkZXJfaWQYAiABKAkSEAoIZmlsZW5hbWUYAyABKAkSEgoKc2l6ZV9ieXRlcxgEIAEoAxIUCgxjb250ZW50X3R5cGUYBSABKAkSFAoMY29udGVudF9oYXNoGAYgASgJEg8KB3ZlcnNpb24YByABKAUSEgoKY3JlYXRlZF9hdBgIIAEoCRIQCghvd25lcl9pZBgJIAEoCRIYChBwYXJlbnRfZm9sZGVyX2lkGAogASgJEhUKDXRodW1ibmFpbF9rZXkYCyABKAkSGAoQdGh1bWJuYWlsX3N0YXR1cxgMIAEoCSJNChFMaXN0Rm9sZGVyUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkSEgoKcGFnZV90b2tlbhgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUiTAoSTGlzdEZvbGRlclJlc3BvbnNlEh0KBWZpbGVzGAEgAygLMg4ubWV0YWRhdGEuRmlsZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiJAoRRGVsZXRlRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSIlChJEZWxldGVGaWxlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCDLRAwoPTWV0YWRhdGFTZXJ2aWNlEkcKCkNyZWF0ZUZpbGUSGy5tZXRhZGF0YS5DcmVhdGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXNwb25zZRJNCgxTZXRUaHVtYm5haWwSHS5tZXRhZGF0YS5TZXRUaHVtYm5haWxSZXF1ZXN0Gh4ubWV0YWRhdGEuU2V0VGh1bWJuYWlsUmVzcG9uc2USXwoSR2V0VGh1bWJuYWlsU3RhdHVzEiMubWV0YWRhdGEuR2V0VGh1bWJuYWlsU3RhdHVzUmVxdWVzdBokLm1ldGFkYXRhLkdldFRodW1ibmFpbFN0YXR1c1Jlc3BvbnNlEjMKB0dldEZpbGUSGC5tZXRhZGF0YS5HZXRGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSRwoKTGlzdEZvbGRlchIbLm1ldGFkYXRhLkxpc3RGb2xkZXJSZXF1ZXN0GhwubWV0YWRhdGEuTGlzdEZvbGRlclJlc3BvbnNlEkcKCkRlbGV0ZUZpbGUSGy5tZXRhZGF0YS5EZWxldGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkRlbGV0ZUZpbGVSZXNwb25zZUI0WjJnaXRodWIuY29tL0FqYXkwMTEwMy9nby1kcm9wYm94L21ldGFkYXRhL2dlbi9wYjtwYmIGcHJvdG8z");
 
 /**
  * @generated from message metadata.CreateFileRequest
@@ -101,6 +101,91 @@ export const CreateFileResponseSchema: GenMessage<CreateFileResponse> = /*@__PUR
   messageDesc(file_metadata, 1);
 
 /**
+ * @generated from message metadata.SetThumbnailRequest
+ */
+export type SetThumbnailRequest = Message<"metadata.SetThumbnailRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * @generated from field: string thumbnail_key = 2;
+   */
+  thumbnailKey: string;
+
+  /**
+   * pending | ready | failed
+   *
+   * @generated from field: string thumbnail_status = 3;
+   */
+  thumbnailStatus: string;
+};
+
+/**
+ * Describes the message metadata.SetThumbnailRequest.
+ * Use `create(SetThumbnailRequestSchema)` to create a new message.
+ */
+export const SetThumbnailRequestSchema: GenMessage<SetThumbnailRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 2);
+
+/**
+ * @generated from message metadata.SetThumbnailResponse
+ */
+export type SetThumbnailResponse = Message<"metadata.SetThumbnailResponse"> & {
+  /**
+   * @generated from field: bool success = 1;
+   */
+  success: boolean;
+};
+
+/**
+ * Describes the message metadata.SetThumbnailResponse.
+ * Use `create(SetThumbnailResponseSchema)` to create a new message.
+ */
+export const SetThumbnailResponseSchema: GenMessage<SetThumbnailResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 3);
+
+/**
+ * @generated from message metadata.GetThumbnailStatusRequest
+ */
+export type GetThumbnailStatusRequest = Message<"metadata.GetThumbnailStatusRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+};
+
+/**
+ * Describes the message metadata.GetThumbnailStatusRequest.
+ * Use `create(GetThumbnailStatusRequestSchema)` to create a new message.
+ */
+export const GetThumbnailStatusRequestSchema: GenMessage<GetThumbnailStatusRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 4);
+
+/**
+ * @generated from message metadata.GetThumbnailStatusResponse
+ */
+export type GetThumbnailStatusResponse = Message<"metadata.GetThumbnailStatusResponse"> & {
+  /**
+   * @generated from field: string thumbnail_key = 1;
+   */
+  thumbnailKey: string;
+
+  /**
+   * @generated from field: string thumbnail_status = 2;
+   */
+  thumbnailStatus: string;
+};
+
+/**
+ * Describes the message metadata.GetThumbnailStatusResponse.
+ * Use `create(GetThumbnailStatusResponseSchema)` to create a new message.
+ */
+export const GetThumbnailStatusResponseSchema: GenMessage<GetThumbnailStatusResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 5);
+
+/**
  * @generated from message metadata.GetFileRequest
  */
 export type GetFileRequest = Message<"metadata.GetFileRequest"> & {
@@ -115,7 +200,7 @@ export type GetFileRequest = Message<"metadata.GetFileRequest"> & {
  * Use `create(GetFileRequestSchema)` to create a new message.
  */
 export const GetFileRequestSchema: GenMessage<GetFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 2);
+  messageDesc(file_metadata, 6);
 
 /**
  * @generated from message metadata.File
@@ -170,6 +255,16 @@ export type File = Message<"metadata.File"> & {
    * @generated from field: string parent_folder_id = 10;
    */
   parentFolderId: string;
+
+  /**
+   * @generated from field: string thumbnail_key = 11;
+   */
+  thumbnailKey: string;
+
+  /**
+   * @generated from field: string thumbnail_status = 12;
+   */
+  thumbnailStatus: string;
 };
 
 /**
@@ -177,7 +272,7 @@ export type File = Message<"metadata.File"> & {
  * Use `create(FileSchema)` to create a new message.
  */
 export const FileSchema: GenMessage<File> = /*@__PURE__*/
-  messageDesc(file_metadata, 3);
+  messageDesc(file_metadata, 7);
 
 /**
  * @generated from message metadata.ListFolderRequest
@@ -208,7 +303,7 @@ export type ListFolderRequest = Message<"metadata.ListFolderRequest"> & {
  * Use `create(ListFolderRequestSchema)` to create a new message.
  */
 export const ListFolderRequestSchema: GenMessage<ListFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 4);
+  messageDesc(file_metadata, 8);
 
 /**
  * @generated from message metadata.ListFolderResponse
@@ -230,7 +325,7 @@ export type ListFolderResponse = Message<"metadata.ListFolderResponse"> & {
  * Use `create(ListFolderResponseSchema)` to create a new message.
  */
 export const ListFolderResponseSchema: GenMessage<ListFolderResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 5);
+  messageDesc(file_metadata, 9);
 
 /**
  * @generated from message metadata.DeleteFileRequest
@@ -247,7 +342,7 @@ export type DeleteFileRequest = Message<"metadata.DeleteFileRequest"> & {
  * Use `create(DeleteFileRequestSchema)` to create a new message.
  */
 export const DeleteFileRequestSchema: GenMessage<DeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 6);
+  messageDesc(file_metadata, 10);
 
 /**
  * @generated from message metadata.DeleteFileResponse
@@ -264,7 +359,7 @@ export type DeleteFileResponse = Message<"metadata.DeleteFileResponse"> & {
  * Use `create(DeleteFileResponseSchema)` to create a new message.
  */
 export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 7);
+  messageDesc(file_metadata, 11);
 
 /**
  * @generated from service metadata.MetadataService
@@ -277,6 +372,22 @@ export const MetadataService: GenService<{
     methodKind: "unary";
     input: typeof CreateFileRequestSchema;
     output: typeof CreateFileResponseSchema;
+  },
+  /**
+   * @generated from rpc metadata.MetadataService.SetThumbnail
+   */
+  setThumbnail: {
+    methodKind: "unary";
+    input: typeof SetThumbnailRequestSchema;
+    output: typeof SetThumbnailResponseSchema;
+  },
+  /**
+   * @generated from rpc metadata.MetadataService.GetThumbnailStatus
+   */
+  getThumbnailStatus: {
+    methodKind: "unary";
+    input: typeof GetThumbnailStatusRequestSchema;
+    output: typeof GetThumbnailStatusResponseSchema;
   },
   /**
    * @generated from rpc metadata.MetadataService.GetFile

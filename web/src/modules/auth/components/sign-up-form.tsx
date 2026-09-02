@@ -1,3 +1,5 @@
+"use client";
+
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,10 +11,57 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+
+import { registerAction } from "@/actions/auth";
+
+import * as z from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+
+const signupSchema = z
+  .object({
+    name: z
+      .string()
+      .min(2, "Name must be at least 2 characters")
+      .max(100, "Name must be less than 100 characters"),
+    email: z.string().email("Please enter a valid email address"),
+    password: z
+      .string()
+      .min(8, "Password must be at least 8 characters")
+      .max(100, "Password must be less than 100 characters"),
+    confirmPassword: z.string().min(8, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+type SignupFormValues = z.infer<typeof signupSchema>;
 
 export function SignupForm({ className, ...props }: React.ComponentProps<"form">) {
+  const router = useRouter();
+  const form = useForm<SignupFormValues>({
+    resolver: zodResolver(signupSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
+
+  const onSubmit = (data: SignupFormValues) => {
+    registerAction(data);
+    router.push("/");
+  };
+
   return (
-    <form className={cn("flex flex-col gap-6", className)} {...props}>
+    <form
+      className={cn("flex flex-col gap-6", className)}
+      onSubmit={form.handleSubmit(onSubmit)}
+      {...props}
+    >
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
           <h1 className="text-2xl font-bold">Create your account</h1>
@@ -22,25 +71,69 @@ export function SignupForm({ className, ...props }: React.ComponentProps<"form">
         </div>
         <Field>
           <FieldLabel htmlFor="name">Full Name</FieldLabel>
-          <Input id="name" type="text" placeholder="John Doe" required />
+          <Input {...form.register("name")} id="name" type="text" placeholder="John Doe" required />
+
+          {form.formState.errors.name && (
+            <FieldDescription className="text-destructive">
+              {" "}
+              {form.formState.errors.name.message}{" "}
+            </FieldDescription>
+          )}
         </Field>
         <Field>
           <FieldLabel htmlFor="email">Email</FieldLabel>
-          <Input id="email" type="email" placeholder="m@example.com" required />
+          <Input
+            {...form.register("email")}
+            id="email"
+            type="email"
+            placeholder="m@example.com"
+            required
+          />
+
+          {form.formState.errors.email && (
+            <FieldDescription className="text-destructive">
+              {" "}
+              {form.formState.errors.email.message}{" "}
+            </FieldDescription>
+          )}
         </Field>
         <Field>
           <FieldLabel htmlFor="password">Password</FieldLabel>
-          <Input id="password" type="password" required />
+          <Input {...form.register("password")} id="password" type="password" required />
           <FieldDescription>Must be at least 8 characters long.</FieldDescription>
+
+          {form.formState.errors.password && (
+            <FieldDescription className="text-destructive">
+              {" "}
+              {form.formState.errors.password.message}{" "}
+            </FieldDescription>
+          )}
         </Field>
         <Field>
           <FieldLabel htmlFor="confirm-password">Confirm Password</FieldLabel>
-          <Input id="confirm-password" type="password" required />
+          <Input
+            {...form.register("confirmPassword")}
+            id="confirm-password"
+            type="password"
+            required
+          />
           <FieldDescription>Please confirm your password.</FieldDescription>
+
+          {form.formState.errors.confirmPassword && (
+            <FieldDescription className="text-destructive">
+              {" "}
+              {form.formState.errors.confirmPassword.message}{" "}
+            </FieldDescription>
+          )}
         </Field>
         <Field>
-          <Button type="submit">Create Account</Button>
+          {" "}
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {" "}
+            {form.formState.isSubmitting ? "Creating Account..." : "Create Account"}{" "}
+          </Button>{" "}
         </Field>
+
         <FieldSeparator>Or continue with</FieldSeparator>
         <Field>
           <Button variant="outline" type="button">

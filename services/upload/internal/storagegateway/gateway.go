@@ -22,9 +22,27 @@ type StorageGateway interface {
 	// FinalizeUpload is called after all chunks are received
 	// Verifies all chunks exist and returns the final object storage key
 	FinalizeUpload(ctx context.Context, uploadID string, totalSize int64) (string, error)
+	HashFinalizedObject(ctx context.Context, uploadID string) (string, error)
 
 	// AbortUpload cleans up storage for an abandoned upload
 	AbortUpload(ctx context.Context, uploadID string) error
+}
+
+func (g *LocalFileSystemGateway) HashFinalizedObject(ctx context.Context, uploadID string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	file, err := os.Open(filepath.Join(g.basePath, uploadID, "final.bin"))
+	if err != nil {
+		return "", fmt.Errorf("open final file for hashing: %w", err)
+	}
+	defer file.Close()
+
+	hash := sha256.New()
+	if _, err := io.CopyBuffer(hash, file, make([]byte, 1024*1024)); err != nil {
+		return "", fmt.Errorf("hash final file: %w", err)
+	}
+	return hex.EncodeToString(hash.Sum(nil)), nil
 }
 
 // LocalFileSystemGateway implements StorageGateway using local filesystem
@@ -88,11 +106,16 @@ func (g *LocalFileSystemGateway) FinalizeUpload(ctx context.Context, uploadID st
 	if err != nil {
 		return "", fmt.Errorf("create final file: %w", err)
 	}
-	defer finalFile.Close()
 
 	// Read and write all chunks in order
 	bytesWritten := int64(0)
+	chunkPaths := make([]string, 0)
 	for {
+		if err := ctx.Err(); err != nil {
+			_ = finalFile.Close()
+			return "", fmt.Errorf("finalize upload canceled: %w", err)
+		}
+
 		chunkPath := filepath.Join(uploadDir, fmt.Sprintf("%d.chunk", bytesWritten))
 		f, err := os.Open(chunkPath)
 		if err != nil {
@@ -108,9 +131,14 @@ func (g *LocalFileSystemGateway) FinalizeUpload(ctx context.Context, uploadID st
 		if err != nil {
 			return "", fmt.Errorf("copy chunk: %w", err)
 		}
+		chunkPaths = append(chunkPaths, chunkPath)
 
 		// Get file info to know chunk size
-		info, _ := os.Stat(chunkPath)
+		info, err := os.Stat(chunkPath)
+		if err != nil {
+			_ = finalFile.Close()
+			return "", fmt.Errorf("stat chunk: %w", err)
+		}
 		bytesWritten += info.Size()
 
 		if bytesWritten >= totalSize {
@@ -119,7 +147,26 @@ func (g *LocalFileSystemGateway) FinalizeUpload(ctx context.Context, uploadID st
 	}
 
 	if bytesWritten != totalSize {
+		_ = finalFile.Close()
 		return "", fmt.Errorf("incomplete upload: got %d bytes, expected %d", bytesWritten, totalSize)
+	}
+
+	if err := finalFile.Close(); err != nil {
+		return "", fmt.Errorf("close final file: %w", err)
+	}
+
+	finalInfo, err := os.Stat(finalPath)
+	if err != nil {
+		return "", fmt.Errorf("stat final file: %w", err)
+	}
+	if finalInfo.Size() != totalSize {
+		return "", fmt.Errorf("final file size mismatch: got %d bytes, expected %d", finalInfo.Size(), totalSize)
+	}
+
+	for _, chunkPath := range chunkPaths {
+		if err := os.Remove(chunkPath); err != nil {
+			return "", fmt.Errorf("remove chunk %s: %w", filepath.Base(chunkPath), err)
+		}
 	}
 
 	// Return storage key (for now, just the relative path)

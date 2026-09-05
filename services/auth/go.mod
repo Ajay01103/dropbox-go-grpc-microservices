@@ -1,10 +1,10 @@
-module github.com/Ajay01103/go-notion/auth
+module github.com/Ajay01103/go-dropbox/auth
 
 go 1.25.0
 
 require (
 	connectrpc.com/connect v1.19.1
-	github.com/Ajay01103/go-notion/pkg v0.0.0-00010101000000-000000000000
+	github.com/Ajay01103/go-dropbox/pkg v0.0.0-00010101000000-000000000000
 	github.com/dgraph-io/ristretto v0.1.1
 	github.com/gocql/gocql v1.7.0
 	github.com/google/uuid v1.6.0
@@ -52,4 +52,4 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )
 
-replace github.com/Ajay01103/go-notion/pkg => ../../pkg
+replace github.com/Ajay01103/go-dropbox/pkg => ../../pkg

@@ -1,0 +1,1 @@
+ALTER TABLE files_by_folder DROP storage_key;

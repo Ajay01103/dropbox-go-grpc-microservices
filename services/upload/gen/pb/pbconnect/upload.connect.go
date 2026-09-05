@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	pb "github.com/Ajay01103/go-notion/upload/gen/pb"
+	pb "github.com/Ajay01103/go-dropbox/upload/gen/pb"
 	http "net/http"
 	strings "strings"
 )
@@ -36,6 +36,9 @@ const (
 	// UploadServiceInitUploadProcedure is the fully-qualified name of the UploadService's InitUpload
 	// RPC.
 	UploadServiceInitUploadProcedure = "/upload.UploadService/InitUpload"
+	// UploadServiceUploadChunkProcedure is the fully-qualified name of the UploadService's UploadChunk
+	// RPC.
+	UploadServiceUploadChunkProcedure = "/upload.UploadService/UploadChunk"
 	// UploadServiceUploadChunksProcedure is the fully-qualified name of the UploadService's
 	// UploadChunks RPC.
 	UploadServiceUploadChunksProcedure = "/upload.UploadService/UploadChunks"
@@ -47,6 +50,7 @@ const (
 // UploadServiceClient is a client for the upload.UploadService service.
 type UploadServiceClient interface {
 	InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error)
+	UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error)
 	UploadChunks(context.Context) *connect.BidiStreamForClient[pb.UploadChunkRequest, pb.UploadChunkAck]
 	GetUploadStatus(context.Context, *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error)
 }
@@ -68,6 +72,12 @@ func NewUploadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(uploadServiceMethods.ByName("InitUpload")),
 			connect.WithClientOptions(opts...),
 		),
+		uploadChunk: connect.NewClient[pb.UploadChunkRequest, pb.UploadChunkAck](
+			httpClient,
+			baseURL+UploadServiceUploadChunkProcedure,
+			connect.WithSchema(uploadServiceMethods.ByName("UploadChunk")),
+			connect.WithClientOptions(opts...),
+		),
 		uploadChunks: connect.NewClient[pb.UploadChunkRequest, pb.UploadChunkAck](
 			httpClient,
 			baseURL+UploadServiceUploadChunksProcedure,
@@ -86,6 +96,7 @@ func NewUploadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 // uploadServiceClient implements UploadServiceClient.
 type uploadServiceClient struct {
 	initUpload      *connect.Client[pb.InitUploadRequest, pb.InitUploadResponse]
+	uploadChunk     *connect.Client[pb.UploadChunkRequest, pb.UploadChunkAck]
 	uploadChunks    *connect.Client[pb.UploadChunkRequest, pb.UploadChunkAck]
 	getUploadStatus *connect.Client[pb.GetUploadStatusRequest, pb.GetUploadStatusResponse]
 }
@@ -93,6 +104,11 @@ type uploadServiceClient struct {
 // InitUpload calls upload.UploadService.InitUpload.
 func (c *uploadServiceClient) InitUpload(ctx context.Context, req *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error) {
 	return c.initUpload.CallUnary(ctx, req)
+}
+
+// UploadChunk calls upload.UploadService.UploadChunk.
+func (c *uploadServiceClient) UploadChunk(ctx context.Context, req *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error) {
+	return c.uploadChunk.CallUnary(ctx, req)
 }
 
 // UploadChunks calls upload.UploadService.UploadChunks.
@@ -108,6 +124,7 @@ func (c *uploadServiceClient) GetUploadStatus(ctx context.Context, req *connect.
 // UploadServiceHandler is an implementation of the upload.UploadService service.
 type UploadServiceHandler interface {
 	InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error)
+	UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error)
 	UploadChunks(context.Context, *connect.BidiStream[pb.UploadChunkRequest, pb.UploadChunkAck]) error
 	GetUploadStatus(context.Context, *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error)
 }
@@ -123,6 +140,12 @@ func NewUploadServiceHandler(svc UploadServiceHandler, opts ...connect.HandlerOp
 		UploadServiceInitUploadProcedure,
 		svc.InitUpload,
 		connect.WithSchema(uploadServiceMethods.ByName("InitUpload")),
+		connect.WithHandlerOptions(opts...),
+	)
+	uploadServiceUploadChunkHandler := connect.NewUnaryHandler(
+		UploadServiceUploadChunkProcedure,
+		svc.UploadChunk,
+		connect.WithSchema(uploadServiceMethods.ByName("UploadChunk")),
 		connect.WithHandlerOptions(opts...),
 	)
 	uploadServiceUploadChunksHandler := connect.NewBidiStreamHandler(
@@ -141,6 +164,8 @@ func NewUploadServiceHandler(svc UploadServiceHandler, opts ...connect.HandlerOp
 		switch r.URL.Path {
 		case UploadServiceInitUploadProcedure:
 			uploadServiceInitUploadHandler.ServeHTTP(w, r)
+		case UploadServiceUploadChunkProcedure:
+			uploadServiceUploadChunkHandler.ServeHTTP(w, r)
 		case UploadServiceUploadChunksProcedure:
 			uploadServiceUploadChunksHandler.ServeHTTP(w, r)
 		case UploadServiceGetUploadStatusProcedure:
@@ -156,6 +181,10 @@ type UnimplementedUploadServiceHandler struct{}
 
 func (UnimplementedUploadServiceHandler) InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.InitUpload is not implemented"))
+}
+
+func (UnimplementedUploadServiceHandler) UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.UploadChunk is not implemented"))
 }
 
 func (UnimplementedUploadServiceHandler) UploadChunks(context.Context, *connect.BidiStream[pb.UploadChunkRequest, pb.UploadChunkAck]) error {

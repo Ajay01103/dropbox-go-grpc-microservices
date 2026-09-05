@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"connectrpc.com/connect"
 	"go.uber.org/zap"
 
 	"github.com/dgraph-io/ristretto"
@@ -17,16 +18,17 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/Ajay01103/go-notion/upload/config"
-	"github.com/Ajay01103/go-notion/upload/db"
-	"github.com/Ajay01103/go-notion/upload/gen/pb/pbconnect"
-	"github.com/Ajay01103/go-notion/upload/internal/repository"
-	"github.com/Ajay01103/go-notion/upload/internal/service"
-	"github.com/Ajay01103/go-notion/upload/internal/storagegateway"
-	"github.com/Ajay01103/go-notion/upload/server"
-	"github.com/Ajay01103/go-notion/pkg/interceptor"
-	pkglogger "github.com/Ajay01103/go-notion/pkg/logger"
-	pkgredis "github.com/Ajay01103/go-notion/pkg/redisclient"
+	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
+	"github.com/Ajay01103/go-dropbox/pkg/jwks"
+	pkglogger "github.com/Ajay01103/go-dropbox/pkg/logger"
+	pkgredis "github.com/Ajay01103/go-dropbox/pkg/redisclient"
+	"github.com/Ajay01103/go-dropbox/upload/config"
+	"github.com/Ajay01103/go-dropbox/upload/db"
+	"github.com/Ajay01103/go-dropbox/upload/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/upload/internal/repository"
+	"github.com/Ajay01103/go-dropbox/upload/internal/service"
+	"github.com/Ajay01103/go-dropbox/upload/internal/storagegateway"
+	"github.com/Ajay01103/go-dropbox/upload/server"
 )
 
 // corsMiddleware allows Next.js or other frontends to access Connect endpoints
@@ -63,6 +65,18 @@ func run() error {
 		logger.Error("cannot load config", zap.Error(err))
 		return fmt.Errorf("load config: %w", err)
 	}
+
+	verifierContext, verifierCancel := context.WithTimeout(context.Background(), 15*time.Second)
+	jwksCache, err := jwks.New(verifierContext, jwks.WithJWKSURL(cfg.JWKSURL))
+	verifierCancel()
+	if err != nil {
+		logger.Error("cannot initialize auth JWKS cache", zap.Error(err), zap.String("jwksURL", cfg.JWKSURL))
+		return fmt.Errorf("initialize auth jwks: %w", err)
+	}
+	authVerifier := jwks.NewVerifier(jwksCache, cfg.JWKSIssuer, cfg.JWKSAudience...)
+	authInterceptor := interceptor.NewAuthInterceptor(authVerifier)
+	loggingInterceptor := interceptor.NewLoggingInterceptor(logger)
+	logger.Info("upload auth verifier initialized", zap.String("jwksURL", cfg.JWKSURL))
 
 	// 2. Connect to ScyllaDB with readiness checks and keyspace bootstrap
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -127,35 +141,63 @@ func run() error {
 
 	// 6. Setup repositories
 	sessionRepo := repository.NewSessionRepo(session)
-	chunkRepo := repository.NewChunkRepo(session)
+	blockRepo := repository.NewBlockRepo(session)
 
 	// 7. Setup storage gateway (local filesystem for Build Order 1)
 	gateway := storagegateway.NewLocalFileSystemGateway(cfg.UploadStoragePath)
+	var blockGateway storagegateway.BlockGateway = storagegateway.NewLocalBlockGateway(cfg.UploadStoragePath)
+	blockBackend := "local"
+	if cfg.S3Endpoint != "" {
+		configuredGateway, gatewayErr := storagegateway.NewS3BlockGateway(context.Background(), storagegateway.S3BlockGatewayConfig{
+			Bucket: cfg.S3Bucket, Region: cfg.S3Region, Endpoint: cfg.S3Endpoint,
+			AccessKey: cfg.S3AccessKey, SecretKey: cfg.S3SecretKey,
+		})
+		if gatewayErr != nil {
+			return fmt.Errorf("initialize S3 block gateway: %w", gatewayErr)
+		}
+		blockGateway = configuredGateway
+		blockBackend = cfg.S3StorageBackend
+		logger.Info("using S3-compatible block storage", zap.String("endpoint", cfg.S3Endpoint), zap.String("bucket", cfg.S3Bucket))
+	}
 
-	// 8. Setup service layer
+	// 8. Setup async event publisher
+	eventPublisher, err := service.NewNATSEventPublisher(cfg.NATSURL, cfg.NATSEventSubject)
+	if err != nil {
+		logger.Warn("nats publisher unavailable; continuing without async event bus",
+			zap.String("natsURL", cfg.NATSURL),
+			zap.Error(err),
+		)
+		eventPublisher = nil
+	} else {
+		defer eventPublisher.Close()
+	}
+
+	// 9. Setup service layer
 	uploadSvc := service.New(
 		sessionRepo,
-		chunkRepo,
+		blockRepo,
 		gateway,
+		blockGateway,
 		redisClient,
 		cache,
 		cfg,
 		logger,
+		eventPublisher,
+		blockBackend,
 	)
 
 	// 9. Setup Connect RPC server
 	uploadHandler := server.New(uploadSvc, logger)
 
-	// Create the handler chain with middleware
-	var handler http.Handler
-	handler = pbconnect.NewUploadServiceHandler(uploadHandler)
-	handler = interceptor.AuthInterceptor(handler, logger)
-	handler = corsMiddleware(handler)
-
 	// 10. Start HTTP server with h2c (HTTP/2 Cleartext) support for gRPC
 	addr := ":" + cfg.GRPCPort
 	mux := http.NewServeMux()
-	mux.Handle(pbconnect.NewUploadServiceHandler(uploadHandler))
+	uploadPath, uploadHandlerHTTP := pbconnect.NewUploadServiceHandler(
+		uploadHandler,
+		connect.WithInterceptors(loggingInterceptor),
+		connect.WithInterceptors(authInterceptor),
+	)
+	mux.Handle(uploadPath, uploadHandlerHTTP)
 
 	server := &http.Server{
 		Addr: addr,

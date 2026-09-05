@@ -90,14 +90,15 @@ func (x *InitUploadRequest) GetSha256OfFullFile() string {
 }
 
 type InitUploadResponse struct {
-	state                  protoimpl.MessageState `protogen:"open.v1"`
-	UploadId               string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
-	ChunkSizeBytes         int64                  `protobuf:"varint,2,opt,name=chunk_size_bytes,json=chunkSizeBytes,proto3" json:"chunk_size_bytes,omitempty"`
-	AlreadyReceivedOffsets []int64                `protobuf:"varint,3,rep,packed,name=already_received_offsets,json=alreadyReceivedOffsets,proto3" json:"already_received_offsets,omitempty"` // empty for a fresh upload
-	AlreadyComplete        bool                   `protobuf:"varint,4,opt,name=already_complete,json=alreadyComplete,proto3" json:"already_complete,omitempty"`                               // true if file already exists (dedup hit)
-	ObjectId               string                 `protobuf:"bytes,5,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`                                                     // if dedup hit, reference to existing object
-	unknownFields          protoimpl.UnknownFields
-	sizeCache              protoimpl.SizeCache
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	UploadId                    string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	ChunkSizeBytes              int64                  `protobuf:"varint,2,opt,name=chunk_size_bytes,json=chunkSizeBytes,proto3" json:"chunk_size_bytes,omitempty"`
+	AlreadyReceivedOffsets      []int64                `protobuf:"varint,3,rep,packed,name=already_received_offsets,json=alreadyReceivedOffsets,proto3" json:"already_received_offsets,omitempty"` // empty for a fresh upload
+	AlreadyComplete             bool                   `protobuf:"varint,4,opt,name=already_complete,json=alreadyComplete,proto3" json:"already_complete,omitempty"`                               // true if file already exists (dedup hit)
+	ObjectId                    string                 `protobuf:"bytes,5,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`                                                     // if dedup hit, reference to existing object
+	AlreadyReceivedChunkIndices []int32                `protobuf:"varint,6,rep,packed,name=already_received_chunk_indices,json=alreadyReceivedChunkIndices,proto3" json:"already_received_chunk_indices,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
 }
 
 func (x *InitUploadResponse) Reset() {
@@ -165,12 +166,20 @@ func (x *InitUploadResponse) GetObjectId() string {
 	return ""
 }
 
+func (x *InitUploadResponse) GetAlreadyReceivedChunkIndices() []int32 {
+	if x != nil {
+		return x.AlreadyReceivedChunkIndices
+	}
+	return nil
+}
+
 type UploadChunkRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UploadId      string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
 	Offset        int64                  `protobuf:"varint,2,opt,name=offset,proto3" json:"offset,omitempty"`
 	Data          []byte                 `protobuf:"bytes,3,opt,name=data,proto3" json:"data,omitempty"`
 	Sha256OfChunk string                 `protobuf:"bytes,4,opt,name=sha256_of_chunk,json=sha256OfChunk,proto3" json:"sha256_of_chunk,omitempty"`
+	ChunkIndex    int32                  `protobuf:"varint,5,opt,name=chunk_index,json=chunkIndex,proto3" json:"chunk_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -233,11 +242,19 @@ func (x *UploadChunkRequest) GetSha256OfChunk() string {
 	return ""
 }
 
+func (x *UploadChunkRequest) GetChunkIndex() int32 {
+	if x != nil {
+		return x.ChunkIndex
+	}
+	return 0
+}
+
 type UploadChunkAck struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	UploadId        string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
 	OffsetPersisted int64                  `protobuf:"varint,2,opt,name=offset_persisted,json=offsetPersisted,proto3" json:"offset_persisted,omitempty"`
 	IsFinal         bool                   `protobuf:"varint,3,opt,name=is_final,json=isFinal,proto3" json:"is_final,omitempty"`
+	Deduplicated    bool                   `protobuf:"varint,4,opt,name=deduplicated,proto3" json:"deduplicated,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -293,6 +310,13 @@ func (x *UploadChunkAck) GetIsFinal() bool {
 	return false
 }
 
+func (x *UploadChunkAck) GetDeduplicated() bool {
+	if x != nil {
+		return x.Deduplicated
+	}
+	return false
+}
+
 type GetUploadStatusRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UploadId      string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
@@ -338,13 +362,14 @@ func (x *GetUploadStatusRequest) GetUploadId() string {
 }
 
 type GetUploadStatusResponse struct {
-	state               protoimpl.MessageState `protogen:"open.v1"`
-	UploadId            string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
-	LastPersistedOffset int64                  `protobuf:"varint,2,opt,name=last_persisted_offset,json=lastPersistedOffset,proto3" json:"last_persisted_offset,omitempty"`
-	TotalSizeBytes      int64                  `protobuf:"varint,3,opt,name=total_size_bytes,json=totalSizeBytes,proto3" json:"total_size_bytes,omitempty"`
-	Status              string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"` // pending | in_progress | completed | aborted
-	unknownFields       protoimpl.UnknownFields
-	sizeCache           protoimpl.SizeCache
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	UploadId             string                 `protobuf:"bytes,1,opt,name=upload_id,json=uploadId,proto3" json:"upload_id,omitempty"`
+	LastPersistedOffset  int64                  `protobuf:"varint,2,opt,name=last_persisted_offset,json=lastPersistedOffset,proto3" json:"last_persisted_offset,omitempty"`
+	TotalSizeBytes       int64                  `protobuf:"varint,3,opt,name=total_size_bytes,json=totalSizeBytes,proto3" json:"total_size_bytes,omitempty"`
+	Status               string                 `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"` // pending | in_progress | completed | aborted
+	ReceivedChunkIndices []int32                `protobuf:"varint,5,rep,packed,name=received_chunk_indices,json=receivedChunkIndices,proto3" json:"received_chunk_indices,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *GetUploadStatusResponse) Reset() {
@@ -405,6 +430,13 @@ func (x *GetUploadStatusResponse) GetStatus() string {
 	return ""
 }
 
+func (x *GetUploadStatusResponse) GetReceivedChunkIndices() []int32 {
+	if x != nil {
+		return x.ReceivedChunkIndices
+	}
+	return nil
+}
+
 var File_upload_proto protoreflect.FileDescriptor
 
 const file_upload_proto_rawDesc = "" +
@@ -414,34 +446,40 @@ const file_upload_proto_rawDesc = "" +
 	"\bfilename\x18\x01 \x01(\tR\bfilename\x12(\n" +
 	"\x10total_size_bytes\x18\x02 \x01(\x03R\x0etotalSizeBytes\x12!\n" +
 	"\fcontent_type\x18\x03 \x01(\tR\vcontentType\x12-\n" +
-	"\x13sha256_of_full_file\x18\x04 \x01(\tR\x10sha256OfFullFile\"\xdd\x01\n" +
+	"\x13sha256_of_full_file\x18\x04 \x01(\tR\x10sha256OfFullFile\"\xa2\x02\n" +
 	"\x12InitUploadResponse\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12(\n" +
 	"\x10chunk_size_bytes\x18\x02 \x01(\x03R\x0echunkSizeBytes\x128\n" +
 	"\x18already_received_offsets\x18\x03 \x03(\x03R\x16alreadyReceivedOffsets\x12)\n" +
 	"\x10already_complete\x18\x04 \x01(\bR\x0falreadyComplete\x12\x1b\n" +
-	"\tobject_id\x18\x05 \x01(\tR\bobjectId\"\x85\x01\n" +
+	"\tobject_id\x18\x05 \x01(\tR\bobjectId\x12C\n" +
+	"\x1ealready_received_chunk_indices\x18\x06 \x03(\x05R\x1balreadyReceivedChunkIndices\"\xa6\x01\n" +
 	"\x12UploadChunkRequest\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12\x16\n" +
 	"\x06offset\x18\x02 \x01(\x03R\x06offset\x12\x12\n" +
 	"\x04data\x18\x03 \x01(\fR\x04data\x12&\n" +
-	"\x0fsha256_of_chunk\x18\x04 \x01(\tR\rsha256OfChunk\"s\n" +
+	"\x0fsha256_of_chunk\x18\x04 \x01(\tR\rsha256OfChunk\x12\x1f\n" +
+	"\vchunk_index\x18\x05 \x01(\x05R\n" +
+	"chunkIndex\"\x97\x01\n" +
 	"\x0eUploadChunkAck\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x12)\n" +
 	"\x10offset_persisted\x18\x02 \x01(\x03R\x0foffsetPersisted\x12\x19\n" +
-	"\bis_final\x18\x03 \x01(\bR\aisFinal\"5\n" +
+	"\bis_final\x18\x03 \x01(\bR\aisFinal\x12\"\n" +
+	"\fdeduplicated\x18\x04 \x01(\bR\fdeduplicated\"5\n" +
 	"\x16GetUploadStatusRequest\x12\x1b\n" +
-	"\tupload_id\x18\x01 \x01(\tR\buploadId\"\xac\x01\n" +
+	"\tupload_id\x18\x01 \x01(\tR\buploadId\"\xe2\x01\n" +
 	"\x17GetUploadStatusResponse\x12\x1b\n" +
 	"\tupload_id\x18\x01 \x01(\tR\buploadId\x122\n" +
 	"\x15last_persisted_offset\x18\x02 \x01(\x03R\x13lastPersistedOffset\x12(\n" +
 	"\x10total_size_bytes\x18\x03 \x01(\x03R\x0etotalSizeBytes\x12\x16\n" +
-	"\x06status\x18\x04 \x01(\tR\x06status2\xf0\x01\n" +
+	"\x06status\x18\x04 \x01(\tR\x06status\x124\n" +
+	"\x16received_chunk_indices\x18\x05 \x03(\x05R\x14receivedChunkIndices2\xb3\x02\n" +
 	"\rUploadService\x12C\n" +
 	"\n" +
-	"InitUpload\x12\x19.upload.InitUploadRequest\x1a\x1a.upload.InitUploadResponse\x12F\n" +
+	"InitUpload\x12\x19.upload.InitUploadRequest\x1a\x1a.upload.InitUploadResponse\x12A\n" +
+	"\vUploadChunk\x12\x1a.upload.UploadChunkRequest\x1a\x16.upload.UploadChunkAck\x12F\n" +
 	"\fUploadChunks\x12\x1a.upload.UploadChunkRequest\x1a\x16.upload.UploadChunkAck(\x010\x01\x12R\n" +
-	"\x0fGetUploadStatus\x12\x1e.upload.GetUploadStatusRequest\x1a\x1f.upload.GetUploadStatusResponseB1Z/github.com/Ajay01103/go-notion/upload/gen/pb;pbb\x06proto3"
+	"\x0fGetUploadStatus\x12\x1e.upload.GetUploadStatusRequest\x1a\x1f.upload.GetUploadStatusResponseB2Z0github.com/Ajay01103/go-dropbox/upload/gen/pb;pbb\x06proto3"
 
 var (
 	file_upload_proto_rawDescOnce sync.Once
@@ -466,13 +504,15 @@ var file_upload_proto_goTypes = []any{
 }
 var file_upload_proto_depIdxs = []int32{
 	0, // 0: upload.UploadService.InitUpload:input_type -> upload.InitUploadRequest
-	2, // 1: upload.UploadService.UploadChunks:input_type -> upload.UploadChunkRequest
-	4, // 2: upload.UploadService.GetUploadStatus:input_type -> upload.GetUploadStatusRequest
-	1, // 3: upload.UploadService.InitUpload:output_type -> upload.InitUploadResponse
-	3, // 4: upload.UploadService.UploadChunks:output_type -> upload.UploadChunkAck
-	5, // 5: upload.UploadService.GetUploadStatus:output_type -> upload.GetUploadStatusResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	2, // 1: upload.UploadService.UploadChunk:input_type -> upload.UploadChunkRequest
+	2, // 2: upload.UploadService.UploadChunks:input_type -> upload.UploadChunkRequest
+	4, // 3: upload.UploadService.GetUploadStatus:input_type -> upload.GetUploadStatusRequest
+	1, // 4: upload.UploadService.InitUpload:output_type -> upload.InitUploadResponse
+	3, // 5: upload.UploadService.UploadChunk:output_type -> upload.UploadChunkAck
+	3, // 6: upload.UploadService.UploadChunks:output_type -> upload.UploadChunkAck
+	5, // 7: upload.UploadService.GetUploadStatus:output_type -> upload.GetUploadStatusResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

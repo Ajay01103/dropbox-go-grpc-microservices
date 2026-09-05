@@ -689,7 +689,7 @@ const file_auth_proto_rawDesc = "" +
 	"\x06Logout\x12\x13.auth.LogoutRequest\x1a\x14.auth.LogoutResponse\x12Q\n" +
 	"\x10LogoutAllDevices\x12\x1d.auth.LogoutAllDevicesRequest\x1a\x1e.auth.LogoutAllDevicesResponse\x12H\n" +
 	"\rValidateToken\x12\x1a.auth.ValidateTokenRequest\x1a\x1b.auth.ValidateTokenResponse\x12K\n" +
-	"\x0eGetCurrentUser\x12\x1b.auth.GetCurrentUserRequest\x1a\x1c.auth.GetCurrentUserResponseB/Z-github.com/Ajay01103/go-notion/auth/gen/pb;pbb\x06proto3"
+	"\x0eGetCurrentUser\x12\x1b.auth.GetCurrentUserRequest\x1a\x1c.auth.GetCurrentUserResponseB0Z.github.com/Ajay01103/go-dropbox/auth/gen/pb;pbb\x06proto3"
 
 var (
 	file_auth_proto_rawDescOnce sync.Once

@@ -1,4 +1,4 @@
-module github.com/Ajay01103/go-notion/pkg
+module github.com/Ajay01103/go-dropbox/pkg
 
 go 1.25.0
 

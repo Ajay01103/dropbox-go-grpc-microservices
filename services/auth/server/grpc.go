@@ -5,9 +5,9 @@ import (
 	"errors"
 
 	"connectrpc.com/connect"
-	"github.com/Ajay01103/go-notion/auth/gen/pb"
-	"github.com/Ajay01103/go-notion/auth/gen/pb/pbconnect"
-	"github.com/Ajay01103/go-notion/auth/internal/service"
+	"github.com/Ajay01103/go-dropbox/auth/gen/pb"
+	"github.com/Ajay01103/go-dropbox/auth/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/auth/internal/service"
 )
 
 // AuthServer implements the pbconnect.AuthServiceHandler interface

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package metadata;
 
-option go_package = "github.com/Ajay01103/go-notion/metadata/gen/pb;pb";
+option go_package = "github.com/Ajay01103/go-dropbox/metadata/gen/pb;pb";
 
 // ─── Request / Response Messages ─────────────────────────────────────────────
 
@@ -13,6 +13,7 @@ message CreateFileRequest {
   string content_type = 4;
   string content_hash = 5; // SHA256 of full file
   string storage_key = 6; // reference to storage object
+  repeated string block_hash_list = 8; // ordered content-addressed blocks
 }
 
 message CreateFileResponse {
@@ -22,6 +23,27 @@ message CreateFileResponse {
   int64 size_bytes = 4;
   string content_hash = 5;
   string created_at = 6;
+  string storage_key = 7;
+  repeated string block_hash_list = 8;
+}
+
+message SetThumbnailRequest {
+  string file_id = 1;
+  string thumbnail_key = 2;
+  string thumbnail_status = 3; // pending | ready | failed
+}
+
+message SetThumbnailResponse {
+  bool success = 1;
+}
+
+message GetThumbnailStatusRequest {
+  string file_id = 1;
+}
+
+message GetThumbnailStatusResponse {
+  string thumbnail_key = 1;
+  string thumbnail_status = 2;
 }
 
 message GetFileRequest {
@@ -39,6 +61,10 @@ message File {
   string created_at = 8;
   string owner_id = 9;
   string parent_folder_id = 10;
+  string thumbnail_key = 11;
+  string thumbnail_status = 12;
+  string storage_key = 13;
+  repeated string block_hash_list = 14;
 }
 
 message ListFolderRequest {
@@ -64,6 +90,8 @@ message DeleteFileResponse {
 
 service MetadataService {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc SetThumbnail(SetThumbnailRequest) returns (SetThumbnailResponse);
+  rpc GetThumbnailStatus(GetThumbnailStatusRequest) returns (GetThumbnailStatusResponse);
   rpc GetFile(GetFileRequest) returns (File);
   rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);

@@ -8,8 +8,8 @@ import (
 	"github.com/dgraph-io/ristretto"
 	"go.uber.org/zap"
 
-	"github.com/Ajay01103/go-notion/metadata/config"
-	"github.com/Ajay01103/go-notion/metadata/internal/repository"
+	"github.com/Ajay01103/go-dropbox/metadata/config"
+	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
 )
 
 // MetadataService orchestrates file metadata operations
@@ -46,7 +46,7 @@ type CreateFileRequest struct {
 	ContentType  string
 	ContentHash  string // SHA256 hash for dedup
 	OwnerID      string
-	StorageKey   string
+	BlockHashList []string
 }
 
 // CreateFileResult is the result of successful file creation
@@ -57,6 +57,7 @@ type CreateFileResult struct {
 	SizeBytes   int64
 	ContentHash string
 	CreatedAt   string
+	BlockHashList []string
 }
 
 // CreateFile creates a new file metadata record
@@ -73,6 +74,7 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		req.Filename,
 		req.ContentType,
 		req.ContentHash,
+		req.BlockHashList,
 		req.SizeBytes,
 	)
 	if err != nil {
@@ -95,7 +97,38 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		SizeBytes:   file.SizeBytes,
 		ContentHash: file.ContentHash,
 		CreatedAt:   file.CreatedAt.String(),
+		BlockHashList: file.BlockHashList,
 	}, nil
+}
+
+func (s *MetadataService) SetThumbnail(ctx context.Context, fileID, folderID, thumbnailKey, thumbnailStatus string) error {
+	if fileID == "" || folderID == "" {
+		return errors.New("file_id and folder_id are required")
+	}
+	if thumbnailStatus == "" {
+		thumbnailStatus = "pending"
+	}
+	if err := s.metadataRepo.SetThumbnail(ctx, folderID, fileID, thumbnailKey, thumbnailStatus); err != nil {
+		s.logger.Error("failed to set thumbnail metadata",
+			zap.String("fileID", fileID),
+			zap.String("folderID", folderID),
+			zap.String("thumbnailStatus", thumbnailStatus),
+			zap.Error(err),
+		)
+		return fmt.Errorf("set thumbnail: %w", err)
+	}
+	return nil
+}
+
+func (s *MetadataService) GetThumbnailStatus(ctx context.Context, fileID, folderID string) (string, string, error) {
+	if fileID == "" || folderID == "" {
+		return "", "", errors.New("file_id and folder_id are required")
+	}
+	thumbnailKey, thumbnailStatus, err := s.metadataRepo.GetThumbnailStatus(ctx, folderID, fileID)
+	if err != nil {
+		return "", "", err
+	}
+	return thumbnailKey, thumbnailStatus, nil
 }
 
 // GetFileResult holds file metadata
@@ -109,6 +142,7 @@ type GetFileResult struct {
 	Version      int32
 	CreatedAt    string
 	OwnerID      string
+	BlockHashList []string
 }
 
 // GetFile retrieves file metadata
@@ -131,6 +165,7 @@ func (s *MetadataService) GetFile(ctx context.Context, fileID, folderID string) 
 		Version:     file.Version,
 		CreatedAt:   file.CreatedAt.String(),
 		OwnerID:     file.OwnerID,
+		BlockHashList: file.BlockHashList,
 	}, nil
 }
 
@@ -147,6 +182,7 @@ type FileInfo struct {
 	SizeBytes   int64
 	ContentType string
 	CreatedAt   string
+	BlockHashList []string
 }
 
 // ListFolder returns all files in a folder
@@ -175,6 +211,7 @@ func (s *MetadataService) ListFolder(ctx context.Context, folderID string, pageS
 			SizeBytes:   f.SizeBytes,
 			ContentType: f.ContentType,
 			CreatedAt:   f.CreatedAt.String(),
+			BlockHashList: f.BlockHashList,
 		}
 	}
 

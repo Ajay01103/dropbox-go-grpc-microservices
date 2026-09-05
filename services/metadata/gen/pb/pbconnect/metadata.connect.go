@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	pb "github.com/Ajay01103/go-notion/metadata/gen/pb"
+	pb "github.com/Ajay01103/go-dropbox/metadata/gen/pb"
 	http "net/http"
 	strings "strings"
 )
@@ -36,6 +36,12 @@ const (
 	// MetadataServiceCreateFileProcedure is the fully-qualified name of the MetadataService's
 	// CreateFile RPC.
 	MetadataServiceCreateFileProcedure = "/metadata.MetadataService/CreateFile"
+	// MetadataServiceSetThumbnailProcedure is the fully-qualified name of the MetadataService's
+	// SetThumbnail RPC.
+	MetadataServiceSetThumbnailProcedure = "/metadata.MetadataService/SetThumbnail"
+	// MetadataServiceGetThumbnailStatusProcedure is the fully-qualified name of the MetadataService's
+	// GetThumbnailStatus RPC.
+	MetadataServiceGetThumbnailStatusProcedure = "/metadata.MetadataService/GetThumbnailStatus"
 	// MetadataServiceGetFileProcedure is the fully-qualified name of the MetadataService's GetFile RPC.
 	MetadataServiceGetFileProcedure = "/metadata.MetadataService/GetFile"
 	// MetadataServiceListFolderProcedure is the fully-qualified name of the MetadataService's
@@ -49,6 +55,8 @@ const (
 // MetadataServiceClient is a client for the metadata.MetadataService service.
 type MetadataServiceClient interface {
 	CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error)
+	SetThumbnail(context.Context, *connect.Request[pb.SetThumbnailRequest]) (*connect.Response[pb.SetThumbnailResponse], error)
+	GetThumbnailStatus(context.Context, *connect.Request[pb.GetThumbnailStatusRequest]) (*connect.Response[pb.GetThumbnailStatusResponse], error)
 	GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error)
 	ListFolder(context.Context, *connect.Request[pb.ListFolderRequest]) (*connect.Response[pb.ListFolderResponse], error)
 	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
@@ -69,6 +77,18 @@ func NewMetadataServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MetadataServiceCreateFileProcedure,
 			connect.WithSchema(metadataServiceMethods.ByName("CreateFile")),
+			connect.WithClientOptions(opts...),
+		),
+		setThumbnail: connect.NewClient[pb.SetThumbnailRequest, pb.SetThumbnailResponse](
+			httpClient,
+			baseURL+MetadataServiceSetThumbnailProcedure,
+			connect.WithSchema(metadataServiceMethods.ByName("SetThumbnail")),
+			connect.WithClientOptions(opts...),
+		),
+		getThumbnailStatus: connect.NewClient[pb.GetThumbnailStatusRequest, pb.GetThumbnailStatusResponse](
+			httpClient,
+			baseURL+MetadataServiceGetThumbnailStatusProcedure,
+			connect.WithSchema(metadataServiceMethods.ByName("GetThumbnailStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		getFile: connect.NewClient[pb.GetFileRequest, pb.File](
@@ -94,15 +114,27 @@ func NewMetadataServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 
 // metadataServiceClient implements MetadataServiceClient.
 type metadataServiceClient struct {
-	createFile *connect.Client[pb.CreateFileRequest, pb.CreateFileResponse]
-	getFile    *connect.Client[pb.GetFileRequest, pb.File]
-	listFolder *connect.Client[pb.ListFolderRequest, pb.ListFolderResponse]
-	deleteFile *connect.Client[pb.DeleteFileRequest, pb.DeleteFileResponse]
+	createFile         *connect.Client[pb.CreateFileRequest, pb.CreateFileResponse]
+	setThumbnail       *connect.Client[pb.SetThumbnailRequest, pb.SetThumbnailResponse]
+	getThumbnailStatus *connect.Client[pb.GetThumbnailStatusRequest, pb.GetThumbnailStatusResponse]
+	getFile            *connect.Client[pb.GetFileRequest, pb.File]
+	listFolder         *connect.Client[pb.ListFolderRequest, pb.ListFolderResponse]
+	deleteFile         *connect.Client[pb.DeleteFileRequest, pb.DeleteFileResponse]
 }
 
 // CreateFile calls metadata.MetadataService.CreateFile.
 func (c *metadataServiceClient) CreateFile(ctx context.Context, req *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error) {
 	return c.createFile.CallUnary(ctx, req)
+}
+
+// SetThumbnail calls metadata.MetadataService.SetThumbnail.
+func (c *metadataServiceClient) SetThumbnail(ctx context.Context, req *connect.Request[pb.SetThumbnailRequest]) (*connect.Response[pb.SetThumbnailResponse], error) {
+	return c.setThumbnail.CallUnary(ctx, req)
+}
+
+// GetThumbnailStatus calls metadata.MetadataService.GetThumbnailStatus.
+func (c *metadataServiceClient) GetThumbnailStatus(ctx context.Context, req *connect.Request[pb.GetThumbnailStatusRequest]) (*connect.Response[pb.GetThumbnailStatusResponse], error) {
+	return c.getThumbnailStatus.CallUnary(ctx, req)
 }
 
 // GetFile calls metadata.MetadataService.GetFile.
@@ -123,6 +155,8 @@ func (c *metadataServiceClient) DeleteFile(ctx context.Context, req *connect.Req
 // MetadataServiceHandler is an implementation of the metadata.MetadataService service.
 type MetadataServiceHandler interface {
 	CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error)
+	SetThumbnail(context.Context, *connect.Request[pb.SetThumbnailRequest]) (*connect.Response[pb.SetThumbnailResponse], error)
+	GetThumbnailStatus(context.Context, *connect.Request[pb.GetThumbnailStatusRequest]) (*connect.Response[pb.GetThumbnailStatusResponse], error)
 	GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error)
 	ListFolder(context.Context, *connect.Request[pb.ListFolderRequest]) (*connect.Response[pb.ListFolderResponse], error)
 	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
@@ -139,6 +173,18 @@ func NewMetadataServiceHandler(svc MetadataServiceHandler, opts ...connect.Handl
 		MetadataServiceCreateFileProcedure,
 		svc.CreateFile,
 		connect.WithSchema(metadataServiceMethods.ByName("CreateFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	metadataServiceSetThumbnailHandler := connect.NewUnaryHandler(
+		MetadataServiceSetThumbnailProcedure,
+		svc.SetThumbnail,
+		connect.WithSchema(metadataServiceMethods.ByName("SetThumbnail")),
+		connect.WithHandlerOptions(opts...),
+	)
+	metadataServiceGetThumbnailStatusHandler := connect.NewUnaryHandler(
+		MetadataServiceGetThumbnailStatusProcedure,
+		svc.GetThumbnailStatus,
+		connect.WithSchema(metadataServiceMethods.ByName("GetThumbnailStatus")),
 		connect.WithHandlerOptions(opts...),
 	)
 	metadataServiceGetFileHandler := connect.NewUnaryHandler(
@@ -163,6 +209,10 @@ func NewMetadataServiceHandler(svc MetadataServiceHandler, opts ...connect.Handl
 		switch r.URL.Path {
 		case MetadataServiceCreateFileProcedure:
 			metadataServiceCreateFileHandler.ServeHTTP(w, r)
+		case MetadataServiceSetThumbnailProcedure:
+			metadataServiceSetThumbnailHandler.ServeHTTP(w, r)
+		case MetadataServiceGetThumbnailStatusProcedure:
+			metadataServiceGetThumbnailStatusHandler.ServeHTTP(w, r)
 		case MetadataServiceGetFileProcedure:
 			metadataServiceGetFileHandler.ServeHTTP(w, r)
 		case MetadataServiceListFolderProcedure:
@@ -180,6 +230,14 @@ type UnimplementedMetadataServiceHandler struct{}
 
 func (UnimplementedMetadataServiceHandler) CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.MetadataService.CreateFile is not implemented"))
+}
+
+func (UnimplementedMetadataServiceHandler) SetThumbnail(context.Context, *connect.Request[pb.SetThumbnailRequest]) (*connect.Response[pb.SetThumbnailResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.MetadataService.SetThumbnail is not implemented"))
+}
+
+func (UnimplementedMetadataServiceHandler) GetThumbnailStatus(context.Context, *connect.Request[pb.GetThumbnailStatusRequest]) (*connect.Response[pb.GetThumbnailStatusResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.MetadataService.GetThumbnailStatus is not implemented"))
 }
 
 func (UnimplementedMetadataServiceHandler) GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error) {

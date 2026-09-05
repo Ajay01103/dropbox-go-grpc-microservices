@@ -1,31 +1,70 @@
 PROTO_DIR     := proto
 AUTH_SVC      := services/auth
-
-AUTH_PB_OUT      := $(AUTH_SVC)/gen/pb
+UPLOAD_SVC    := services/upload
+METADATA_SVC  := services/metadata
+SHARING_SVC   := services/sharing
 
 # Do not globally export per-service .env values here; Goose variables can
 # collide across services and cause migrations to run against the wrong DB.
 
-.PHONY: help proto build run-auth run-notes run-whiteboard run-workspace run-voice run-gen seed-voices tidy scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
+.PHONY: help proto proto-auth proto-upload proto-metadata build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # ─── Code Generation ──────────────────────────────────────────────────────────
 
-proto: ## Generate gRPC Go and TS code from proto files
-	-@mkdir $(AUTH_PB_OUT) 2>nul || exit 0
+proto: proto-auth proto-upload proto-metadata proto-sharing ## Generate gRPC Go and TS code for all services from proto files
+
+proto-auth: ## Generate proto code for Auth service
 	cd $(PROTO_DIR)/auth && npx @bufbuild/buf generate
-	@echo "✓ Proto generated"
+	@echo "✓ Auth proto generated"
 
-# ─── Build & Run ──────────────────────────────────────────────────────────────
+proto-upload: ## Generate proto code for Upload service
+	cd $(PROTO_DIR)/upload && npx @bufbuild/buf generate
+	@echo "✓ Upload proto generated"
 
-build: ## Build the service binaries
+proto-metadata: ## Generate proto code for Metadata service
+	cd $(PROTO_DIR)/metadata && npx @bufbuild/buf generate
+	@echo "✓ Metadata proto generated"
+
+proto-sharing: ## Generate proto code for Sharing service
+	cd $(PROTO_DIR)/sharing && npx @bufbuild/buf generate
+	@echo "✓ Sharing proto generated"
+
+# ─── Build ────────────────────────────────────────────────────────────────────
+
+build: build-auth build-upload build-metadata build-sharing ## Build all service binaries
+
+build-auth: ## Build the Auth service binary
 	cd $(AUTH_SVC) && go build -o ../../bin/auth ./cmd/
 	@echo "✓ Auth service built"
 
+build-upload: ## Build the Upload service binary
+	cd $(UPLOAD_SVC) && go build -o ../../bin/upload ./cmd/
+	@echo "✓ Upload service built"
+
+build-metadata: ## Build the Metadata service binary
+	cd $(METADATA_SVC) && go build -o ../../bin/metadata ./cmd/
+	@echo "✓ Metadata service built"
+
+build-sharing: ## Build the Sharing service binary
+	cd $(SHARING_SVC) && go build -o ../../bin/sharing ./cmd/
+	@echo "✓ Sharing service built"
+
+# ─── Run ──────────────────────────────────────────────────────────────────────
+
 run-auth: ## Start Auth service (requires ScyllaDB running - see scylla-up)
 	cd $(AUTH_SVC) && go run ./cmd/
+
+run-upload: ## Start Upload service (requires ScyllaDB + RustFS running)
+	cd $(UPLOAD_SVC) && go run ./cmd/
+
+run-metadata: ## Start Metadata service (requires ScyllaDB running)
+	cd $(METADATA_SVC) && go run ./cmd/
+
+run-sharing: ## Start Sharing service (requires ScyllaDB running)
+	cd $(SHARING_SVC) && go run ./cmd/
 
 tidy: ## Tidy Go modules
 	cd $(AUTH_SVC) && go mod tidy

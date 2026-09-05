@@ -18,17 +18,17 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 
-	"github.com/Ajay01103/go-notion/auth/config"
-	"github.com/Ajay01103/go-notion/auth/db"
-	"github.com/Ajay01103/go-notion/auth/gen/pb/pbconnect"
-	"github.com/Ajay01103/go-notion/auth/internal/repository"
-	"github.com/Ajay01103/go-notion/auth/internal/scyllastore"
-	"github.com/Ajay01103/go-notion/auth/internal/service"
-	"github.com/Ajay01103/go-notion/auth/internal/tokencache"
-	"github.com/Ajay01103/go-notion/auth/server"
-	"github.com/Ajay01103/go-notion/pkg/interceptor"
-	pkglogger "github.com/Ajay01103/go-notion/pkg/logger"
-	"github.com/Ajay01103/go-notion/pkg/token"
+	"github.com/Ajay01103/go-dropbox/auth/config"
+	"github.com/Ajay01103/go-dropbox/auth/db"
+	"github.com/Ajay01103/go-dropbox/auth/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/auth/internal/repository"
+	"github.com/Ajay01103/go-dropbox/auth/internal/scyllastore"
+	"github.com/Ajay01103/go-dropbox/auth/internal/service"
+	"github.com/Ajay01103/go-dropbox/auth/internal/tokencache"
+	"github.com/Ajay01103/go-dropbox/auth/server"
+	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
+	pkglogger "github.com/Ajay01103/go-dropbox/pkg/logger"
+	"github.com/Ajay01103/go-dropbox/pkg/token"
 )
 
 // corsMiddleware allows Next.js or any other frontend to access Connect endpoints.

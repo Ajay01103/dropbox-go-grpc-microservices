@@ -13,6 +13,17 @@ type Config struct {
 	ScyllaUsername          string   `mapstructure:"SCYLLA_USERNAME"`
 	ScyllaPassword          string   `mapstructure:"SCYLLA_PASSWORD"`
 	GRPCPort                string   `mapstructure:"METADATA_GRPC_PORT"`
+	JWKSURL                 string   `mapstructure:"JWKS_URL"`
+	JWKSIssuer              string   `mapstructure:"JWKS_ISSUER"`
+	JWKSAudience            []string `mapstructure:"JWKS_AUDIENCE"`
+	NATSURL                 string   `mapstructure:"NATS_URL"`
+	NATSEventSubject        string   `mapstructure:"NATS_EVENT_SUBJECT"`
+	ThumbnailStoragePath    string   `mapstructure:"THUMBNAIL_STORAGE_PATH"`
+	S3Bucket                string   `mapstructure:"S3_BUCKET"`
+	S3Region                string   `mapstructure:"S3_REGION"`
+	S3Endpoint              string   `mapstructure:"S3_ENDPOINT"`
+	S3AccessKey             string   `mapstructure:"AWS_ACCESS_KEY_ID"`
+	S3SecretKey             string   `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 }
 
 // Load reads configuration from environment variables (and optionally a .env file)
@@ -27,6 +38,14 @@ func Load() (Config, error) {
 
 	// Defaults
 	viper.SetDefault("METADATA_GRPC_PORT", "50053")
+	viper.SetDefault("JWKS_URL", "http://localhost:50051/.well-known/jwks.json")
+	viper.SetDefault("JWKS_ISSUER", "")
+	viper.SetDefault("JWKS_AUDIENCE", []string{})
+	viper.SetDefault("NATS_URL", "nats://localhost:4222")
+	viper.SetDefault("NATS_EVENT_SUBJECT", "uploads.object.stored")
+	viper.SetDefault("THUMBNAIL_STORAGE_PATH", "../upload/uploads")
+	viper.SetDefault("S3_BUCKET", "uploads")
+	viper.SetDefault("S3_REGION", "us-east-1")
 	viper.SetDefault("SCYLLA_HOSTS", "localhost")
 	viper.SetDefault("SCYLLA_PORT", 9042)
 	viper.SetDefault("SCYLLA_DATACENTER", "datacenter1")

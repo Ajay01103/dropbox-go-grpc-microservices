@@ -1,0 +1,85 @@
+syntax = "proto3";
+
+package sharing;
+
+option go_package = "github.com/Ajay01103/go-dropbox/sharing/gen/pb;pb";
+
+message Share {
+  string share_id = 1;
+  string file_id = 2;
+  string shared_with = 3;
+  string permission = 4;
+  string granted_by = 5;
+  string expires_at = 6;
+}
+
+message CreateShareRequest {
+  string file_id = 1;
+  string shared_with = 2;
+  string permission = 3;
+  string expires_at = 4;
+}
+
+message CreateShareResponse {
+  string share_id = 1;
+  bool success = 2;
+}
+
+message RevokeShareRequest {
+  string file_id = 1;
+  string shared_with = 2;
+}
+
+message RevokeShareResponse {
+  bool success = 1;
+}
+
+message ListSharesForFileRequest {
+  string file_id = 1;
+}
+
+message ListSharesForFileResponse {
+  repeated Share shares = 1;
+}
+
+message CheckAccessRequest {
+  string file_id = 1;
+  string user_id = 2;
+  string link_token = 3;
+  string action = 4;
+}
+
+message CheckAccessResponse {
+  bool allowed = 1;
+  string permission = 2;
+  bool owner = 3;
+}
+
+message CreatePublicLinkRequest {
+  string file_id = 1;
+  string permission = 2;
+  int64 expires_in_seconds = 3;
+}
+
+message CreatePublicLinkResponse {
+  string link_token = 1;
+  string permission = 2;
+  string expires_at = 3;
+}
+
+message RevokePublicLinkRequest {
+  string link_token = 1;
+}
+
+message RevokePublicLinkResponse {
+  bool success = 1;
+}
+
+service SharingService {
+  rpc CreateShare(CreateShareRequest) returns (CreateShareResponse);
+  rpc RevokeShare(RevokeShareRequest) returns (RevokeShareResponse);
+  rpc ListSharesForFile(ListSharesForFileRequest) returns (ListSharesForFileResponse);
+  rpc CheckAccess(CheckAccessRequest) returns (CheckAccessResponse);
+  rpc CreatePublicLink(CreatePublicLinkRequest) returns (CreatePublicLinkResponse);
+  rpc RevokePublicLink(RevokePublicLinkRequest) returns (RevokePublicLinkResponse);
+}

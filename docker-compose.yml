@@ -91,83 +91,106 @@ services:
     networks:
       - scylladb-network
 
-  auth-service:
-    build:
-      context: .
-      dockerfile: services/auth/Dockerfile
-    container_name: auth-service-dev
+  nats:
+    image: nats:2.10-alpine
+    container_name: nats-dev
+    command: ["-js", "-sd", "/data", "-m", "8222"]
     ports:
-      - "50051:50051"
-    depends_on:
-      scylladb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      SCYLLA_HOSTS: scylladb
-      SCYLLA_PORT: 9042
-      SCYLLA_DATACENTER: datacenter1
-      SCYLLA_REPLICATION_FACTOR: 1
-      SCYLLA_USERNAME: cassandra
-      SCYLLA_PASSWORD: cassandra
-      REDIS_URL: redis://redis:6379
-      AUTH_GRPC_PORT: 50051
-      JWT_SECRET: your-secret-key-change-in-prod
-    networks:
-      - scylladb-network
-    restart: unless-stopped
-
-  upload-service:
-    build:
-      context: .
-      dockerfile: services/upload/Dockerfile
-    container_name: upload-service-dev
-    ports:
-      - "50052:50052"
-    depends_on:
-      scylladb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      SCYLLA_HOSTS: scylladb
-      SCYLLA_PORT: 9042
-      SCYLLA_DATACENTER: datacenter1
-      SCYLLA_REPLICATION_FACTOR: 1
-      SCYLLA_USERNAME: cassandra
-      SCYLLA_PASSWORD: cassandra
-      REDIS_URL: redis://redis:6379
-      UPLOAD_GRPC_PORT: 50052
-      CHUNK_SIZE_BYTES: 33554432
-      UPLOAD_STORAGE_PATH: /uploads
-      SESSION_TTL_SECONDS: 86400
+      - "4222:4222"
+      - "8222:8222"
     volumes:
-      - upload-data:/uploads
+      - nats-data:/data
     networks:
       - scylladb-network
-    restart: unless-stopped
 
-  metadata-service:
-    build:
-      context: .
-      dockerfile: services/metadata/Dockerfile
-    container_name: metadata-service-dev
-    ports:
-      - "50053:50053"
-    depends_on:
-      scylladb:
-        condition: service_healthy
-    environment:
-      SCYLLA_HOSTS: scylladb
-      SCYLLA_PORT: 9042
-      SCYLLA_DATACENTER: datacenter1
-      SCYLLA_REPLICATION_FACTOR: 1
-      SCYLLA_USERNAME: cassandra
-      SCYLLA_PASSWORD: cassandra
-      METADATA_GRPC_PORT: 50053
-    networks:
-      - scylladb-network
-    restart: unless-stopped
+  # auth-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/auth/Dockerfile
+  #   container_name: auth-service-dev
+  #   ports:
+  #     - "50051:50051"
+  #   depends_on:
+  #     scylladb:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     SCYLLA_HOSTS: scylladb
+  #     SCYLLA_PORT: 9042
+  #     SCYLLA_DATACENTER: datacenter1
+  #     SCYLLA_REPLICATION_FACTOR: 1
+  #     SCYLLA_USERNAME: cassandra
+  #     SCYLLA_PASSWORD: cassandra
+  #     REDIS_URL: redis://redis:6379
+  #     AUTH_GRPC_PORT: 50051
+  #     JWT_SECRET: your-secret-key-change-in-prod
+  #   networks:
+  #     - scylladb-network
+  #   restart: unless-stopped
+
+  # upload-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/upload/Dockerfile
+  #   container_name: upload-service-dev
+  #   ports:
+  #     - "50052:50052"
+  #   depends_on:
+  #     scylladb:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   environment:
+  #     SCYLLA_HOSTS: scylladb
+  #     SCYLLA_PORT: 9042
+  #     SCYLLA_DATACENTER: datacenter1
+  #     SCYLLA_REPLICATION_FACTOR: 1
+  #     SCYLLA_USERNAME: cassandra
+  #     SCYLLA_PASSWORD: cassandra
+  #     REDIS_URL: redis://redis:6379
+  #     UPLOAD_GRPC_PORT: 50052
+  #     CHUNK_SIZE_BYTES: 4194304
+  #     BLOCK_SIZE_BYTES: 4194304
+  #     S3_BUCKET: uploads
+  #     S3_REGION: us-east-1
+  #     S3_ENDPOINT: http://rustfs:9000
+  #     AWS_ACCESS_KEY_ID: rustfsadmin
+  #     AWS_SECRET_ACCESS_KEY: rustfsadmin
+  #     UPLOAD_STORAGE_PATH: /uploads
+  #     SESSION_TTL_SECONDS: 86400
+  #   volumes:
+  #     - upload-data:/uploads
+  #   networks:
+  #     - scylladb-network
+  #   restart: unless-stopped
+
+  # metadata-service:
+  #   build:
+  #     context: .
+  #     dockerfile: services/metadata/Dockerfile
+  #   container_name: metadata-service-dev
+  #   ports:
+  #     - "50053:50053"
+  #   depends_on:
+  #     scylladb:
+  #       condition: service_healthy
+  #   environment:
+  #     SCYLLA_HOSTS: scylladb
+  #     SCYLLA_PORT: 9042
+  #     SCYLLA_DATACENTER: datacenter1
+  #     SCYLLA_REPLICATION_FACTOR: 1
+  #     SCYLLA_USERNAME: cassandra
+  #     SCYLLA_PASSWORD: cassandra
+  #     METADATA_GRPC_PORT: 50053
+  #     S3_BUCKET: uploads
+  #     S3_REGION: us-east-1
+  #     S3_ENDPOINT: http://rustfs:9000
+  #     AWS_ACCESS_KEY_ID: z1a9YRXSpaz7Tdw6Vuyb
+  #     AWS_SECRET_ACCESS_KEY: hvzVbrw1YvM9Qm4g4DtT1at6CxHsajnojh4XcXlV
+  #   networks:
+  #     - scylladb-network
+  #   restart: unless-stopped
 
 volumes:
   scylladb-data:
@@ -177,6 +200,8 @@ volumes:
   rustfs-logs:
     driver: local
   redis-data:
+    driver: local
+  nats-data:
     driver: local
   upload-data:
     driver: local

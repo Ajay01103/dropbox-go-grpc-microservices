@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Ajay01103/go-notion/auth/config"
+	"github.com/Ajay01103/go-dropbox/auth/config"
 	"go.uber.org/zap"
 )
 

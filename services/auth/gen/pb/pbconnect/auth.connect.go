@@ -8,7 +8,7 @@ import (
 	connect "connectrpc.com/connect"
 	context "context"
 	errors "errors"
-	pb "github.com/Ajay01103/go-notion/auth/gen/pb"
+	pb "github.com/Ajay01103/go-dropbox/auth/gen/pb"
 	http "net/http"
 	strings "strings"
 )

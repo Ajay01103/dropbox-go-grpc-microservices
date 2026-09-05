@@ -12,16 +12,19 @@ import (
 
 // File represents a file metadata record
 type File struct {
-	FileID         string    `db:"file_id"`
-	FolderID       string    `db:"folder_id"`
-	Filename       string    `db:"filename"`
-	SizeBytes      int64     `db:"size_bytes"`
-	ContentType    string    `db:"content_type"`
-	ContentHash    string    `db:"content_hash"` // SHA256 for dedup
-	Version        int32     `db:"version"`
-	CreatedAt      time.Time `db:"created_at"`
-	OwnerID        string    `db:"owner_id"`
-	ParentFolderID string    `db:"parent_folder_id"`
+	FileID          string    `db:"file_id"`
+	FolderID        string    `db:"folder_id"`
+	Filename        string    `db:"filename"`
+	SizeBytes       int64     `db:"size_bytes"`
+	ContentType     string    `db:"content_type"`
+	ContentHash     string    `db:"content_hash"` // SHA256 for dedup
+	Version         int32     `db:"version"`
+	CreatedAt       time.Time `db:"created_at"`
+	OwnerID         string    `db:"owner_id"`
+	ParentFolderID  string    `db:"parent_folder_id"`
+	ThumbnailKey    string    `db:"thumbnail_key"`
+	ThumbnailStatus string    `db:"thumbnail_status"`
+	BlockHashList   []string  `db:"block_hash_list"`
 }
 
 // MetadataRepo provides data access for file metadata using ScyllaDB
@@ -35,7 +38,7 @@ func NewMetadataRepo(session *gocql.Session) *MetadataRepo {
 }
 
 // CreateFile inserts a new file record
-func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filename, contentType, contentHash string, sizeBytes int64) (File, error) {
+func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filename, contentType, contentHash string, blockHashList []string, sizeBytes int64) (File, error) {
 	fileID := uuid.New().String()
 	now := time.Now().UTC()
 
@@ -49,12 +52,13 @@ func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filena
 		Version:     1,
 		CreatedAt:   now,
 		OwnerID:     ownerID,
+		BlockHashList: blockHashList,
 	}
 
 	if err := r.session.Query(
-		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, version, created_at, owner_id, parent_folder_id)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		folderID, fileID, filename, sizeBytes, contentType, contentHash, 1, now, ownerID, folderID,
+		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		folderID, fileID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, ownerID, folderID, "", "pending",
 	).WithContext(ctx).Exec(); err != nil {
 		return File{}, fmt.Errorf("insert file: %w", err)
 	}
@@ -66,13 +70,13 @@ func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filena
 func (r *MetadataRepo) GetFile(ctx context.Context, fileID, folderID string) (File, error) {
 	var file File
 	err := r.session.Query(
-		`SELECT file_id, folder_id, filename, size_bytes, content_type, content_hash, version, created_at, owner_id, parent_folder_id
+		`SELECT file_id, folder_id, filename, size_bytes, content_type, content_hash, version, created_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, block_hash_list
 		FROM files_by_folder WHERE folder_id = ? AND file_id = ? LIMIT 1`,
 		folderID, fileID,
 	).WithContext(ctx).Scan(
 		&file.FileID, &file.FolderID, &file.Filename, &file.SizeBytes,
 		&file.ContentType, &file.ContentHash, &file.Version, &file.CreatedAt,
-		&file.OwnerID, &file.ParentFolderID,
+		&file.OwnerID, &file.ParentFolderID, &file.ThumbnailKey, &file.ThumbnailStatus, &file.BlockHashList,
 	)
 	if err == gocql.ErrNotFound {
 		return File{}, errors.New("file not found")
@@ -87,7 +91,7 @@ func (r *MetadataRepo) GetFile(ctx context.Context, fileID, folderID string) (Fi
 func (r *MetadataRepo) ListFolder(ctx context.Context, folderID string, limit int) ([]File, error) {
 	var files []File
 	iter := r.session.Query(
-		`SELECT file_id, folder_id, filename, size_bytes, content_type, content_hash, version, created_at, owner_id, parent_folder_id
+		`SELECT file_id, folder_id, filename, size_bytes, content_type, content_hash, version, created_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, block_hash_list
 		FROM files_by_folder WHERE folder_id = ? LIMIT ?`,
 		folderID, limit,
 	).WithContext(ctx).Iter()
@@ -97,7 +101,7 @@ func (r *MetadataRepo) ListFolder(ctx context.Context, folderID string, limit in
 	for iter.Scan(
 		&file.FileID, &file.FolderID, &file.Filename, &file.SizeBytes,
 		&file.ContentType, &file.ContentHash, &file.Version, &file.CreatedAt,
-		&file.OwnerID, &file.ParentFolderID,
+		&file.OwnerID, &file.ParentFolderID, &file.ThumbnailKey, &file.ThumbnailStatus, &file.BlockHashList,
 	) {
 		files = append(files, file)
 	}
@@ -115,6 +119,28 @@ func (r *MetadataRepo) DeleteFile(ctx context.Context, folderID, fileID string) 
 		`DELETE FROM files_by_folder WHERE folder_id = ? AND file_id = ?`,
 		folderID, fileID,
 	).WithContext(ctx).Exec()
+}
+
+func (r *MetadataRepo) SetThumbnail(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string) error {
+	return r.session.Query(
+		`UPDATE files_by_folder SET thumbnail_key = ?, thumbnail_status = ? WHERE folder_id = ? AND file_id = ?`,
+		thumbnailKey, thumbnailStatus, folderID, fileID,
+	).WithContext(ctx).Exec()
+}
+
+func (r *MetadataRepo) GetThumbnailStatus(ctx context.Context, folderID, fileID string) (string, string, error) {
+	var thumbnailKey, thumbnailStatus string
+	err := r.session.Query(
+		`SELECT thumbnail_key, thumbnail_status FROM files_by_folder WHERE folder_id = ? AND file_id = ? LIMIT 1`,
+		folderID, fileID,
+	).WithContext(ctx).Scan(&thumbnailKey, &thumbnailStatus)
+	if err == gocql.ErrNotFound {
+		return "", "", errors.New("file not found")
+	}
+	if err != nil {
+		return "", "", fmt.Errorf("get thumbnail status: %w", err)
+	}
+	return thumbnailKey, thumbnailStatus, nil
 }
 
 // Folder represents a folder record

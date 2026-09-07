@@ -41,11 +41,11 @@ func (s *SessionStore) GetSession(ctx context.Context, userID, sessionID string)
 	var (
 		storedUserID string
 		storedSessID string
-		gen         int64
-		deviceFP    string
-		expiresAt   time.Time
-		createdAt   time.Time
-		updatedAt   time.Time
+		gen          int64
+		deviceFP     string
+		expiresAt    time.Time
+		createdAt    time.Time
+		updatedAt    time.Time
 	)
 
 	err := s.session.Query(

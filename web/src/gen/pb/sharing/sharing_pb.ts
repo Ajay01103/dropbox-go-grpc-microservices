@@ -2,15 +2,16 @@
 // @generated from file sharing.proto (package sharing, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
-import type { Message } from "@bufbuild/protobuf";
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2"
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2"
+import type { Message } from "@bufbuild/protobuf"
 
 /**
  * Describes the file sharing.proto.
  */
-export const file_sharing: GenFile = /*@__PURE__*/
-  fileDesc("Cg1zaGFyaW5nLnByb3RvEgdzaGFyaW5nInsKBVNoYXJlEhAKCHNoYXJlX2lkGAEgASgJEg8KB2ZpbGVfaWQYAiABKAkSEwoLc2hhcmVkX3dpdGgYAyABKAkSEgoKcGVybWlzc2lvbhgEIAEoCRISCgpncmFudGVkX2J5GAUgASgJEhIKCmV4cGlyZXNfYXQYBiABKAkiYgoSQ3JlYXRlU2hhcmVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSEwoLc2hhcmVkX3dpdGgYAiABKAkSEgoKcGVybWlzc2lvbhgDIAEoCRISCgpleHBpcmVzX2F0GAQgASgJIjgKE0NyZWF0ZVNoYXJlUmVzcG9uc2USEAoIc2hhcmVfaWQYASABKAkSDwoHc3VjY2VzcxgCIAEoCCI6ChJSZXZva2VTaGFyZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRITCgtzaGFyZWRfd2l0aBgCIAEoCSImChNSZXZva2VTaGFyZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiKwoYTGlzdFNoYXJlc0ZvckZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiOwoZTGlzdFNoYXJlc0ZvckZpbGVSZXNwb25zZRIeCgZzaGFyZXMYASADKAsyDi5zaGFyaW5nLlNoYXJlIloKEkNoZWNrQWNjZXNzUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSEgoKbGlua190b2tlbhgDIAEoCRIOCgZhY3Rpb24YBCABKAkiSQoTQ2hlY2tBY2Nlc3NSZXNwb25zZRIPCgdhbGxvd2VkGAEgASgIEhIKCnBlcm1pc3Npb24YAiABKAkSDQoFb3duZXIYAyABKAgiWgoXQ3JlYXRlUHVibGljTGlua1JlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRISCgpwZXJtaXNzaW9uGAIgASgJEhoKEmV4cGlyZXNfaW5fc2Vjb25kcxgDIAEoAyJWChhDcmVhdGVQdWJsaWNMaW5rUmVzcG9uc2USEgoKbGlua190b2tlbhgBIAEoCRISCgpwZXJtaXNzaW9uGAIgASgJEhIKCmV4cGlyZXNfYXQYAyABKAkiLQoXUmV2b2tlUHVibGljTGlua1JlcXVlc3QSEgoKbGlua190b2tlbhgBIAEoCSIrChhSZXZva2VQdWJsaWNMaW5rUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCDL8AwoOU2hhcmluZ1NlcnZpY2USSAoLQ3JlYXRlU2hhcmUSGy5zaGFyaW5nLkNyZWF0ZVNoYXJlUmVxdWVzdBocLnNoYXJpbmcuQ3JlYXRlU2hhcmVSZXNwb25zZRJICgtSZXZva2VTaGFyZRIbLnNoYXJpbmcuUmV2b2tlU2hhcmVSZXF1ZXN0Ghwuc2hhcmluZy5SZXZva2VTaGFyZVJlc3BvbnNlEloKEUxpc3RTaGFyZXNGb3JGaWxlEiEuc2hhcmluZy5MaXN0U2hhcmVzRm9yRmlsZVJlcXVlc3QaIi5zaGFyaW5nLkxpc3RTaGFyZXNGb3JGaWxlUmVzcG9uc2USSAoLQ2hlY2tBY2Nlc3MSGy5zaGFyaW5nLkNoZWNrQWNjZXNzUmVxdWVzdBocLnNoYXJpbmcuQ2hlY2tBY2Nlc3NSZXNwb25zZRJXChBDcmVhdGVQdWJsaWNMaW5rEiAuc2hhcmluZy5DcmVhdGVQdWJsaWNMaW5rUmVxdWVzdBohLnNoYXJpbmcuQ3JlYXRlUHVibGljTGlua1Jlc3BvbnNlElcKEFJldm9rZVB1YmxpY0xpbmsSIC5zaGFyaW5nLlJldm9rZVB1YmxpY0xpbmtSZXF1ZXN0GiEuc2hhcmluZy5SZXZva2VQdWJsaWNMaW5rUmVzcG9uc2VCM1oxZ2l0aHViLmNvbS9BamF5MDExMDMvZ28tZHJvcGJveC9zaGFyaW5nL2dlbi9wYjtwYmIGcHJvdG8z");
+export const file_sharing: GenFile /*@__PURE__*/ = fileDesc(
+  "Cg1zaGFyaW5nLnByb3RvEgdzaGFyaW5nInsKBVNoYXJlEhAKCHNoYXJlX2lkGAEgASgJEg8KB2ZpbGVfaWQYAiABKAkSEwoLc2hhcmVkX3dpdGgYAyABKAkSEgoKcGVybWlzc2lvbhgEIAEoCRISCgpncmFudGVkX2J5GAUgASgJEhIKCmV4cGlyZXNfYXQYBiABKAkiYgoSQ3JlYXRlU2hhcmVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSEwoLc2hhcmVkX3dpdGgYAiABKAkSEgoKcGVybWlzc2lvbhgDIAEoCRISCgpleHBpcmVzX2F0GAQgASgJIjgKE0NyZWF0ZVNoYXJlUmVzcG9uc2USEAoIc2hhcmVfaWQYASABKAkSDwoHc3VjY2VzcxgCIAEoCCI6ChJSZXZva2VTaGFyZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRITCgtzaGFyZWRfd2l0aBgCIAEoCSImChNSZXZva2VTaGFyZVJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiKwoYTGlzdFNoYXJlc0ZvckZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiOwoZTGlzdFNoYXJlc0ZvckZpbGVSZXNwb25zZRIeCgZzaGFyZXMYASADKAsyDi5zaGFyaW5nLlNoYXJlIloKEkNoZWNrQWNjZXNzUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJEg8KB3VzZXJfaWQYAiABKAkSEgoKbGlua190b2tlbhgDIAEoCRIOCgZhY3Rpb24YBCABKAkiSQoTQ2hlY2tBY2Nlc3NSZXNwb25zZRIPCgdhbGxvd2VkGAEgASgIEhIKCnBlcm1pc3Npb24YAiABKAkSDQoFb3duZXIYAyABKAgiWgoXQ3JlYXRlUHVibGljTGlua1JlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRISCgpwZXJtaXNzaW9uGAIgASgJEhoKEmV4cGlyZXNfaW5fc2Vjb25kcxgDIAEoAyJWChhDcmVhdGVQdWJsaWNMaW5rUmVzcG9uc2USEgoKbGlua190b2tlbhgBIAEoCRISCgpwZXJtaXNzaW9uGAIgASgJEhIKCmV4cGlyZXNfYXQYAyABKAkiLQoXUmV2b2tlUHVibGljTGlua1JlcXVlc3QSEgoKbGlua190b2tlbhgBIAEoCSIrChhSZXZva2VQdWJsaWNMaW5rUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCDL8AwoOU2hhcmluZ1NlcnZpY2USSAoLQ3JlYXRlU2hhcmUSGy5zaGFyaW5nLkNyZWF0ZVNoYXJlUmVxdWVzdBocLnNoYXJpbmcuQ3JlYXRlU2hhcmVSZXNwb25zZRJICgtSZXZva2VTaGFyZRIbLnNoYXJpbmcuUmV2b2tlU2hhcmVSZXF1ZXN0Ghwuc2hhcmluZy5SZXZva2VTaGFyZVJlc3BvbnNlEloKEUxpc3RTaGFyZXNGb3JGaWxlEiEuc2hhcmluZy5MaXN0U2hhcmVzRm9yRmlsZVJlcXVlc3QaIi5zaGFyaW5nLkxpc3RTaGFyZXNGb3JGaWxlUmVzcG9uc2USSAoLQ2hlY2tBY2Nlc3MSGy5zaGFyaW5nLkNoZWNrQWNjZXNzUmVxdWVzdBocLnNoYXJpbmcuQ2hlY2tBY2Nlc3NSZXNwb25zZRJXChBDcmVhdGVQdWJsaWNMaW5rEiAuc2hhcmluZy5DcmVhdGVQdWJsaWNMaW5rUmVxdWVzdBohLnNoYXJpbmcuQ3JlYXRlUHVibGljTGlua1Jlc3BvbnNlElcKEFJldm9rZVB1YmxpY0xpbmsSIC5zaGFyaW5nLlJldm9rZVB1YmxpY0xpbmtSZXF1ZXN0GiEuc2hhcmluZy5SZXZva2VQdWJsaWNMaW5rUmVzcG9uc2VCM1oxZ2l0aHViLmNvbS9BamF5MDExMDMvZ28tZHJvcGJveC9zaGFyaW5nL2dlbi9wYjtwYmIGcHJvdG8z",
+)
 
 /**
  * @generated from message sharing.Share
@@ -19,40 +20,39 @@ export type Share = Message<"sharing.Share"> & {
   /**
    * @generated from field: string share_id = 1;
    */
-  shareId: string;
+  shareId: string
 
   /**
    * @generated from field: string file_id = 2;
    */
-  fileId: string;
+  fileId: string
 
   /**
    * @generated from field: string shared_with = 3;
    */
-  sharedWith: string;
+  sharedWith: string
 
   /**
    * @generated from field: string permission = 4;
    */
-  permission: string;
+  permission: string
 
   /**
    * @generated from field: string granted_by = 5;
    */
-  grantedBy: string;
+  grantedBy: string
 
   /**
    * @generated from field: string expires_at = 6;
    */
-  expiresAt: string;
-};
+  expiresAt: string
+}
 
 /**
  * Describes the message sharing.Share.
  * Use `create(ShareSchema)` to create a new message.
  */
-export const ShareSchema: GenMessage<Share> = /*@__PURE__*/
-  messageDesc(file_sharing, 0);
+export const ShareSchema: GenMessage<Share> /*@__PURE__*/ = messageDesc(file_sharing, 0)
 
 /**
  * @generated from message sharing.CreateShareRequest
@@ -61,30 +61,32 @@ export type CreateShareRequest = Message<"sharing.CreateShareRequest"> & {
   /**
    * @generated from field: string file_id = 1;
    */
-  fileId: string;
+  fileId: string
 
   /**
    * @generated from field: string shared_with = 2;
    */
-  sharedWith: string;
+  sharedWith: string
 
   /**
    * @generated from field: string permission = 3;
    */
-  permission: string;
+  permission: string
 
   /**
    * @generated from field: string expires_at = 4;
    */
-  expiresAt: string;
-};
+  expiresAt: string
+}
 
 /**
  * Describes the message sharing.CreateShareRequest.
  * Use `create(CreateShareRequestSchema)` to create a new message.
  */
-export const CreateShareRequestSchema: GenMessage<CreateShareRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 1);
+export const CreateShareRequestSchema: GenMessage<CreateShareRequest> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  1,
+)
 
 /**
  * @generated from message sharing.CreateShareResponse
@@ -93,20 +95,22 @@ export type CreateShareResponse = Message<"sharing.CreateShareResponse"> & {
   /**
    * @generated from field: string share_id = 1;
    */
-  shareId: string;
+  shareId: string
 
   /**
    * @generated from field: bool success = 2;
    */
-  success: boolean;
-};
+  success: boolean
+}
 
 /**
  * Describes the message sharing.CreateShareResponse.
  * Use `create(CreateShareResponseSchema)` to create a new message.
  */
-export const CreateShareResponseSchema: GenMessage<CreateShareResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 2);
+export const CreateShareResponseSchema: GenMessage<CreateShareResponse> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  2,
+)
 
 /**
  * @generated from message sharing.RevokeShareRequest
@@ -115,20 +119,22 @@ export type RevokeShareRequest = Message<"sharing.RevokeShareRequest"> & {
   /**
    * @generated from field: string file_id = 1;
    */
-  fileId: string;
+  fileId: string
 
   /**
    * @generated from field: string shared_with = 2;
    */
-  sharedWith: string;
-};
+  sharedWith: string
+}
 
 /**
  * Describes the message sharing.RevokeShareRequest.
  * Use `create(RevokeShareRequestSchema)` to create a new message.
  */
-export const RevokeShareRequestSchema: GenMessage<RevokeShareRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 3);
+export const RevokeShareRequestSchema: GenMessage<RevokeShareRequest> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  3,
+)
 
 /**
  * @generated from message sharing.RevokeShareResponse
@@ -137,15 +143,17 @@ export type RevokeShareResponse = Message<"sharing.RevokeShareResponse"> & {
   /**
    * @generated from field: bool success = 1;
    */
-  success: boolean;
-};
+  success: boolean
+}
 
 /**
  * Describes the message sharing.RevokeShareResponse.
  * Use `create(RevokeShareResponseSchema)` to create a new message.
  */
-export const RevokeShareResponseSchema: GenMessage<RevokeShareResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 4);
+export const RevokeShareResponseSchema: GenMessage<RevokeShareResponse> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  4,
+)
 
 /**
  * @generated from message sharing.ListSharesForFileRequest
@@ -154,15 +162,15 @@ export type ListSharesForFileRequest = Message<"sharing.ListSharesForFileRequest
   /**
    * @generated from field: string file_id = 1;
    */
-  fileId: string;
-};
+  fileId: string
+}
 
 /**
  * Describes the message sharing.ListSharesForFileRequest.
  * Use `create(ListSharesForFileRequestSchema)` to create a new message.
  */
-export const ListSharesForFileRequestSchema: GenMessage<ListSharesForFileRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 5);
+export const ListSharesForFileRequestSchema: GenMessage<ListSharesForFileRequest> /*@__PURE__*/ =
+  messageDesc(file_sharing, 5)
 
 /**
  * @generated from message sharing.ListSharesForFileResponse
@@ -171,15 +179,15 @@ export type ListSharesForFileResponse = Message<"sharing.ListSharesForFileRespon
   /**
    * @generated from field: repeated sharing.Share shares = 1;
    */
-  shares: Share[];
-};
+  shares: Share[]
+}
 
 /**
  * Describes the message sharing.ListSharesForFileResponse.
  * Use `create(ListSharesForFileResponseSchema)` to create a new message.
  */
-export const ListSharesForFileResponseSchema: GenMessage<ListSharesForFileResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 6);
+export const ListSharesForFileResponseSchema: GenMessage<ListSharesForFileResponse> /*@__PURE__*/ =
+  messageDesc(file_sharing, 6)
 
 /**
  * @generated from message sharing.CheckAccessRequest
@@ -188,30 +196,32 @@ export type CheckAccessRequest = Message<"sharing.CheckAccessRequest"> & {
   /**
    * @generated from field: string file_id = 1;
    */
-  fileId: string;
+  fileId: string
 
   /**
    * @generated from field: string user_id = 2;
    */
-  userId: string;
+  userId: string
 
   /**
    * @generated from field: string link_token = 3;
    */
-  linkToken: string;
+  linkToken: string
 
   /**
    * @generated from field: string action = 4;
    */
-  action: string;
-};
+  action: string
+}
 
 /**
  * Describes the message sharing.CheckAccessRequest.
  * Use `create(CheckAccessRequestSchema)` to create a new message.
  */
-export const CheckAccessRequestSchema: GenMessage<CheckAccessRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 7);
+export const CheckAccessRequestSchema: GenMessage<CheckAccessRequest> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  7,
+)
 
 /**
  * @generated from message sharing.CheckAccessResponse
@@ -220,25 +230,27 @@ export type CheckAccessResponse = Message<"sharing.CheckAccessResponse"> & {
   /**
    * @generated from field: bool allowed = 1;
    */
-  allowed: boolean;
+  allowed: boolean
 
   /**
    * @generated from field: string permission = 2;
    */
-  permission: string;
+  permission: string
 
   /**
    * @generated from field: bool owner = 3;
    */
-  owner: boolean;
-};
+  owner: boolean
+}
 
 /**
  * Describes the message sharing.CheckAccessResponse.
  * Use `create(CheckAccessResponseSchema)` to create a new message.
  */
-export const CheckAccessResponseSchema: GenMessage<CheckAccessResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 8);
+export const CheckAccessResponseSchema: GenMessage<CheckAccessResponse> /*@__PURE__*/ = messageDesc(
+  file_sharing,
+  8,
+)
 
 /**
  * @generated from message sharing.CreatePublicLinkRequest
@@ -247,25 +259,25 @@ export type CreatePublicLinkRequest = Message<"sharing.CreatePublicLinkRequest">
   /**
    * @generated from field: string file_id = 1;
    */
-  fileId: string;
+  fileId: string
 
   /**
    * @generated from field: string permission = 2;
    */
-  permission: string;
+  permission: string
 
   /**
    * @generated from field: int64 expires_in_seconds = 3;
    */
-  expiresInSeconds: bigint;
-};
+  expiresInSeconds: bigint
+}
 
 /**
  * Describes the message sharing.CreatePublicLinkRequest.
  * Use `create(CreatePublicLinkRequestSchema)` to create a new message.
  */
-export const CreatePublicLinkRequestSchema: GenMessage<CreatePublicLinkRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 9);
+export const CreatePublicLinkRequestSchema: GenMessage<CreatePublicLinkRequest> /*@__PURE__*/ =
+  messageDesc(file_sharing, 9)
 
 /**
  * @generated from message sharing.CreatePublicLinkResponse
@@ -274,25 +286,25 @@ export type CreatePublicLinkResponse = Message<"sharing.CreatePublicLinkResponse
   /**
    * @generated from field: string link_token = 1;
    */
-  linkToken: string;
+  linkToken: string
 
   /**
    * @generated from field: string permission = 2;
    */
-  permission: string;
+  permission: string
 
   /**
    * @generated from field: string expires_at = 3;
    */
-  expiresAt: string;
-};
+  expiresAt: string
+}
 
 /**
  * Describes the message sharing.CreatePublicLinkResponse.
  * Use `create(CreatePublicLinkResponseSchema)` to create a new message.
  */
-export const CreatePublicLinkResponseSchema: GenMessage<CreatePublicLinkResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 10);
+export const CreatePublicLinkResponseSchema: GenMessage<CreatePublicLinkResponse> /*@__PURE__*/ =
+  messageDesc(file_sharing, 10)
 
 /**
  * @generated from message sharing.RevokePublicLinkRequest
@@ -301,15 +313,15 @@ export type RevokePublicLinkRequest = Message<"sharing.RevokePublicLinkRequest">
   /**
    * @generated from field: string link_token = 1;
    */
-  linkToken: string;
-};
+  linkToken: string
+}
 
 /**
  * Describes the message sharing.RevokePublicLinkRequest.
  * Use `create(RevokePublicLinkRequestSchema)` to create a new message.
  */
-export const RevokePublicLinkRequestSchema: GenMessage<RevokePublicLinkRequest> = /*@__PURE__*/
-  messageDesc(file_sharing, 11);
+export const RevokePublicLinkRequestSchema: GenMessage<RevokePublicLinkRequest> /*@__PURE__*/ =
+  messageDesc(file_sharing, 11)
 
 /**
  * @generated from message sharing.RevokePublicLinkResponse
@@ -318,15 +330,15 @@ export type RevokePublicLinkResponse = Message<"sharing.RevokePublicLinkResponse
   /**
    * @generated from field: bool success = 1;
    */
-  success: boolean;
-};
+  success: boolean
+}
 
 /**
  * Describes the message sharing.RevokePublicLinkResponse.
  * Use `create(RevokePublicLinkResponseSchema)` to create a new message.
  */
-export const RevokePublicLinkResponseSchema: GenMessage<RevokePublicLinkResponse> = /*@__PURE__*/
-  messageDesc(file_sharing, 12);
+export const RevokePublicLinkResponseSchema: GenMessage<RevokePublicLinkResponse> /*@__PURE__*/ =
+  messageDesc(file_sharing, 12)
 
 /**
  * @generated from service sharing.SharingService
@@ -336,50 +348,48 @@ export const SharingService: GenService<{
    * @generated from rpc sharing.SharingService.CreateShare
    */
   createShare: {
-    methodKind: "unary";
-    input: typeof CreateShareRequestSchema;
-    output: typeof CreateShareResponseSchema;
-  },
+    methodKind: "unary"
+    input: typeof CreateShareRequestSchema
+    output: typeof CreateShareResponseSchema
+  }
   /**
    * @generated from rpc sharing.SharingService.RevokeShare
    */
   revokeShare: {
-    methodKind: "unary";
-    input: typeof RevokeShareRequestSchema;
-    output: typeof RevokeShareResponseSchema;
-  },
+    methodKind: "unary"
+    input: typeof RevokeShareRequestSchema
+    output: typeof RevokeShareResponseSchema
+  }
   /**
    * @generated from rpc sharing.SharingService.ListSharesForFile
    */
   listSharesForFile: {
-    methodKind: "unary";
-    input: typeof ListSharesForFileRequestSchema;
-    output: typeof ListSharesForFileResponseSchema;
-  },
+    methodKind: "unary"
+    input: typeof ListSharesForFileRequestSchema
+    output: typeof ListSharesForFileResponseSchema
+  }
   /**
    * @generated from rpc sharing.SharingService.CheckAccess
    */
   checkAccess: {
-    methodKind: "unary";
-    input: typeof CheckAccessRequestSchema;
-    output: typeof CheckAccessResponseSchema;
-  },
+    methodKind: "unary"
+    input: typeof CheckAccessRequestSchema
+    output: typeof CheckAccessResponseSchema
+  }
   /**
    * @generated from rpc sharing.SharingService.CreatePublicLink
    */
   createPublicLink: {
-    methodKind: "unary";
-    input: typeof CreatePublicLinkRequestSchema;
-    output: typeof CreatePublicLinkResponseSchema;
-  },
+    methodKind: "unary"
+    input: typeof CreatePublicLinkRequestSchema
+    output: typeof CreatePublicLinkResponseSchema
+  }
   /**
    * @generated from rpc sharing.SharingService.RevokePublicLink
    */
   revokePublicLink: {
-    methodKind: "unary";
-    input: typeof RevokePublicLinkRequestSchema;
-    output: typeof RevokePublicLinkResponseSchema;
-  },
-}> = /*@__PURE__*/
-  serviceDesc(file_sharing, 0);
-
+    methodKind: "unary"
+    input: typeof RevokePublicLinkRequestSchema
+    output: typeof RevokePublicLinkResponseSchema
+  }
+}> /*@__PURE__*/ = serviceDesc(file_sharing, 0)

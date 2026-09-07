@@ -1,25 +1,25 @@
-"use client";
+"use client"
 
-import { useEffect, useRef, type FC } from "react";
-import { Mesh, Program, Renderer, Triangle } from "ogl";
+import { useEffect, useRef, type FC } from "react"
+import { Mesh, Program, Renderer, Triangle } from "ogl"
 
 const hexToRgb = (hex: string): [number, number, number] => {
-  const value = hex.trim().replace(/^#/, "");
+  const value = hex.trim().replace(/^#/, "")
   const normalized =
-    value.length === 3 ? value.replace(/./g, (channel) => channel + channel) : value;
-  const match = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized);
-  if (!match) return [1, 1, 1];
-  return [parseInt(match[1], 16) / 255, parseInt(match[2], 16) / 255, parseInt(match[3], 16) / 255];
-};
+    value.length === 3 ? value.replace(/./g, (channel) => channel + channel) : value
+  const match = /^([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(normalized)
+  if (!match) return [1, 1, 1]
+  return [parseInt(match[1], 16) / 255, parseInt(match[2], 16) / 255, parseInt(match[3], 16) / 255]
+}
 
-type ColorUniform = { value: Float32Array };
+type ColorUniform = { value: Float32Array }
 
 const setColor = (uniform: ColorUniform, hex: string) => {
-  const color = hexToRgb(hex);
-  uniform.value[0] = color[0];
-  uniform.value[1] = color[1];
-  uniform.value[2] = color[2];
-};
+  const color = hexToRgb(hex)
+  uniform.value[0] = color[0]
+  uniform.value[1] = color[1]
+  uniform.value[2] = color[2]
+}
 
 const vertex = `#version 300 es
 in vec2 position;
@@ -27,7 +27,7 @@ in vec2 position;
 void main() {
   gl_Position = vec4(position, 0.0, 1.0);
 }
-`;
+`
 
 const fragment = `#version 300 es
 precision highp float;
@@ -149,49 +149,49 @@ void main() {
   outputColor = clamp(outputColor + noise, 0.0, 1.0);
   fragColor = vec4(outputColor, 1.0);
 }
-`;
+`
 
 type GhostFibersContext = {
-  renderer: InstanceType<typeof Renderer>;
-  program: InstanceType<typeof Program>;
-  mesh: InstanceType<typeof Mesh>;
-  render: () => void;
-  setPaused: (value: boolean) => void;
-  setFps: (value: number) => void;
-};
-
-export interface GhostFibersProps {
-  lineColor?: string;
-  glowColor?: string;
-  speed?: number;
-  scale?: number;
-  rotation?: number;
-  rotationSpeed?: number;
-  layers?: number;
-  waveAmplitude?: number;
-  waveFrequency?: number;
-  waveSpeed?: number;
-  layerSpeed?: number;
-  twist?: number;
-  twistFrequency?: number;
-  twistSpeed?: number;
-  lineFrequency?: number;
-  lineSpacing?: number;
-  lineSharpness?: number;
-  glowFalloff?: number;
-  glowIntensity?: number;
-  brightness?: number;
-  blueBoost?: number;
-  vignette?: number;
-  grain?: number;
-  lightMode?: boolean;
-  dpr?: number;
-  fps?: number;
-  paused?: boolean;
-  className?: string;
+  renderer: InstanceType<typeof Renderer>
+  program: InstanceType<typeof Program>
+  mesh: InstanceType<typeof Mesh>
+  render: () => void
+  setPaused: (value: boolean) => void
+  setFps: (value: number) => void
 }
 
-const contexts = new WeakMap<HTMLDivElement, GhostFibersContext>();
+export interface GhostFibersProps {
+  lineColor?: string
+  glowColor?: string
+  speed?: number
+  scale?: number
+  rotation?: number
+  rotationSpeed?: number
+  layers?: number
+  waveAmplitude?: number
+  waveFrequency?: number
+  waveSpeed?: number
+  layerSpeed?: number
+  twist?: number
+  twistFrequency?: number
+  twistSpeed?: number
+  lineFrequency?: number
+  lineSpacing?: number
+  lineSharpness?: number
+  glowFalloff?: number
+  glowIntensity?: number
+  brightness?: number
+  blueBoost?: number
+  vignette?: number
+  grain?: number
+  lightMode?: boolean
+  dpr?: number
+  fps?: number
+  paused?: boolean
+  className?: string
+}
+
+const contexts = new WeakMap<HTMLDivElement, GhostFibersContext>()
 
 const GhostFibers: FC<GhostFibersProps> = ({
   lineColor = "#140E35",
@@ -223,27 +223,27 @@ const GhostFibers: FC<GhostFibersProps> = ({
   paused = false,
   className = "",
 }) => {
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const container = containerRef.current
+    if (!container) return
 
     const renderer = new Renderer({
       webgl: 2,
       alpha: false,
       antialias: false,
       dpr: Math.min(Math.max(dpr, 0.5), 2),
-    });
-    const gl = renderer.gl;
-    const canvas = gl.canvas as HTMLCanvasElement;
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.display = "block";
-    canvas.setAttribute("aria-hidden", "true");
-    container.appendChild(canvas);
+    })
+    const gl = renderer.gl
+    const canvas = gl.canvas as HTMLCanvasElement
+    canvas.style.width = "100%"
+    canvas.style.height = "100%"
+    canvas.style.display = "block"
+    canvas.setAttribute("aria-hidden", "true")
+    container.appendChild(canvas)
 
-    const geometry = new Triangle(gl);
+    const geometry = new Triangle(gl)
     const program = new Program(gl, {
       vertex,
       fragment,
@@ -275,83 +275,83 @@ const GhostFibers: FC<GhostFibersProps> = ({
         uLineColor: { value: new Float32Array(hexToRgb("#140E35")) },
         uGlowColor: { value: new Float32Array(hexToRgb("#3437A0")) },
       },
-    });
-    const mesh = new Mesh(gl, { geometry, program });
+    })
+    const mesh = new Mesh(gl, { geometry, program })
 
-    let frameId = 0;
-    let elapsed = 0;
-    let previousTime = performance.now();
-    let lastRenderTime = 0;
-    let frameRate = 60;
-    let isPaused = false;
-    let isVisible = true;
-    let isPageVisible = !document.hidden;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frameId = 0
+    let elapsed = 0
+    let previousTime = performance.now()
+    let lastRenderTime = 0
+    let frameRate = 60
+    let isPaused = false
+    let isVisible = true
+    let isPageVisible = !document.hidden
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)")
 
-    const render = () => renderer.render({ scene: mesh });
+    const render = () => renderer.render({ scene: mesh })
     const stop = () => {
-      if (frameId !== 0) cancelAnimationFrame(frameId);
-      frameId = 0;
-    };
-    const canAnimate = () => isVisible && isPageVisible && !isPaused && !reducedMotion.matches;
+      if (frameId !== 0) cancelAnimationFrame(frameId)
+      frameId = 0
+    }
+    const canAnimate = () => isVisible && isPageVisible && !isPaused && !reducedMotion.matches
 
     const loop = (now: number) => {
-      frameId = 0;
-      if (!canAnimate()) return;
+      frameId = 0
+      if (!canAnimate()) return
 
-      const delta = Math.min((now - previousTime) / 1000, 0.1);
-      previousTime = now;
-      elapsed += delta;
+      const delta = Math.min((now - previousTime) / 1000, 0.1)
+      previousTime = now
+      elapsed += delta
 
       if (now - lastRenderTime >= 1000 / frameRate - 0.5) {
-        program.uniforms.uTime.value = elapsed;
-        render();
-        lastRenderTime = now;
+        program.uniforms.uTime.value = elapsed
+        render()
+        lastRenderTime = now
       }
 
-      frameId = requestAnimationFrame(loop);
-    };
+      frameId = requestAnimationFrame(loop)
+    }
 
     const start = () => {
-      if (!canAnimate() || frameId !== 0) return;
-      previousTime = performance.now();
-      frameId = requestAnimationFrame(loop);
-    };
+      if (!canAnimate() || frameId !== 0) return
+      previousTime = performance.now()
+      frameId = requestAnimationFrame(loop)
+    }
 
     const setSize = () => {
-      const rect = container.getBoundingClientRect();
-      renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)));
-      program.uniforms.uResolution.value[0] = gl.drawingBufferWidth;
-      program.uniforms.uResolution.value[1] = gl.drawingBufferHeight;
-      render();
-    };
+      const rect = container.getBoundingClientRect()
+      renderer.setSize(Math.max(1, Math.floor(rect.width)), Math.max(1, Math.floor(rect.height)))
+      program.uniforms.uResolution.value[0] = gl.drawingBufferWidth
+      program.uniforms.uResolution.value[1] = gl.drawingBufferHeight
+      render()
+    }
 
     const handleVisibility = () => {
-      isPageVisible = !document.hidden;
-      if (canAnimate()) start();
-      else stop();
-    };
+      isPageVisible = !document.hidden
+      if (canAnimate()) start()
+      else stop()
+    }
     const handleReducedMotion = () => {
-      if (canAnimate()) start();
+      if (canAnimate()) start()
       else {
-        stop();
-        render();
+        stop()
+        render()
       }
-    };
+    }
 
-    const resizeObserver = new ResizeObserver(setSize);
-    resizeObserver.observe(container);
+    const resizeObserver = new ResizeObserver(setSize)
+    resizeObserver.observe(container)
     const intersectionObserver = new IntersectionObserver(
       ([entry]) => {
-        isVisible = entry.isIntersecting;
-        if (canAnimate()) start();
-        else stop();
+        isVisible = entry.isIntersecting
+        if (canAnimate()) start()
+        else stop()
       },
       { threshold: 0 },
-    );
-    intersectionObserver.observe(container);
-    document.addEventListener("visibilitychange", handleVisibility);
-    reducedMotion.addEventListener("change", handleReducedMotion);
+    )
+    intersectionObserver.observe(container)
+    document.addEventListener("visibilitychange", handleVisibility)
+    reducedMotion.addEventListener("change", handleReducedMotion)
 
     contexts.set(container, {
       renderer,
@@ -359,67 +359,67 @@ const GhostFibers: FC<GhostFibersProps> = ({
       mesh,
       render,
       setPaused(value) {
-        isPaused = value;
-        if (canAnimate()) start();
+        isPaused = value
+        if (canAnimate()) start()
         else {
-          stop();
-          render();
+          stop()
+          render()
         }
       },
       setFps(value) {
-        frameRate = Math.min(Math.max(value, 1), 120);
+        frameRate = Math.min(Math.max(value, 1), 120)
       },
-    });
+    })
 
-    setSize();
-    start();
+    setSize()
+    start()
 
     return () => {
-      stop();
-      resizeObserver.disconnect();
-      intersectionObserver.disconnect();
-      document.removeEventListener("visibilitychange", handleVisibility);
-      reducedMotion.removeEventListener("change", handleReducedMotion);
-      contexts.delete(container);
-      if (canvas.parentNode === container) container.removeChild(canvas);
-      gl.getExtension("WEBGL_lose_context")?.loseContext();
-    };
-  }, [dpr]);
+      stop()
+      resizeObserver.disconnect()
+      intersectionObserver.disconnect()
+      document.removeEventListener("visibilitychange", handleVisibility)
+      reducedMotion.removeEventListener("change", handleReducedMotion)
+      contexts.delete(container)
+      if (canvas.parentNode === container) container.removeChild(canvas)
+      gl.getExtension("WEBGL_lose_context")?.loseContext()
+    }
+  }, [dpr])
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    const context = contexts.get(container);
-    if (!context) return;
+    const container = containerRef.current
+    if (!container) return
+    const context = contexts.get(container)
+    if (!context) return
 
-    const uniforms = context.program.uniforms;
-    setColor(uniforms.uLineColor, lineColor);
-    setColor(uniforms.uGlowColor, glowColor);
-    uniforms.uSpeed.value = speed;
-    uniforms.uScale.value = scale;
-    uniforms.uRotation.value = rotation;
-    uniforms.uRotationSpeed.value = rotationSpeed;
-    uniforms.uLayers.value = Math.min(Math.max(Math.round(layers), 1), 10);
-    uniforms.uWaveAmplitude.value = waveAmplitude;
-    uniforms.uWaveFrequency.value = waveFrequency;
-    uniforms.uWaveSpeed.value = waveSpeed;
-    uniforms.uLayerSpeed.value = layerSpeed;
-    uniforms.uTwist.value = twist;
-    uniforms.uTwistFrequency.value = twistFrequency;
-    uniforms.uTwistSpeed.value = twistSpeed;
-    uniforms.uLineFrequency.value = lineFrequency;
-    uniforms.uLineSpacing.value = lineSpacing;
-    uniforms.uLineSharpness.value = lineSharpness;
-    uniforms.uGlowFalloff.value = glowFalloff;
-    uniforms.uGlowIntensity.value = glowIntensity;
-    uniforms.uBrightness.value = brightness;
-    uniforms.uBlueBoost.value = blueBoost;
-    uniforms.uVignette.value = vignette;
-    uniforms.uGrain.value = grain;
-    uniforms.uLightMode.value = lightMode ? 1 : 0;
-    context.setFps(fps);
-    context.setPaused(paused);
-    context.render();
+    const uniforms = context.program.uniforms
+    setColor(uniforms.uLineColor, lineColor)
+    setColor(uniforms.uGlowColor, glowColor)
+    uniforms.uSpeed.value = speed
+    uniforms.uScale.value = scale
+    uniforms.uRotation.value = rotation
+    uniforms.uRotationSpeed.value = rotationSpeed
+    uniforms.uLayers.value = Math.min(Math.max(Math.round(layers), 1), 10)
+    uniforms.uWaveAmplitude.value = waveAmplitude
+    uniforms.uWaveFrequency.value = waveFrequency
+    uniforms.uWaveSpeed.value = waveSpeed
+    uniforms.uLayerSpeed.value = layerSpeed
+    uniforms.uTwist.value = twist
+    uniforms.uTwistFrequency.value = twistFrequency
+    uniforms.uTwistSpeed.value = twistSpeed
+    uniforms.uLineFrequency.value = lineFrequency
+    uniforms.uLineSpacing.value = lineSpacing
+    uniforms.uLineSharpness.value = lineSharpness
+    uniforms.uGlowFalloff.value = glowFalloff
+    uniforms.uGlowIntensity.value = glowIntensity
+    uniforms.uBrightness.value = brightness
+    uniforms.uBlueBoost.value = blueBoost
+    uniforms.uVignette.value = vignette
+    uniforms.uGrain.value = grain
+    uniforms.uLightMode.value = lightMode ? 1 : 0
+    context.setFps(fps)
+    context.setPaused(paused)
+    context.render()
   }, [
     lineColor,
     glowColor,
@@ -448,14 +448,14 @@ const GhostFibers: FC<GhostFibersProps> = ({
     fps,
     paused,
     dpr,
-  ]);
+  ])
 
   return (
     <div
       ref={containerRef}
       className={`relative h-full w-full overflow-hidden ${className}`.trim()}
     />
-  );
-};
+  )
+}
 
-export default GhostFibers;
+export default GhostFibers

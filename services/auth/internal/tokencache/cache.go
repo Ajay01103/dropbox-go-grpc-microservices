@@ -15,15 +15,15 @@ const (
 
 	SessionStateTTL = 15 * time.Minute // Must be at least the default access token lifetime; LWT validates gen
 	CurrentUserTTL  = 15 * time.Minute
-	GlobalVerTTL    = 5 * time.Minute // Separate from session; invalidation independent
+	GlobalVerTTL    = 5 * time.Minute  // Separate from session; invalidation independent
 	JWKSTTL         = 55 * time.Minute // Slightly under the HTTP Cache-Control max-age
 	TheftCountTTL   = 1 * time.Hour
 	TheftThreshold  = 3 // Bump global_ver after N theft events in the TTL window
 
-	prefixSess = "sess:"
-	prefixCur  = "cur:"
-	prefixGver = "gver:"
-	prefixJWKS = "jwks:"
+	prefixSess  = "sess:"
+	prefixCur   = "cur:"
+	prefixGver  = "gver:"
+	prefixJWKS  = "jwks:"
 	prefixTheft = "theft:"
 )
 

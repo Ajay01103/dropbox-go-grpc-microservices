@@ -164,12 +164,12 @@ func New(
 
 // InitUploadResult contains the result of successful upload initialization
 type InitUploadResult struct {
-	UploadID               string
-	ChunkSizeBytes         int64
-	AlreadyReceivedOffsets []int64
+	UploadID                    string
+	ChunkSizeBytes              int64
+	AlreadyReceivedOffsets      []int64
 	AlreadyReceivedChunkIndices []int32
-	AlreadyComplete        bool
-	ObjectID               string
+	AlreadyComplete             bool
+	ObjectID                    string
 }
 
 // UploadSession is the persisted upload session state used by helper functions.
@@ -188,11 +188,11 @@ func parseRedisOffset(raw string) (int64, error) {
 
 func buildMetadataCreateRequest(session UploadSession, blockHashes []string) *metadataPB.CreateFileRequest {
 	return &metadataPB.CreateFileRequest{
-		FolderId:    session.UserID,
-		Filename:    session.Filename,
-		SizeBytes:   session.TotalSize,
-		ContentType: session.ContentType,
-		ContentHash: session.ContentHash,
+		FolderId:      session.UserID,
+		Filename:      session.Filename,
+		SizeBytes:     session.TotalSize,
+		ContentType:   session.ContentType,
+		ContentHash:   session.ContentHash,
 		BlockHashList: blockHashes,
 	}
 }
@@ -241,8 +241,8 @@ func (s *UploadService) InitUpload(ctx context.Context, userID, filename, conten
 		ChunkSizeBytes:              s.cfg.ChunkSizeBytes,
 		AlreadyReceivedOffsets:      []int64{},
 		AlreadyReceivedChunkIndices: []int32{},
-		AlreadyComplete:              false,
-		ObjectID:                     "",
+		AlreadyComplete:             false,
+		ObjectID:                    "",
 	}, nil
 }
 
@@ -371,10 +371,10 @@ func (s *UploadService) ReceiveChunk(ctx context.Context, uploadID string, offse
 
 // GetUploadStatusResult contains upload status information
 type GetUploadStatusResult struct {
-	UploadID            string
-	LastPersistedOffset int64
-	TotalSizeBytes      int64
-	Status              string
+	UploadID             string
+	LastPersistedOffset  int64
+	TotalSizeBytes       int64
+	Status               string
 	ReceivedChunkIndices []int32
 }
 
@@ -396,10 +396,10 @@ func (s *UploadService) GetUploadStatus(ctx context.Context, uploadID string) (*
 			s.logger.Warn("invalid redis offset, falling back to Scylla", zap.String("uploadID", uploadID), zap.String("value", offsetStr), zap.Error(parseErr))
 		} else {
 			return &GetUploadStatusResult{
-				UploadID:            uploadID,
-				LastPersistedOffset: lastOffset,
-				TotalSizeBytes:      session.TotalSize,
-				Status:              session.Status,
+				UploadID:             uploadID,
+				LastPersistedOffset:  lastOffset,
+				TotalSizeBytes:       session.TotalSize,
+				Status:               session.Status,
 				ReceivedChunkIndices: receivedChunkIndices(session),
 			}, nil
 		}
@@ -411,10 +411,10 @@ func (s *UploadService) GetUploadStatus(ctx context.Context, uploadID string) (*
 	}
 
 	return &GetUploadStatusResult{
-		UploadID:            uploadID,
-		LastPersistedOffset: 0,
-		TotalSizeBytes:      session.TotalSize,
-		Status:              session.Status,
+		UploadID:             uploadID,
+		LastPersistedOffset:  0,
+		TotalSizeBytes:       session.TotalSize,
+		Status:               session.Status,
 		ReceivedChunkIndices: receivedChunkIndices(session),
 	}, nil
 }

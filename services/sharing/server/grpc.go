@@ -128,4 +128,3 @@ func (s *SharingServer) RevokePublicLink(ctx context.Context, req *connect.Reque
 	}
 	return connect.NewResponse(&pb.RevokePublicLinkResponse{Success: true}), nil
 }
-

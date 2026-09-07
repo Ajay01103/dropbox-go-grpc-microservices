@@ -24,11 +24,11 @@ type Share struct {
 }
 
 type PublicLink struct {
-	LinkToken string
-	FileID    gocql.UUID
+	LinkToken  string
+	FileID     gocql.UUID
 	Permission string
-	ExpiresAt time.Time
-	CreatedBy gocql.UUID
+	ExpiresAt  time.Time
+	CreatedBy  gocql.UUID
 }
 
 type ShareRepo struct {

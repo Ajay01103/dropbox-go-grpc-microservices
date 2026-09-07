@@ -1,4 +1,4 @@
-"use client";
+"use client"
 
 // Single source of truth for client-side auth state.
 //
@@ -14,23 +14,23 @@
 // `AuthProvider` is now a plain passthrough — no silent-refresh side-effect
 // needed because middleware already guarantees a valid cookie on page load.
 
-import { useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react"
 
-import type { CurrentUser } from "@/modules/auth/api/use-current-user";
-import { useCurrentUser } from "@/modules/auth/api/use-current-user";
+import type { CurrentUser } from "@/modules/auth/api/use-current-user"
+import { useCurrentUser } from "@/modules/auth/api/use-current-user"
 
 export interface AuthState {
   /** True once the session has been confirmed (user fetched or confirmed absent). */
-  isAuthenticated: boolean;
+  isAuthenticated: boolean
   /**
    * True during the initial current-user fetch on first mount.
    * Use this to gate protected queries and avoid flicker on first paint.
    */
-  isLoadingAuth: boolean;
+  isLoadingAuth: boolean
   /** Profile returned by the backend, null when signed out. */
-  currentUser: CurrentUser | null;
+  currentUser: CurrentUser | null
   /** True while the current-user query is in flight. */
-  isLoadingUser: boolean;
+  isLoadingUser: boolean
 }
 
 /**
@@ -38,7 +38,7 @@ export interface AuthState {
  * no in-memory token store, no manual refresh, no tokenStore subscription.
  */
 export function useAuth(): AuthState {
-  const userQuery = useCurrentUser();
+  const userQuery = useCurrentUser()
 
   return useMemo<AuthState>(
     () => ({
@@ -49,7 +49,7 @@ export function useAuth(): AuthState {
       isLoadingUser: userQuery.isFetching,
     }),
     [userQuery.data, userQuery.isLoading, userQuery.isFetching],
-  );
+  )
 }
 
 /**
@@ -57,5 +57,5 @@ export function useAuth(): AuthState {
  * No side-effects needed — middleware has already ensured a valid cookie.
  */
 export function AuthProvider({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return <>{children}</>
 }

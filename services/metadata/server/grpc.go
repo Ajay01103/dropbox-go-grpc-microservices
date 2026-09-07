@@ -46,12 +46,12 @@ func (s *MetadataServer) CreateFile(ctx context.Context, req *connect.Request[pb
 	}
 
 	result, err := s.svc.CreateFile(ctx, service.CreateFileRequest{
-		FolderID:    req.Msg.GetFolderId(),
-		Filename:    req.Msg.GetFilename(),
-		SizeBytes:   req.Msg.GetSizeBytes(),
-		ContentType: req.Msg.GetContentType(),
-		ContentHash: req.Msg.GetContentHash(),
-		OwnerID:     userID,
+		FolderID:      req.Msg.GetFolderId(),
+		Filename:      req.Msg.GetFilename(),
+		SizeBytes:     req.Msg.GetSizeBytes(),
+		ContentType:   req.Msg.GetContentType(),
+		ContentHash:   req.Msg.GetContentHash(),
+		OwnerID:       userID,
 		BlockHashList: req.Msg.GetBlockHashList(),
 	})
 	if err != nil {
@@ -68,7 +68,6 @@ func (s *MetadataServer) CreateFile(ctx context.Context, req *connect.Request[pb
 		SizeBytes:   result.SizeBytes,
 		ContentHash: result.ContentHash,
 		CreatedAt:   result.CreatedAt,
-		BlockHashList: result.BlockHashList,
 	}), nil
 }
 
@@ -132,9 +131,7 @@ func (s *MetadataServer) GetFile(ctx context.Context, req *connect.Request[pb.Ge
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
 	}
 
-	// For now, use user_id as folder_id (root folder)
-	// In production, you'd look up the actual folder
-	result, err := s.svc.GetFile(ctx, fileID, userID)
+	result, err := s.svc.GetFileOwned(ctx, userID, fileID)
 	if err != nil {
 		s.logger.Warn("GetFile failed",
 			zap.String("fileID", fileID),
@@ -142,19 +139,7 @@ func (s *MetadataServer) GetFile(ctx context.Context, req *connect.Request[pb.Ge
 		return nil, connect.NewError(connect.CodeNotFound, err)
 	}
 
-	return connect.NewResponse(&pb.File{
-		FileId:         result.FileID,
-		FolderId:       result.FolderID,
-		Filename:       result.Filename,
-		SizeBytes:      result.SizeBytes,
-		ContentType:    result.ContentType,
-		ContentHash:    result.ContentHash,
-		Version:        result.Version,
-		CreatedAt:      result.CreatedAt,
-		OwnerId:        result.OwnerID,
-		ParentFolderId: result.FolderID,
-		BlockHashList:  result.BlockHashList,
-	}), nil
+	return connect.NewResponse(fileMessage(result)), nil
 }
 
 // ListFolder returns all files in a folder
@@ -180,7 +165,7 @@ func (s *MetadataServer) ListFolder(ctx context.Context, req *connect.Request[pb
 		pageSize = 100
 	}
 
-	result, err := s.svc.ListFolder(ctx, folderID, pageSize)
+	files, nextPageToken, err := s.svc.ListFilesOwned(ctx, userID, folderID, pageSize, req.Msg.GetPageToken(), false)
 	if err != nil {
 		s.logger.Error("ListFolder failed",
 			zap.String("folderID", folderID),
@@ -188,23 +173,14 @@ func (s *MetadataServer) ListFolder(ctx context.Context, req *connect.Request[pb
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 
-	files := make([]*pb.File, len(result.Files))
-	for i, f := range result.Files {
-		files[i] = &pb.File{
-			FileId:         f.FileID,
-			FolderId:       folderID,
-			Filename:       f.Filename,
-			SizeBytes:      f.SizeBytes,
-			ContentType:    f.ContentType,
-			CreatedAt:      f.CreatedAt,
-			OwnerId:        userID,
-			ParentFolderId: folderID,
-			BlockHashList:  f.BlockHashList,
-		}
+	publicFiles := make([]*pb.File, len(files))
+	for i, file := range files {
+		publicFiles[i] = fileMessage(file)
 	}
 
 	return connect.NewResponse(&pb.ListFolderResponse{
-		Files: files,
+		Files:         publicFiles,
+		NextPageToken: nextPageToken,
 	}), nil
 }
 

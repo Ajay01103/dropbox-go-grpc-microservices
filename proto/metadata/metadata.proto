@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package metadata;
 
+import "google/protobuf/empty.proto";
+
 option go_package = "github.com/Ajay01103/go-dropbox/metadata/gen/pb;pb";
 
 // ─── Request / Response Messages ─────────────────────────────────────────────
@@ -12,7 +14,7 @@ message CreateFileRequest {
   int64 size_bytes = 3;
   string content_type = 4;
   string content_hash = 5; // SHA256 of full file
-  string storage_key = 6; // reference to storage object
+  reserved 6;
   repeated string block_hash_list = 8; // ordered content-addressed blocks
 }
 
@@ -23,7 +25,7 @@ message CreateFileResponse {
   int64 size_bytes = 4;
   string content_hash = 5;
   string created_at = 6;
-  string storage_key = 7;
+  reserved 7;
   repeated string block_hash_list = 8;
 }
 
@@ -63,8 +65,119 @@ message File {
   string parent_folder_id = 10;
   string thumbnail_key = 11;
   string thumbnail_status = 12;
-  string storage_key = 13;
-  repeated string block_hash_list = 14;
+  bool is_deleted = 13;
+  string deleted_at = 14;
+  bool current = 15;
+}
+
+message Folder {
+  string folder_id = 1;
+  string owner_id = 2;
+  string parent_id = 3;
+  string name = 4;
+  string path = 5;
+  string created_at = 6;
+  string updated_at = 7;
+  bool is_deleted = 8;
+  string deleted_at = 9;
+}
+
+message CreateFolderRequest {
+  string parent_id = 1;
+  string name = 2;
+}
+
+message GetFolderRequest {
+  string folder_id = 1;
+}
+
+message ListFolderContentsRequest {
+  string folder_id = 1;
+  string page_token = 2;
+  int32 page_size = 3;
+}
+
+message ListFolderContentsResponse {
+  repeated Folder folders = 1;
+  repeated File files = 2;
+  string next_page_token = 3;
+}
+
+message RenameFolderRequest {
+  string folder_id = 1;
+  string new_name = 2;
+}
+
+message MoveFolderRequest {
+  string folder_id = 1;
+  string new_parent_id = 2;
+}
+
+message DeleteFolderRequest {
+  string folder_id = 1;
+}
+
+message DeleteFolderResponse {
+  bool success = 1;
+}
+
+message RestoreFolderRequest {
+  string folder_id = 1;
+}
+
+message GetBreadcrumbsRequest {
+  string folder_id = 1;
+}
+
+message GetBreadcrumbsResponse {
+  repeated Folder folders = 1;
+}
+
+enum FileSort {
+  FILE_SORT_UPDATED_AT = 0;
+  FILE_SORT_NAME = 1;
+  FILE_SORT_SIZE = 2;
+}
+
+message ListFilesRequest {
+  string folder_id = 1;
+  string page_token = 2;
+  int32 page_size = 3;
+  FileSort sort = 4;
+}
+
+message ListFilesResponse {
+  repeated File files = 1;
+  string next_page_token = 2;
+}
+
+message RenameFileRequest {
+  string file_id = 1;
+  string new_name = 2;
+}
+
+message MoveFileRequest {
+  string file_id = 1;
+  string new_folder_id = 2;
+}
+
+message RestoreFileRequest {
+  string file_id = 1;
+}
+
+message PermanentlyDeleteFileRequest {
+  string file_id = 1;
+}
+
+message ListTrashRequest {
+  string page_token = 1;
+  int32 page_size = 2;
+}
+
+message ListTrashResponse {
+  repeated File files = 1;
+  repeated Folder folders = 2;
+  string next_page_token = 3;
 }
 
 message ListFolderRequest {
@@ -95,4 +208,27 @@ service MetadataService {
   rpc GetFile(GetFileRequest) returns (File);
   rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+}
+
+service FileService {
+  rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+  rpc GetFile(GetFileRequest) returns (File);
+  rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
+  rpc RenameFile(RenameFileRequest) returns (File);
+  rpc MoveFile(MoveFileRequest) returns (File);
+  rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  rpc RestoreFile(RestoreFileRequest) returns (File);
+  rpc PermanentlyDeleteFile(PermanentlyDeleteFileRequest) returns (google.protobuf.Empty);
+  rpc ListTrash(ListTrashRequest) returns (ListTrashResponse);
+}
+
+service FolderService {
+  rpc CreateFolder(CreateFolderRequest) returns (Folder);
+  rpc GetFolder(GetFolderRequest) returns (Folder);
+  rpc ListFolderContents(ListFolderContentsRequest) returns (ListFolderContentsResponse);
+  rpc RenameFolder(RenameFolderRequest) returns (Folder);
+  rpc MoveFolder(MoveFolderRequest) returns (Folder);
+  rpc DeleteFolder(DeleteFolderRequest) returns (DeleteFolderResponse);
+  rpc RestoreFolder(RestoreFolderRequest) returns (Folder);
+  rpc GetBreadcrumbs(GetBreadcrumbsRequest) returns (GetBreadcrumbsResponse);
 }

@@ -13,9 +13,9 @@ import (
 	"connectrpc.com/connect"
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
+	"go.uber.org/zap"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
 	pkglogger "github.com/Ajay01103/go-dropbox/pkg/logger"

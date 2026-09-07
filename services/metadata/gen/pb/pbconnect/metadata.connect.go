@@ -9,6 +9,7 @@ import (
 	context "context"
 	errors "errors"
 	pb "github.com/Ajay01103/go-dropbox/metadata/gen/pb"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -23,6 +24,10 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// MetadataServiceName is the fully-qualified name of the MetadataService service.
 	MetadataServiceName = "metadata.MetadataService"
+	// FileServiceName is the fully-qualified name of the FileService service.
+	FileServiceName = "metadata.FileService"
+	// FolderServiceName is the fully-qualified name of the FolderService service.
+	FolderServiceName = "metadata.FolderService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -50,6 +55,48 @@ const (
 	// MetadataServiceDeleteFileProcedure is the fully-qualified name of the MetadataService's
 	// DeleteFile RPC.
 	MetadataServiceDeleteFileProcedure = "/metadata.MetadataService/DeleteFile"
+	// FileServiceCreateFileProcedure is the fully-qualified name of the FileService's CreateFile RPC.
+	FileServiceCreateFileProcedure = "/metadata.FileService/CreateFile"
+	// FileServiceGetFileProcedure is the fully-qualified name of the FileService's GetFile RPC.
+	FileServiceGetFileProcedure = "/metadata.FileService/GetFile"
+	// FileServiceListFilesProcedure is the fully-qualified name of the FileService's ListFiles RPC.
+	FileServiceListFilesProcedure = "/metadata.FileService/ListFiles"
+	// FileServiceRenameFileProcedure is the fully-qualified name of the FileService's RenameFile RPC.
+	FileServiceRenameFileProcedure = "/metadata.FileService/RenameFile"
+	// FileServiceMoveFileProcedure is the fully-qualified name of the FileService's MoveFile RPC.
+	FileServiceMoveFileProcedure = "/metadata.FileService/MoveFile"
+	// FileServiceDeleteFileProcedure is the fully-qualified name of the FileService's DeleteFile RPC.
+	FileServiceDeleteFileProcedure = "/metadata.FileService/DeleteFile"
+	// FileServiceRestoreFileProcedure is the fully-qualified name of the FileService's RestoreFile RPC.
+	FileServiceRestoreFileProcedure = "/metadata.FileService/RestoreFile"
+	// FileServicePermanentlyDeleteFileProcedure is the fully-qualified name of the FileService's
+	// PermanentlyDeleteFile RPC.
+	FileServicePermanentlyDeleteFileProcedure = "/metadata.FileService/PermanentlyDeleteFile"
+	// FileServiceListTrashProcedure is the fully-qualified name of the FileService's ListTrash RPC.
+	FileServiceListTrashProcedure = "/metadata.FileService/ListTrash"
+	// FolderServiceCreateFolderProcedure is the fully-qualified name of the FolderService's
+	// CreateFolder RPC.
+	FolderServiceCreateFolderProcedure = "/metadata.FolderService/CreateFolder"
+	// FolderServiceGetFolderProcedure is the fully-qualified name of the FolderService's GetFolder RPC.
+	FolderServiceGetFolderProcedure = "/metadata.FolderService/GetFolder"
+	// FolderServiceListFolderContentsProcedure is the fully-qualified name of the FolderService's
+	// ListFolderContents RPC.
+	FolderServiceListFolderContentsProcedure = "/metadata.FolderService/ListFolderContents"
+	// FolderServiceRenameFolderProcedure is the fully-qualified name of the FolderService's
+	// RenameFolder RPC.
+	FolderServiceRenameFolderProcedure = "/metadata.FolderService/RenameFolder"
+	// FolderServiceMoveFolderProcedure is the fully-qualified name of the FolderService's MoveFolder
+	// RPC.
+	FolderServiceMoveFolderProcedure = "/metadata.FolderService/MoveFolder"
+	// FolderServiceDeleteFolderProcedure is the fully-qualified name of the FolderService's
+	// DeleteFolder RPC.
+	FolderServiceDeleteFolderProcedure = "/metadata.FolderService/DeleteFolder"
+	// FolderServiceRestoreFolderProcedure is the fully-qualified name of the FolderService's
+	// RestoreFolder RPC.
+	FolderServiceRestoreFolderProcedure = "/metadata.FolderService/RestoreFolder"
+	// FolderServiceGetBreadcrumbsProcedure is the fully-qualified name of the FolderService's
+	// GetBreadcrumbs RPC.
+	FolderServiceGetBreadcrumbsProcedure = "/metadata.FolderService/GetBreadcrumbs"
 )
 
 // MetadataServiceClient is a client for the metadata.MetadataService service.
@@ -250,4 +297,534 @@ func (UnimplementedMetadataServiceHandler) ListFolder(context.Context, *connect.
 
 func (UnimplementedMetadataServiceHandler) DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.MetadataService.DeleteFile is not implemented"))
+}
+
+// FileServiceClient is a client for the metadata.FileService service.
+type FileServiceClient interface {
+	CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error)
+	GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error)
+	ListFiles(context.Context, *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error)
+	RenameFile(context.Context, *connect.Request[pb.RenameFileRequest]) (*connect.Response[pb.File], error)
+	MoveFile(context.Context, *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error)
+	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
+	RestoreFile(context.Context, *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error)
+	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error)
+	ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error)
+}
+
+// NewFileServiceClient constructs a client for the metadata.FileService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewFileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) FileServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	fileServiceMethods := pb.File_metadata_proto.Services().ByName("FileService").Methods()
+	return &fileServiceClient{
+		createFile: connect.NewClient[pb.CreateFileRequest, pb.CreateFileResponse](
+			httpClient,
+			baseURL+FileServiceCreateFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("CreateFile")),
+			connect.WithClientOptions(opts...),
+		),
+		getFile: connect.NewClient[pb.GetFileRequest, pb.File](
+			httpClient,
+			baseURL+FileServiceGetFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("GetFile")),
+			connect.WithClientOptions(opts...),
+		),
+		listFiles: connect.NewClient[pb.ListFilesRequest, pb.ListFilesResponse](
+			httpClient,
+			baseURL+FileServiceListFilesProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("ListFiles")),
+			connect.WithClientOptions(opts...),
+		),
+		renameFile: connect.NewClient[pb.RenameFileRequest, pb.File](
+			httpClient,
+			baseURL+FileServiceRenameFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("RenameFile")),
+			connect.WithClientOptions(opts...),
+		),
+		moveFile: connect.NewClient[pb.MoveFileRequest, pb.File](
+			httpClient,
+			baseURL+FileServiceMoveFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("MoveFile")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteFile: connect.NewClient[pb.DeleteFileRequest, pb.DeleteFileResponse](
+			httpClient,
+			baseURL+FileServiceDeleteFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("DeleteFile")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreFile: connect.NewClient[pb.RestoreFileRequest, pb.File](
+			httpClient,
+			baseURL+FileServiceRestoreFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("RestoreFile")),
+			connect.WithClientOptions(opts...),
+		),
+		permanentlyDeleteFile: connect.NewClient[pb.PermanentlyDeleteFileRequest, emptypb.Empty](
+			httpClient,
+			baseURL+FileServicePermanentlyDeleteFileProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("PermanentlyDeleteFile")),
+			connect.WithClientOptions(opts...),
+		),
+		listTrash: connect.NewClient[pb.ListTrashRequest, pb.ListTrashResponse](
+			httpClient,
+			baseURL+FileServiceListTrashProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("ListTrash")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// fileServiceClient implements FileServiceClient.
+type fileServiceClient struct {
+	createFile            *connect.Client[pb.CreateFileRequest, pb.CreateFileResponse]
+	getFile               *connect.Client[pb.GetFileRequest, pb.File]
+	listFiles             *connect.Client[pb.ListFilesRequest, pb.ListFilesResponse]
+	renameFile            *connect.Client[pb.RenameFileRequest, pb.File]
+	moveFile              *connect.Client[pb.MoveFileRequest, pb.File]
+	deleteFile            *connect.Client[pb.DeleteFileRequest, pb.DeleteFileResponse]
+	restoreFile           *connect.Client[pb.RestoreFileRequest, pb.File]
+	permanentlyDeleteFile *connect.Client[pb.PermanentlyDeleteFileRequest, emptypb.Empty]
+	listTrash             *connect.Client[pb.ListTrashRequest, pb.ListTrashResponse]
+}
+
+// CreateFile calls metadata.FileService.CreateFile.
+func (c *fileServiceClient) CreateFile(ctx context.Context, req *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error) {
+	return c.createFile.CallUnary(ctx, req)
+}
+
+// GetFile calls metadata.FileService.GetFile.
+func (c *fileServiceClient) GetFile(ctx context.Context, req *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error) {
+	return c.getFile.CallUnary(ctx, req)
+}
+
+// ListFiles calls metadata.FileService.ListFiles.
+func (c *fileServiceClient) ListFiles(ctx context.Context, req *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error) {
+	return c.listFiles.CallUnary(ctx, req)
+}
+
+// RenameFile calls metadata.FileService.RenameFile.
+func (c *fileServiceClient) RenameFile(ctx context.Context, req *connect.Request[pb.RenameFileRequest]) (*connect.Response[pb.File], error) {
+	return c.renameFile.CallUnary(ctx, req)
+}
+
+// MoveFile calls metadata.FileService.MoveFile.
+func (c *fileServiceClient) MoveFile(ctx context.Context, req *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error) {
+	return c.moveFile.CallUnary(ctx, req)
+}
+
+// DeleteFile calls metadata.FileService.DeleteFile.
+func (c *fileServiceClient) DeleteFile(ctx context.Context, req *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error) {
+	return c.deleteFile.CallUnary(ctx, req)
+}
+
+// RestoreFile calls metadata.FileService.RestoreFile.
+func (c *fileServiceClient) RestoreFile(ctx context.Context, req *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error) {
+	return c.restoreFile.CallUnary(ctx, req)
+}
+
+// PermanentlyDeleteFile calls metadata.FileService.PermanentlyDeleteFile.
+func (c *fileServiceClient) PermanentlyDeleteFile(ctx context.Context, req *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error) {
+	return c.permanentlyDeleteFile.CallUnary(ctx, req)
+}
+
+// ListTrash calls metadata.FileService.ListTrash.
+func (c *fileServiceClient) ListTrash(ctx context.Context, req *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {
+	return c.listTrash.CallUnary(ctx, req)
+}
+
+// FileServiceHandler is an implementation of the metadata.FileService service.
+type FileServiceHandler interface {
+	CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error)
+	GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error)
+	ListFiles(context.Context, *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error)
+	RenameFile(context.Context, *connect.Request[pb.RenameFileRequest]) (*connect.Response[pb.File], error)
+	MoveFile(context.Context, *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error)
+	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
+	RestoreFile(context.Context, *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error)
+	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error)
+	ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error)
+}
+
+// NewFileServiceHandler builds an HTTP handler from the service implementation. It returns the path
+// on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewFileServiceHandler(svc FileServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	fileServiceMethods := pb.File_metadata_proto.Services().ByName("FileService").Methods()
+	fileServiceCreateFileHandler := connect.NewUnaryHandler(
+		FileServiceCreateFileProcedure,
+		svc.CreateFile,
+		connect.WithSchema(fileServiceMethods.ByName("CreateFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceGetFileHandler := connect.NewUnaryHandler(
+		FileServiceGetFileProcedure,
+		svc.GetFile,
+		connect.WithSchema(fileServiceMethods.ByName("GetFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceListFilesHandler := connect.NewUnaryHandler(
+		FileServiceListFilesProcedure,
+		svc.ListFiles,
+		connect.WithSchema(fileServiceMethods.ByName("ListFiles")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceRenameFileHandler := connect.NewUnaryHandler(
+		FileServiceRenameFileProcedure,
+		svc.RenameFile,
+		connect.WithSchema(fileServiceMethods.ByName("RenameFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceMoveFileHandler := connect.NewUnaryHandler(
+		FileServiceMoveFileProcedure,
+		svc.MoveFile,
+		connect.WithSchema(fileServiceMethods.ByName("MoveFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceDeleteFileHandler := connect.NewUnaryHandler(
+		FileServiceDeleteFileProcedure,
+		svc.DeleteFile,
+		connect.WithSchema(fileServiceMethods.ByName("DeleteFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceRestoreFileHandler := connect.NewUnaryHandler(
+		FileServiceRestoreFileProcedure,
+		svc.RestoreFile,
+		connect.WithSchema(fileServiceMethods.ByName("RestoreFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServicePermanentlyDeleteFileHandler := connect.NewUnaryHandler(
+		FileServicePermanentlyDeleteFileProcedure,
+		svc.PermanentlyDeleteFile,
+		connect.WithSchema(fileServiceMethods.ByName("PermanentlyDeleteFile")),
+		connect.WithHandlerOptions(opts...),
+	)
+	fileServiceListTrashHandler := connect.NewUnaryHandler(
+		FileServiceListTrashProcedure,
+		svc.ListTrash,
+		connect.WithSchema(fileServiceMethods.ByName("ListTrash")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/metadata.FileService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case FileServiceCreateFileProcedure:
+			fileServiceCreateFileHandler.ServeHTTP(w, r)
+		case FileServiceGetFileProcedure:
+			fileServiceGetFileHandler.ServeHTTP(w, r)
+		case FileServiceListFilesProcedure:
+			fileServiceListFilesHandler.ServeHTTP(w, r)
+		case FileServiceRenameFileProcedure:
+			fileServiceRenameFileHandler.ServeHTTP(w, r)
+		case FileServiceMoveFileProcedure:
+			fileServiceMoveFileHandler.ServeHTTP(w, r)
+		case FileServiceDeleteFileProcedure:
+			fileServiceDeleteFileHandler.ServeHTTP(w, r)
+		case FileServiceRestoreFileProcedure:
+			fileServiceRestoreFileHandler.ServeHTTP(w, r)
+		case FileServicePermanentlyDeleteFileProcedure:
+			fileServicePermanentlyDeleteFileHandler.ServeHTTP(w, r)
+		case FileServiceListTrashProcedure:
+			fileServiceListTrashHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedFileServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedFileServiceHandler struct{}
+
+func (UnimplementedFileServiceHandler) CreateFile(context.Context, *connect.Request[pb.CreateFileRequest]) (*connect.Response[pb.CreateFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.CreateFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) GetFile(context.Context, *connect.Request[pb.GetFileRequest]) (*connect.Response[pb.File], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.GetFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) ListFiles(context.Context, *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.ListFiles is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) RenameFile(context.Context, *connect.Request[pb.RenameFileRequest]) (*connect.Response[pb.File], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.RenameFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) MoveFile(context.Context, *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.MoveFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.DeleteFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) RestoreFile(context.Context, *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.RestoreFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.PermanentlyDeleteFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.ListTrash is not implemented"))
+}
+
+// FolderServiceClient is a client for the metadata.FolderService service.
+type FolderServiceClient interface {
+	CreateFolder(context.Context, *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error)
+	GetFolder(context.Context, *connect.Request[pb.GetFolderRequest]) (*connect.Response[pb.Folder], error)
+	ListFolderContents(context.Context, *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error)
+	RenameFolder(context.Context, *connect.Request[pb.RenameFolderRequest]) (*connect.Response[pb.Folder], error)
+	MoveFolder(context.Context, *connect.Request[pb.MoveFolderRequest]) (*connect.Response[pb.Folder], error)
+	DeleteFolder(context.Context, *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error)
+	RestoreFolder(context.Context, *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error)
+	GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error)
+}
+
+// NewFolderServiceClient constructs a client for the metadata.FolderService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewFolderServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) FolderServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	folderServiceMethods := pb.File_metadata_proto.Services().ByName("FolderService").Methods()
+	return &folderServiceClient{
+		createFolder: connect.NewClient[pb.CreateFolderRequest, pb.Folder](
+			httpClient,
+			baseURL+FolderServiceCreateFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("CreateFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		getFolder: connect.NewClient[pb.GetFolderRequest, pb.Folder](
+			httpClient,
+			baseURL+FolderServiceGetFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("GetFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		listFolderContents: connect.NewClient[pb.ListFolderContentsRequest, pb.ListFolderContentsResponse](
+			httpClient,
+			baseURL+FolderServiceListFolderContentsProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("ListFolderContents")),
+			connect.WithClientOptions(opts...),
+		),
+		renameFolder: connect.NewClient[pb.RenameFolderRequest, pb.Folder](
+			httpClient,
+			baseURL+FolderServiceRenameFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("RenameFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		moveFolder: connect.NewClient[pb.MoveFolderRequest, pb.Folder](
+			httpClient,
+			baseURL+FolderServiceMoveFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("MoveFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		deleteFolder: connect.NewClient[pb.DeleteFolderRequest, pb.DeleteFolderResponse](
+			httpClient,
+			baseURL+FolderServiceDeleteFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("DeleteFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		restoreFolder: connect.NewClient[pb.RestoreFolderRequest, pb.Folder](
+			httpClient,
+			baseURL+FolderServiceRestoreFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("RestoreFolder")),
+			connect.WithClientOptions(opts...),
+		),
+		getBreadcrumbs: connect.NewClient[pb.GetBreadcrumbsRequest, pb.GetBreadcrumbsResponse](
+			httpClient,
+			baseURL+FolderServiceGetBreadcrumbsProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("GetBreadcrumbs")),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// folderServiceClient implements FolderServiceClient.
+type folderServiceClient struct {
+	createFolder       *connect.Client[pb.CreateFolderRequest, pb.Folder]
+	getFolder          *connect.Client[pb.GetFolderRequest, pb.Folder]
+	listFolderContents *connect.Client[pb.ListFolderContentsRequest, pb.ListFolderContentsResponse]
+	renameFolder       *connect.Client[pb.RenameFolderRequest, pb.Folder]
+	moveFolder         *connect.Client[pb.MoveFolderRequest, pb.Folder]
+	deleteFolder       *connect.Client[pb.DeleteFolderRequest, pb.DeleteFolderResponse]
+	restoreFolder      *connect.Client[pb.RestoreFolderRequest, pb.Folder]
+	getBreadcrumbs     *connect.Client[pb.GetBreadcrumbsRequest, pb.GetBreadcrumbsResponse]
+}
+
+// CreateFolder calls metadata.FolderService.CreateFolder.
+func (c *folderServiceClient) CreateFolder(ctx context.Context, req *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return c.createFolder.CallUnary(ctx, req)
+}
+
+// GetFolder calls metadata.FolderService.GetFolder.
+func (c *folderServiceClient) GetFolder(ctx context.Context, req *connect.Request[pb.GetFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return c.getFolder.CallUnary(ctx, req)
+}
+
+// ListFolderContents calls metadata.FolderService.ListFolderContents.
+func (c *folderServiceClient) ListFolderContents(ctx context.Context, req *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error) {
+	return c.listFolderContents.CallUnary(ctx, req)
+}
+
+// RenameFolder calls metadata.FolderService.RenameFolder.
+func (c *folderServiceClient) RenameFolder(ctx context.Context, req *connect.Request[pb.RenameFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return c.renameFolder.CallUnary(ctx, req)
+}
+
+// MoveFolder calls metadata.FolderService.MoveFolder.
+func (c *folderServiceClient) MoveFolder(ctx context.Context, req *connect.Request[pb.MoveFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return c.moveFolder.CallUnary(ctx, req)
+}
+
+// DeleteFolder calls metadata.FolderService.DeleteFolder.
+func (c *folderServiceClient) DeleteFolder(ctx context.Context, req *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error) {
+	return c.deleteFolder.CallUnary(ctx, req)
+}
+
+// RestoreFolder calls metadata.FolderService.RestoreFolder.
+func (c *folderServiceClient) RestoreFolder(ctx context.Context, req *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return c.restoreFolder.CallUnary(ctx, req)
+}
+
+// GetBreadcrumbs calls metadata.FolderService.GetBreadcrumbs.
+func (c *folderServiceClient) GetBreadcrumbs(ctx context.Context, req *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error) {
+	return c.getBreadcrumbs.CallUnary(ctx, req)
+}
+
+// FolderServiceHandler is an implementation of the metadata.FolderService service.
+type FolderServiceHandler interface {
+	CreateFolder(context.Context, *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error)
+	GetFolder(context.Context, *connect.Request[pb.GetFolderRequest]) (*connect.Response[pb.Folder], error)
+	ListFolderContents(context.Context, *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error)
+	RenameFolder(context.Context, *connect.Request[pb.RenameFolderRequest]) (*connect.Response[pb.Folder], error)
+	MoveFolder(context.Context, *connect.Request[pb.MoveFolderRequest]) (*connect.Response[pb.Folder], error)
+	DeleteFolder(context.Context, *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error)
+	RestoreFolder(context.Context, *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error)
+	GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error)
+}
+
+// NewFolderServiceHandler builds an HTTP handler from the service implementation. It returns the
+// path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewFolderServiceHandler(svc FolderServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	folderServiceMethods := pb.File_metadata_proto.Services().ByName("FolderService").Methods()
+	folderServiceCreateFolderHandler := connect.NewUnaryHandler(
+		FolderServiceCreateFolderProcedure,
+		svc.CreateFolder,
+		connect.WithSchema(folderServiceMethods.ByName("CreateFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceGetFolderHandler := connect.NewUnaryHandler(
+		FolderServiceGetFolderProcedure,
+		svc.GetFolder,
+		connect.WithSchema(folderServiceMethods.ByName("GetFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceListFolderContentsHandler := connect.NewUnaryHandler(
+		FolderServiceListFolderContentsProcedure,
+		svc.ListFolderContents,
+		connect.WithSchema(folderServiceMethods.ByName("ListFolderContents")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceRenameFolderHandler := connect.NewUnaryHandler(
+		FolderServiceRenameFolderProcedure,
+		svc.RenameFolder,
+		connect.WithSchema(folderServiceMethods.ByName("RenameFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceMoveFolderHandler := connect.NewUnaryHandler(
+		FolderServiceMoveFolderProcedure,
+		svc.MoveFolder,
+		connect.WithSchema(folderServiceMethods.ByName("MoveFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceDeleteFolderHandler := connect.NewUnaryHandler(
+		FolderServiceDeleteFolderProcedure,
+		svc.DeleteFolder,
+		connect.WithSchema(folderServiceMethods.ByName("DeleteFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceRestoreFolderHandler := connect.NewUnaryHandler(
+		FolderServiceRestoreFolderProcedure,
+		svc.RestoreFolder,
+		connect.WithSchema(folderServiceMethods.ByName("RestoreFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
+	folderServiceGetBreadcrumbsHandler := connect.NewUnaryHandler(
+		FolderServiceGetBreadcrumbsProcedure,
+		svc.GetBreadcrumbs,
+		connect.WithSchema(folderServiceMethods.ByName("GetBreadcrumbs")),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/metadata.FolderService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case FolderServiceCreateFolderProcedure:
+			folderServiceCreateFolderHandler.ServeHTTP(w, r)
+		case FolderServiceGetFolderProcedure:
+			folderServiceGetFolderHandler.ServeHTTP(w, r)
+		case FolderServiceListFolderContentsProcedure:
+			folderServiceListFolderContentsHandler.ServeHTTP(w, r)
+		case FolderServiceRenameFolderProcedure:
+			folderServiceRenameFolderHandler.ServeHTTP(w, r)
+		case FolderServiceMoveFolderProcedure:
+			folderServiceMoveFolderHandler.ServeHTTP(w, r)
+		case FolderServiceDeleteFolderProcedure:
+			folderServiceDeleteFolderHandler.ServeHTTP(w, r)
+		case FolderServiceRestoreFolderProcedure:
+			folderServiceRestoreFolderHandler.ServeHTTP(w, r)
+		case FolderServiceGetBreadcrumbsProcedure:
+			folderServiceGetBreadcrumbsHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedFolderServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedFolderServiceHandler struct{}
+
+func (UnimplementedFolderServiceHandler) CreateFolder(context.Context, *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.CreateFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) GetFolder(context.Context, *connect.Request[pb.GetFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.GetFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) ListFolderContents(context.Context, *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.ListFolderContents is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) RenameFolder(context.Context, *connect.Request[pb.RenameFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.RenameFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) MoveFolder(context.Context, *connect.Request[pb.MoveFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.MoveFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) DeleteFolder(context.Context, *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.DeleteFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) RestoreFolder(context.Context, *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.RestoreFolder is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.GetBreadcrumbs is not implemented"))
 }

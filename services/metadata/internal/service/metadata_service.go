@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/dgraph-io/ristretto"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/metadata/config"
@@ -40,23 +41,23 @@ func New(
 
 // CreateFileRequest holds params for creating a file record
 type CreateFileRequest struct {
-	FolderID     string
-	Filename     string
-	SizeBytes    int64
-	ContentType  string
-	ContentHash  string // SHA256 hash for dedup
-	OwnerID      string
+	FolderID      string
+	Filename      string
+	SizeBytes     int64
+	ContentType   string
+	ContentHash   string // SHA256 hash for dedup
+	OwnerID       string
 	BlockHashList []string
 }
 
 // CreateFileResult is the result of successful file creation
 type CreateFileResult struct {
-	FileID      string
-	FolderID    string
-	Filename    string
-	SizeBytes   int64
-	ContentHash string
-	CreatedAt   string
+	FileID        string
+	FolderID      string
+	Filename      string
+	SizeBytes     int64
+	ContentHash   string
+	CreatedAt     string
 	BlockHashList []string
 }
 
@@ -65,6 +66,14 @@ type CreateFileResult struct {
 func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest) (*CreateFileResult, error) {
 	if req.Filename == "" || req.FolderID == "" {
 		return nil, errors.New("filename and folder_id are required")
+	}
+	if _, err := s.folderRepo.GetFolder(ctx, req.OwnerID, req.FolderID); err != nil {
+		if req.FolderID != req.OwnerID {
+			return nil, fmt.Errorf("validate folder: %w", err)
+		}
+		if _, rootErr := s.EnsureRootFolder(ctx, req.OwnerID); rootErr != nil {
+			return nil, fmt.Errorf("ensure root folder: %w", rootErr)
+		}
 	}
 
 	file, err := s.metadataRepo.CreateFile(
@@ -91,12 +100,12 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		zap.Int64("sizeBytes", file.SizeBytes))
 
 	return &CreateFileResult{
-		FileID:      file.FileID,
-		FolderID:    file.FolderID,
-		Filename:    file.Filename,
-		SizeBytes:   file.SizeBytes,
-		ContentHash: file.ContentHash,
-		CreatedAt:   file.CreatedAt.String(),
+		FileID:        file.FileID,
+		FolderID:      file.FolderID,
+		Filename:      file.Filename,
+		SizeBytes:     file.SizeBytes,
+		ContentHash:   file.ContentHash,
+		CreatedAt:     file.CreatedAt.String(),
 		BlockHashList: file.BlockHashList,
 	}, nil
 }
@@ -133,15 +142,15 @@ func (s *MetadataService) GetThumbnailStatus(ctx context.Context, fileID, folder
 
 // GetFileResult holds file metadata
 type GetFileResult struct {
-	FileID       string
-	FolderID     string
-	Filename     string
-	SizeBytes    int64
-	ContentType  string
-	ContentHash  string
-	Version      int32
-	CreatedAt    string
-	OwnerID      string
+	FileID        string
+	FolderID      string
+	Filename      string
+	SizeBytes     int64
+	ContentType   string
+	ContentHash   string
+	Version       int32
+	CreatedAt     string
+	OwnerID       string
 	BlockHashList []string
 }
 
@@ -156,32 +165,32 @@ func (s *MetadataService) GetFile(ctx context.Context, fileID, folderID string) 
 	}
 
 	return &GetFileResult{
-		FileID:      file.FileID,
-		FolderID:    file.FolderID,
-		Filename:    file.Filename,
-		SizeBytes:   file.SizeBytes,
-		ContentType: file.ContentType,
-		ContentHash: file.ContentHash,
-		Version:     file.Version,
-		CreatedAt:   file.CreatedAt.String(),
-		OwnerID:     file.OwnerID,
+		FileID:        file.FileID,
+		FolderID:      file.FolderID,
+		Filename:      file.Filename,
+		SizeBytes:     file.SizeBytes,
+		ContentType:   file.ContentType,
+		ContentHash:   file.ContentHash,
+		Version:       file.Version,
+		CreatedAt:     file.CreatedAt.String(),
+		OwnerID:       file.OwnerID,
 		BlockHashList: file.BlockHashList,
 	}, nil
 }
 
 // ListFolderResult holds paginated file list
 type ListFolderResult struct {
-	Files        []FileInfo
+	Files         []FileInfo
 	NextPageToken string
 }
 
 // FileInfo represents a file in a folder listing
 type FileInfo struct {
-	FileID      string
-	Filename    string
-	SizeBytes   int64
-	ContentType string
-	CreatedAt   string
+	FileID        string
+	Filename      string
+	SizeBytes     int64
+	ContentType   string
+	CreatedAt     string
 	BlockHashList []string
 }
 
@@ -206,11 +215,11 @@ func (s *MetadataService) ListFolder(ctx context.Context, folderID string, pageS
 	fileInfos := make([]FileInfo, len(files))
 	for i, f := range files {
 		fileInfos[i] = FileInfo{
-			FileID:      f.FileID,
-			Filename:    f.Filename,
-			SizeBytes:   f.SizeBytes,
-			ContentType: f.ContentType,
-			CreatedAt:   f.CreatedAt.String(),
+			FileID:        f.FileID,
+			Filename:      f.Filename,
+			SizeBytes:     f.SizeBytes,
+			ContentType:   f.ContentType,
+			CreatedAt:     f.CreatedAt.String(),
 			BlockHashList: f.BlockHashList,
 		}
 	}
@@ -226,7 +235,7 @@ func (s *MetadataService) ListFolder(ctx context.Context, folderID string, pageS
 
 // DeleteFile removes a file record
 func (s *MetadataService) DeleteFile(ctx context.Context, fileID, folderID string) error {
-	err := s.metadataRepo.DeleteFile(ctx, folderID, fileID)
+	_, err := s.metadataRepo.SetFileDeleted(ctx, folderID, fileID, uuid.NewString(), true)
 	if err != nil {
 		s.logger.Error("failed to delete file",
 			zap.String("fileID", fileID),
@@ -244,12 +253,10 @@ func (s *MetadataService) DeleteFile(ctx context.Context, fileID, folderID strin
 
 // GetOrCreateRootFolder returns or creates a user's root folder
 func (s *MetadataService) GetOrCreateRootFolder(ctx context.Context, userID string) (string, error) {
-	// For Build Order 2, we'll just return a deterministic folderID based on userID
-	// In production, you'd want to actually store this
-	// For now: use the user_id itself as the root folder_id (simplified)
-	
-	s.logger.Debug("root folder accessed",
-		zap.String("userID", userID))
-
-	return userID, nil
+	root, err := s.EnsureRootFolder(ctx, userID)
+	if err != nil {
+		return "", fmt.Errorf("ensure root folder: %w", err)
+	}
+	s.logger.Debug("root folder accessed", zap.String("userID", userID), zap.String("folderID", root.FolderID))
+	return root.FolderID, nil
 }

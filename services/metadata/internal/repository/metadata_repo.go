@@ -20,11 +20,16 @@ type File struct {
 	ContentHash     string    `db:"content_hash"` // SHA256 for dedup
 	Version         int32     `db:"version"`
 	CreatedAt       time.Time `db:"created_at"`
+	UpdatedAt       time.Time `db:"updated_at"`
 	OwnerID         string    `db:"owner_id"`
 	ParentFolderID  string    `db:"parent_folder_id"`
 	ThumbnailKey    string    `db:"thumbnail_key"`
 	ThumbnailStatus string    `db:"thumbnail_status"`
 	BlockHashList   []string  `db:"block_hash_list"`
+	IsDeleted       bool      `db:"is_deleted"`
+	DeletedAt       time.Time `db:"deleted_at"`
+	DeletedBatchID  string    `db:"deleted_batch_id"`
+	Current         bool      `db:"current"`
 }
 
 // MetadataRepo provides data access for file metadata using ScyllaDB
@@ -43,24 +48,40 @@ func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filena
 	now := time.Now().UTC()
 
 	file := File{
-		FileID:      fileID,
-		FolderID:    folderID,
-		Filename:    filename,
-		SizeBytes:   sizeBytes,
-		ContentType: contentType,
-		ContentHash: contentHash,
-		Version:     1,
-		CreatedAt:   now,
-		OwnerID:     ownerID,
+		FileID:        fileID,
+		FolderID:      folderID,
+		Filename:      filename,
+		SizeBytes:     sizeBytes,
+		ContentType:   contentType,
+		ContentHash:   contentHash,
+		Version:       1,
+		CreatedAt:     now,
+		UpdatedAt:     now,
+		OwnerID:       ownerID,
 		BlockHashList: blockHashList,
+		Current:       true,
 	}
 
 	if err := r.session.Query(
-		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		folderID, fileID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, ownerID, folderID, "", "pending",
+		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, is_deleted, current)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		folderID, fileID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, ownerID, folderID, "", "pending", false, true,
 	).WithContext(ctx).Exec(); err != nil {
 		return File{}, fmt.Errorf("insert file: %w", err)
+	}
+	if err := r.session.Query(
+		`INSERT INTO files_by_id (file_id, folder_id, owner_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, thumbnail_key, thumbnail_status, is_deleted, current)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		fileID, folderID, ownerID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, "", "pending", false, true,
+	).WithContext(ctx).Exec(); err != nil {
+		return File{}, fmt.Errorf("index file: %w", err)
+	}
+	if err := r.session.Query(
+		`INSERT INTO files_by_folder_updated (folder_id, updated_at, file_id, owner_id, filename, size_bytes, content_type, content_hash, version, created_at, is_deleted, current)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		folderID, now, fileID, ownerID, filename, sizeBytes, contentType, contentHash, 1, now, false, true,
+	).WithContext(ctx).Exec(); err != nil {
+		return File{}, fmt.Errorf("index file sort order: %w", err)
 	}
 
 	return file, nil
@@ -122,17 +143,36 @@ func (r *MetadataRepo) DeleteFile(ctx context.Context, folderID, fileID string) 
 }
 
 func (r *MetadataRepo) SetThumbnail(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string) error {
-	return r.session.Query(
+	file, err := r.GetFileByID(ctx, folderID, fileID)
+	if err != nil {
+		return err
+	}
+	return r.SetThumbnailByFolder(ctx, file.FolderID, fileID, thumbnailKey, thumbnailStatus)
+}
+
+func (r *MetadataRepo) SetThumbnailByFolder(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string) error {
+	if err := r.session.Query(
 		`UPDATE files_by_folder SET thumbnail_key = ?, thumbnail_status = ? WHERE folder_id = ? AND file_id = ?`,
 		thumbnailKey, thumbnailStatus, folderID, fileID,
-	).WithContext(ctx).Exec()
+	).WithContext(ctx).Exec(); err != nil {
+		return err
+	}
+	id, err := parseID(fileID)
+	if err != nil {
+		return err
+	}
+	return r.session.Query(`UPDATE files_by_id SET thumbnail_key = ?, thumbnail_status = ? WHERE file_id = ?`, thumbnailKey, thumbnailStatus, id).WithContext(ctx).Exec()
 }
 
 func (r *MetadataRepo) GetThumbnailStatus(ctx context.Context, folderID, fileID string) (string, string, error) {
+	file, err := r.GetFileByID(ctx, folderID, fileID)
+	if err != nil {
+		return "", "", err
+	}
 	var thumbnailKey, thumbnailStatus string
-	err := r.session.Query(
+	err = r.session.Query(
 		`SELECT thumbnail_key, thumbnail_status FROM files_by_folder WHERE folder_id = ? AND file_id = ? LIMIT 1`,
-		folderID, fileID,
+		file.FolderID, fileID,
 	).WithContext(ctx).Scan(&thumbnailKey, &thumbnailStatus)
 	if err == gocql.ErrNotFound {
 		return "", "", errors.New("file not found")
@@ -145,10 +185,17 @@ func (r *MetadataRepo) GetThumbnailStatus(ctx context.Context, folderID, fileID 
 
 // Folder represents a folder record
 type Folder struct {
-	FolderID   string    `db:"folder_id"`
-	UserID     string    `db:"user_id"`
-	FolderName string    `db:"folder_name"`
-	CreatedAt  time.Time `db:"created_at"`
+	FolderID       string    `db:"folder_id"`
+	UserID         string    `db:"user_id"`
+	OwnerID        string    `db:"owner_id"`
+	ParentID       string    `db:"parent_id"`
+	FolderName     string    `db:"folder_name"`
+	PathCache      string    `db:"path_cache"`
+	CreatedAt      time.Time `db:"created_at"`
+	UpdatedAt      time.Time `db:"updated_at"`
+	IsDeleted      bool      `db:"is_deleted"`
+	DeletedAt      time.Time `db:"deleted_at"`
+	DeletedBatchID string    `db:"deleted_batch_id"`
 }
 
 // FolderRepo provides data access for folder metadata using ScyllaDB

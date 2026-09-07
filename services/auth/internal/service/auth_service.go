@@ -540,11 +540,11 @@ func (s *AuthService) handleTheftDetected(userID, sessionID string) {
 
 	if s.sessionStore != nil {
 		if err := s.sessionStore.DeleteSession(cleanupCtx, userID, sessionID); err != nil {
-		s.logger.Error("failed to delete compromised session from DB",
-			zap.String("userID", userID),
-			zap.String("sessionID", sessionID),
-			zap.Error(err),
-		)
+			s.logger.Error("failed to delete compromised session from DB",
+				zap.String("userID", userID),
+				zap.String("sessionID", sessionID),
+				zap.Error(err),
+			)
 		}
 	}
 

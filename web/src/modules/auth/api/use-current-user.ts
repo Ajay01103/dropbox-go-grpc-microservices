@@ -1,14 +1,14 @@
-"use client";
+"use client"
 
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query"
 
-import { getCurrentUserAction } from "@/actions/auth";
+import { getCurrentUserAction } from "@/actions/auth"
 
 export type CurrentUser = {
-  userId: string;
-  email: string;
-  name: string;
-};
+  userId: string
+  email: string
+  name: string
+}
 
 /**
  * Single source-of-truth query key for the current user. Use this with
@@ -16,7 +16,7 @@ export type CurrentUser = {
  * `queryClient.removeQueries({ queryKey: currentUserKey })` everywhere so
  * logout flows don't have to hard-code the array.
  */
-export const currentUserKey = ["currentUser"] as const;
+export const currentUserKey = ["currentUser"] as const
 
 export function currentUserOptions() {
   return queryOptions({
@@ -28,13 +28,13 @@ export function currentUserOptions() {
     gcTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
-  });
+  })
 }
 
 type UseCurrentUserOptions = {
   /** Override whether the query runs. Defaults to always enabled. */
-  enabled?: boolean;
-};
+  enabled?: boolean
+}
 
 /**
  * Returns the current user's profile.
@@ -44,10 +44,10 @@ type UseCurrentUserOptions = {
  * the access-token cookie is absent or the RPC call fails).
  */
 export function useCurrentUser(options: UseCurrentUserOptions = {}) {
-  const { enabled = true } = options;
+  const { enabled = true } = options
 
   return useQuery({
     ...currentUserOptions(),
     enabled,
-  });
+  })
 }

@@ -44,18 +44,18 @@ func (r *SessionRepo) CreateSession(ctx context.Context, userID, filename, conte
 	expiresAt := now.Add(time.Duration(ttlSeconds) * time.Second)
 
 	uploadSession := UploadSession{
-		UploadID:    uploadID,
-		UserID:      userID,
-		Filename:    filename,
-		TotalSize:   totalSize,
+		UploadID:       uploadID,
+		UserID:         userID,
+		Filename:       filename,
+		TotalSize:      totalSize,
 		BlockSizeBytes: chunkSize,
 		ChunkBlockMap:  map[int]string{},
-		UploadedBitmap:  []byte{},
-		ContentType: contentType,
-		ContentHash: contentHash,
-		Status:      "pending",
-		CreatedAt:   now,
-		ExpiresAt:   expiresAt,
+		UploadedBitmap: []byte{},
+		ContentType:    contentType,
+		ContentHash:    contentHash,
+		Status:         "pending",
+		CreatedAt:      now,
+		ExpiresAt:      expiresAt,
 	}
 
 	if err := r.session.Query(
@@ -130,4 +130,3 @@ func (r *SessionRepo) UpdateSessionStatus(ctx context.Context, uploadID, status 
 		status, uploadID,
 	).WithContext(ctx).Exec()
 }
-

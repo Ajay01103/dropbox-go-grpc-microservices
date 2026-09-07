@@ -1,8 +1,8 @@
-import "server-only";
+import "server-only"
 
-import { cache } from "react";
-import { cookies } from "next/headers";
-import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie";
+import { cache } from "react"
+import { cookies } from "next/headers"
+import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie"
 
 /**
  * Per-request memoised access token READ.
@@ -17,8 +17,8 @@ import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie";
  * to /login if the session couldn't be refreshed at all).
  */
 async function readAccessTokenFromCookie(): Promise<string | null> {
-  const store = await cookies();
-  return store.get(ACCESS_TOKEN_COOKIE_NAME)?.value ?? null;
+  const store = await cookies()
+  return store.get(ACCESS_TOKEN_COOKIE_NAME)?.value ?? null
 }
 
-export const getServerAccessToken = cache(readAccessTokenFromCookie);
+export const getServerAccessToken = cache(readAccessTokenFromCookie)

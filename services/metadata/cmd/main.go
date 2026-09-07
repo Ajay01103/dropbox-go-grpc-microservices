@@ -142,9 +142,9 @@ func run() error {
 	)
 
 	thumbnailWorker, err := thumbnail.New(cfg.NATSURL, cfg.NATSEventSubject, cfg.ThumbnailStoragePath, thumbnail.S3Config{
-		Bucket: cfg.S3Bucket,
-		Region: cfg.S3Region,
-		Endpoint: cfg.S3Endpoint,
+		Bucket:    cfg.S3Bucket,
+		Region:    cfg.S3Region,
+		Endpoint:  cfg.S3Endpoint,
 		AccessKey: cfg.S3AccessKey,
 		SecretKey: cfg.S3SecretKey,
 	}, metadataRepo, logger)
@@ -165,6 +165,16 @@ func run() error {
 	addr := ":" + cfg.GRPCPort
 	mux := http.NewServeMux()
 	mux.Handle(pbconnect.NewMetadataServiceHandler(
+		metadataHandler,
+		connect.WithInterceptors(loggingInterceptor),
+		connect.WithInterceptors(authInterceptor),
+	))
+	mux.Handle(pbconnect.NewFileServiceHandler(
+		metadataHandler,
+		connect.WithInterceptors(loggingInterceptor),
+		connect.WithInterceptors(authInterceptor),
+	))
+	mux.Handle(pbconnect.NewFolderServiceHandler(
 		metadataHandler,
 		connect.WithInterceptors(loggingInterceptor),
 		connect.WithInterceptors(authInterceptor),

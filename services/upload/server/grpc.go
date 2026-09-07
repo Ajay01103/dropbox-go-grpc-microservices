@@ -287,10 +287,10 @@ func (s *UploadServer) GetUploadStatus(ctx context.Context, req *connect.Request
 	}
 
 	return connect.NewResponse(&pb.GetUploadStatusResponse{
-		UploadId:            uploadID,
-		LastPersistedOffset: result.LastPersistedOffset,
-		TotalSizeBytes:      result.TotalSizeBytes,
-		Status:              result.Status,
+		UploadId:             uploadID,
+		LastPersistedOffset:  result.LastPersistedOffset,
+		TotalSizeBytes:       result.TotalSizeBytes,
+		Status:               result.Status,
 		ReceivedChunkIndices: result.ReceivedChunkIndices,
 	}), nil
 }

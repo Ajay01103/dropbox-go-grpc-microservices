@@ -1,9 +1,9 @@
-import "server-only";
+import "server-only"
 
-import { cookies } from "next/headers";
-import type { NextRequest } from "next/server";
+import { cookies } from "next/headers"
+import type { NextRequest } from "next/server"
 
-import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie";
+import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie"
 
 /**
  * Factory for a Connect-protocol proxy Route Handler.
@@ -21,34 +21,68 @@ import { ACCESS_TOKEN_COOKIE_NAME } from "@/lib/auth-cookie";
  */
 export function createRpcProxy(upstreamBaseUrl: string, mountPath: string) {
   return async function handler(request: NextRequest): Promise<Response> {
-    const store = await cookies();
-    const token = store.get(ACCESS_TOKEN_COOKIE_NAME)?.value;
+    const store = await cookies()
+    const token = store.get(ACCESS_TOKEN_COOKIE_NAME)?.value
 
     // Strip the Next.js mount prefix so the upstream path is correct.
-    const upstreamPath = request.nextUrl.pathname.slice(mountPath.length) || "/";
-    const upstreamUrl = `${upstreamBaseUrl}${upstreamPath}${request.nextUrl.search}`;
+    const upstreamPath = request.nextUrl.pathname.slice(mountPath.length) || "/"
+    const upstreamUrl = `${upstreamBaseUrl}${upstreamPath}${request.nextUrl.search}`
 
-    const headers = new Headers(request.headers);
+    console.info("[rpc-proxy] forwarding request", {
+      method: request.method,
+      path: request.nextUrl.pathname,
+      upstreamUrl,
+      hasAccessToken: Boolean(token),
+    })
+
+    const headers = new Headers(request.headers)
     // Never forward the browser Host header — it confuses HTTP/2 upstreams.
-    headers.delete("host");
+    headers.delete("host")
     // Never forward browser cookies upstream — the upstream only speaks Bearer.
-    headers.delete("cookie");
+    headers.delete("cookie")
     if (token) {
-      headers.set("Authorization", `Bearer ${token}`);
+      headers.set("Authorization", `Bearer ${token}`)
     }
 
-    const upstreamResponse = await fetch(upstreamUrl, {
+    const body =
+      request.method === "GET" || request.method === "HEAD"
+        ? undefined
+        : await request.arrayBuffer()
+
+    const send = (accessToken: string | undefined) => {
+      const requestHeaders = new Headers(headers)
+      if (accessToken) {
+        requestHeaders.set("Authorization", `Bearer ${accessToken}`)
+      } else {
+        requestHeaders.delete("Authorization")
+      }
+
+      return fetch(upstreamUrl, {
+        method: request.method,
+        headers: requestHeaders,
+        body,
+      })
+    }
+
+    const upstreamResponse = await send(token)
+
+    const responseHeaders = new Headers(upstreamResponse.headers)
+    // Node fetch may transparently decode the upstream body. Forwarding these
+    // headers would make the browser decode an already-decoded Connect body.
+    responseHeaders.delete("content-encoding")
+    responseHeaders.delete("content-length")
+    responseHeaders.delete("transfer-encoding")
+    responseHeaders.delete("connection")
+
+    console.info("[rpc-proxy] upstream response", {
       method: request.method,
-      headers,
-      body: request.method === "GET" || request.method === "HEAD" ? undefined : request.body,
-      // Required by Node.js for streaming request bodies (Connect streaming RPCs).
-      // @ts-expect-error — Node fetch duplex option not in DOM types
-      duplex: "half",
-    });
+      path: request.nextUrl.pathname,
+      status: upstreamResponse.status,
+    })
 
     return new Response(upstreamResponse.body, {
       status: upstreamResponse.status,
-      headers: upstreamResponse.headers,
-    });
-  };
+      headers: responseHeaders,
+    })
+  }
 }

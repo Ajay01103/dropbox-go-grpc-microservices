@@ -191,10 +191,10 @@ func (w *Worker) generate(event ObjectStoredEvent) (string, error) {
 	}
 	if w.s3Client != nil {
 		_, err := w.s3Client.PutObject(context.Background(), &s3.PutObjectInput{
-			Bucket: aws.String(w.s3Bucket),
-			Key: aws.String(thumbnailKey),
-			Body: bytes.NewReader(encoded.Bytes()),
-			ContentType: aws.String("image/jpeg"),
+			Bucket:        aws.String(w.s3Bucket),
+			Key:           aws.String(thumbnailKey),
+			Body:          bytes.NewReader(encoded.Bytes()),
+			ContentType:   aws.String("image/jpeg"),
 			ContentLength: aws.Int64(int64(encoded.Len())),
 		})
 		if err != nil {
@@ -226,7 +226,7 @@ func (w *Worker) thumbnailExists(ctx context.Context, key string) (bool, error) 
 	if w.s3Client != nil {
 		_, err := w.s3Client.HeadObject(ctx, &s3.HeadObjectInput{
 			Bucket: aws.String(w.s3Bucket),
-			Key: aws.String(key),
+			Key:    aws.String(key),
 		})
 		if err == nil {
 			return true, nil
@@ -251,7 +251,7 @@ func (w *Worker) readBlock(ctx context.Context, hash string) ([]byte, error) {
 	if w.s3Client != nil {
 		result, err := w.s3Client.GetObject(ctx, &s3.GetObjectInput{
 			Bucket: aws.String(w.s3Bucket),
-			Key: aws.String(fmt.Sprintf("blocks/%s/%s/%s", hash[:2], hash[2:4], hash)),
+			Key:    aws.String(fmt.Sprintf("blocks/%s/%s/%s", hash[:2], hash[2:4], hash)),
 		})
 		if err == nil {
 			defer result.Body.Close()

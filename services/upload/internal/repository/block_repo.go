@@ -63,29 +63,48 @@ func (r *BlockRepo) IncrementRefCount(ctx context.Context, hash string) error {
 	if hash == "" {
 		return errors.New("block hash is required")
 	}
-	block, err := r.GetBlock(ctx, hash)
-	if err != nil {
-		return err
+	for attempt := 0; attempt < 8; attempt++ {
+		block, err := r.GetBlock(ctx, hash)
+		if err != nil {
+			return err
+		}
+		applied, err := r.session.Query(
+			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`, block.RefCount+1, hash, block.RefCount,
+		).WithContext(ctx).ScanCAS()
+		if err != nil {
+			return fmt.Errorf("increment block ref_count: %w", err)
+		}
+		if applied {
+			return nil
+		}
 	}
-	return r.session.Query(
-		`UPDATE blocks SET ref_count = ? WHERE block_hash = ?`, block.RefCount+1, hash,
-	).WithContext(ctx).Exec()
+	return errors.New("increment block ref_count conflicted too many times")
 }
 
 func (r *BlockRepo) DecrementRefCount(ctx context.Context, hash string) (int64, error) {
-	block, err := r.GetBlock(ctx, hash)
-	if err != nil {
-		return 0, err
+	if hash == "" {
+		return 0, errors.New("block hash is required")
 	}
-	if block.RefCount <= 0 {
-		return 0, nil
+	for attempt := 0; attempt < 8; attempt++ {
+		block, err := r.GetBlock(ctx, hash)
+		if err != nil {
+			return 0, err
+		}
+		if block.RefCount <= 0 {
+			return 0, nil
+		}
+		newCount := block.RefCount - 1
+		applied, err := r.session.Query(
+			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`, newCount, hash, block.RefCount,
+		).WithContext(ctx).ScanCAS()
+		if err != nil {
+			return 0, fmt.Errorf("decrement block ref_count: %w", err)
+		}
+		if applied {
+			return newCount, nil
+		}
 	}
-	if err := r.session.Query(
-		`UPDATE blocks SET ref_count = ref_count - 1 WHERE block_hash = ?`, hash,
-	).WithContext(ctx).Exec(); err != nil {
-		return 0, fmt.Errorf("decrement block ref_count: %w", err)
-	}
-	return block.RefCount - 1, nil
+	return 0, errors.New("decrement block ref_count conflicted too many times")
 }
 
 func IsBlockNotFound(err error) bool {

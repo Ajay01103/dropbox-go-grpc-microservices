@@ -1,19 +1,14 @@
-"use client"
+"use client";
 
-import { FileUploader } from "@/modules/files/components/file-uploader"
-import { useAuth } from "@/lib/auth-context"
+import { useAuth } from "@/lib/auth-context";
+import { FileView } from "@/modules/files/views/file-view";
 
 const FilesPage = () => {
-  const { currentUser, isLoadingAuth } = useAuth()
+  const { currentUser, isLoadingAuth } = useAuth();
 
-  if (isLoadingAuth || !currentUser) return null
+  if (isLoadingAuth || !currentUser) return null;
 
-  return (
-    <div className="flex h-full flex-col gap-6 p-6">
-      <h1 className="text-2xl font-bold">Files</h1>
-      <FileUploader userId={currentUser.userId} />
-    </div>
-  )
-}
+  return <FileView />;
+};
 
-export default FilesPage
+export default FilesPage;

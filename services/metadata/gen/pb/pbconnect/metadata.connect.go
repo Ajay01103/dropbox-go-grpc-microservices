@@ -9,7 +9,6 @@ import (
 	context "context"
 	errors "errors"
 	pb "github.com/Ajay01103/go-dropbox/metadata/gen/pb"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	http "net/http"
 	strings "strings"
 )
@@ -72,6 +71,9 @@ const (
 	// FileServicePermanentlyDeleteFileProcedure is the fully-qualified name of the FileService's
 	// PermanentlyDeleteFile RPC.
 	FileServicePermanentlyDeleteFileProcedure = "/metadata.FileService/PermanentlyDeleteFile"
+	// FileServiceGetPurgeJobStatusProcedure is the fully-qualified name of the FileService's
+	// GetPurgeJobStatus RPC.
+	FileServiceGetPurgeJobStatusProcedure = "/metadata.FileService/GetPurgeJobStatus"
 	// FileServiceListTrashProcedure is the fully-qualified name of the FileService's ListTrash RPC.
 	FileServiceListTrashProcedure = "/metadata.FileService/ListTrash"
 	// FolderServiceCreateFolderProcedure is the fully-qualified name of the FolderService's
@@ -308,7 +310,8 @@ type FileServiceClient interface {
 	MoveFile(context.Context, *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error)
 	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
 	RestoreFile(context.Context, *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error)
-	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error)
+	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error)
+	GetPurgeJobStatus(context.Context, *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error)
 	ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error)
 }
 
@@ -365,10 +368,16 @@ func NewFileServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(fileServiceMethods.ByName("RestoreFile")),
 			connect.WithClientOptions(opts...),
 		),
-		permanentlyDeleteFile: connect.NewClient[pb.PermanentlyDeleteFileRequest, emptypb.Empty](
+		permanentlyDeleteFile: connect.NewClient[pb.PermanentlyDeleteFileRequest, pb.PurgeJob](
 			httpClient,
 			baseURL+FileServicePermanentlyDeleteFileProcedure,
 			connect.WithSchema(fileServiceMethods.ByName("PermanentlyDeleteFile")),
+			connect.WithClientOptions(opts...),
+		),
+		getPurgeJobStatus: connect.NewClient[pb.GetPurgeJobStatusRequest, pb.PurgeJob](
+			httpClient,
+			baseURL+FileServiceGetPurgeJobStatusProcedure,
+			connect.WithSchema(fileServiceMethods.ByName("GetPurgeJobStatus")),
 			connect.WithClientOptions(opts...),
 		),
 		listTrash: connect.NewClient[pb.ListTrashRequest, pb.ListTrashResponse](
@@ -389,7 +398,8 @@ type fileServiceClient struct {
 	moveFile              *connect.Client[pb.MoveFileRequest, pb.File]
 	deleteFile            *connect.Client[pb.DeleteFileRequest, pb.DeleteFileResponse]
 	restoreFile           *connect.Client[pb.RestoreFileRequest, pb.File]
-	permanentlyDeleteFile *connect.Client[pb.PermanentlyDeleteFileRequest, emptypb.Empty]
+	permanentlyDeleteFile *connect.Client[pb.PermanentlyDeleteFileRequest, pb.PurgeJob]
+	getPurgeJobStatus     *connect.Client[pb.GetPurgeJobStatusRequest, pb.PurgeJob]
 	listTrash             *connect.Client[pb.ListTrashRequest, pb.ListTrashResponse]
 }
 
@@ -429,8 +439,13 @@ func (c *fileServiceClient) RestoreFile(ctx context.Context, req *connect.Reques
 }
 
 // PermanentlyDeleteFile calls metadata.FileService.PermanentlyDeleteFile.
-func (c *fileServiceClient) PermanentlyDeleteFile(ctx context.Context, req *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error) {
+func (c *fileServiceClient) PermanentlyDeleteFile(ctx context.Context, req *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error) {
 	return c.permanentlyDeleteFile.CallUnary(ctx, req)
+}
+
+// GetPurgeJobStatus calls metadata.FileService.GetPurgeJobStatus.
+func (c *fileServiceClient) GetPurgeJobStatus(ctx context.Context, req *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error) {
+	return c.getPurgeJobStatus.CallUnary(ctx, req)
 }
 
 // ListTrash calls metadata.FileService.ListTrash.
@@ -447,7 +462,8 @@ type FileServiceHandler interface {
 	MoveFile(context.Context, *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error)
 	DeleteFile(context.Context, *connect.Request[pb.DeleteFileRequest]) (*connect.Response[pb.DeleteFileResponse], error)
 	RestoreFile(context.Context, *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error)
-	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error)
+	PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error)
+	GetPurgeJobStatus(context.Context, *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error)
 	ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error)
 }
 
@@ -506,6 +522,12 @@ func NewFileServiceHandler(svc FileServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(fileServiceMethods.ByName("PermanentlyDeleteFile")),
 		connect.WithHandlerOptions(opts...),
 	)
+	fileServiceGetPurgeJobStatusHandler := connect.NewUnaryHandler(
+		FileServiceGetPurgeJobStatusProcedure,
+		svc.GetPurgeJobStatus,
+		connect.WithSchema(fileServiceMethods.ByName("GetPurgeJobStatus")),
+		connect.WithHandlerOptions(opts...),
+	)
 	fileServiceListTrashHandler := connect.NewUnaryHandler(
 		FileServiceListTrashProcedure,
 		svc.ListTrash,
@@ -530,6 +552,8 @@ func NewFileServiceHandler(svc FileServiceHandler, opts ...connect.HandlerOption
 			fileServiceRestoreFileHandler.ServeHTTP(w, r)
 		case FileServicePermanentlyDeleteFileProcedure:
 			fileServicePermanentlyDeleteFileHandler.ServeHTTP(w, r)
+		case FileServiceGetPurgeJobStatusProcedure:
+			fileServiceGetPurgeJobStatusHandler.ServeHTTP(w, r)
 		case FileServiceListTrashProcedure:
 			fileServiceListTrashHandler.ServeHTTP(w, r)
 		default:
@@ -569,8 +593,12 @@ func (UnimplementedFileServiceHandler) RestoreFile(context.Context, *connect.Req
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.RestoreFile is not implemented"))
 }
 
-func (UnimplementedFileServiceHandler) PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error) {
+func (UnimplementedFileServiceHandler) PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.PermanentlyDeleteFile is not implemented"))
+}
+
+func (UnimplementedFileServiceHandler) GetPurgeJobStatus(context.Context, *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FileService.GetPurgeJobStatus is not implemented"))
 }
 
 func (UnimplementedFileServiceHandler) ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {

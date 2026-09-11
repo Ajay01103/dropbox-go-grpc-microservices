@@ -13,6 +13,7 @@ interface UseUppyFileUploadOpts {
   maxFiles?: number
   maxSizeMB?: number
   accept?: string // e.g. 'image/*'
+  autoProceed?: boolean
 }
 
 export function useUppyFileUpload({
@@ -20,6 +21,7 @@ export function useUppyFileUpload({
   maxFiles = 6,
   maxSizeMB,
   accept,
+  autoProceed = false,
 }: UseUppyFileUploadOpts) {
   const inputRef = useRef<HTMLInputElement>(null)
   const mountedRef = useRef(false)
@@ -89,7 +91,7 @@ export function useUppyFileUpload({
   const openFileDialog = useCallback(() => inputRef.current?.click(), [])
   const uploadFiles = useCallback(async () => {
     if (isUploading) return
-    if (files.length === 0) {
+    if (uppy.getFiles().length === 0) {
       pushError("Select at least one file before uploading")
       return
     }
@@ -111,6 +113,7 @@ export function useUppyFileUpload({
   const removeFile = useCallback((fileId: string) => uppy.removeFile(fileId), [uppy])
   const clearAll = useCallback(() => {
     uppy.cancelAll()
+    uppy.getFiles().forEach((file) => uppy.removeFile(file.id))
     setErrors([])
   }, [uppy])
 
@@ -140,6 +143,12 @@ export function useUppyFileUpload({
     onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
       addFiles(e.target.files)
       e.target.value = "" // allow re-selecting the same file
+
+      if (autoProceed) {
+        // Uppy has the files synchronously, while React's file state updates on
+        // the next render. Start from Uppy directly to avoid a stale closure.
+        queueMicrotask(() => void uploadFiles())
+      }
     },
   }
 

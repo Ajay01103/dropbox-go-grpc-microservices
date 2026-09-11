@@ -14,12 +14,18 @@ import (
 )
 
 // MetadataService orchestrates file metadata operations
+type PurgeCoordinator interface {
+	Request(context.Context, string, string) (repository.PurgeJob, error)
+	Status(context.Context, string, string) (repository.PurgeJob, error)
+}
+
 type MetadataService struct {
-	metadataRepo *repository.MetadataRepo
-	folderRepo   *repository.FolderRepo
-	cache        *ristretto.Cache
-	cfg          config.Config
-	logger       *zap.Logger
+	metadataRepo     *repository.MetadataRepo
+	folderRepo       *repository.FolderRepo
+	cache            *ristretto.Cache
+	cfg              config.Config
+	logger           *zap.Logger
+	purgeCoordinator PurgeCoordinator
 }
 
 // New creates a MetadataService with its dependencies wired
@@ -37,6 +43,24 @@ func New(
 		cfg:          cfg,
 		logger:       logger,
 	}
+}
+
+func (s *MetadataService) SetPurgeCoordinator(coordinator PurgeCoordinator) {
+	s.purgeCoordinator = coordinator
+}
+
+func (s *MetadataService) RequestPermanentDelete(ctx context.Context, ownerID, fileID string) (repository.PurgeJob, error) {
+	if s.purgeCoordinator == nil {
+		return repository.PurgeJob{}, errors.New("purge coordinator is unavailable")
+	}
+	return s.purgeCoordinator.Request(ctx, ownerID, fileID)
+}
+
+func (s *MetadataService) GetPurgeJobStatus(ctx context.Context, ownerID, jobID string) (repository.PurgeJob, error) {
+	if s.purgeCoordinator == nil {
+		return repository.PurgeJob{}, errors.New("purge coordinator is unavailable")
+	}
+	return s.purgeCoordinator.Status(ctx, ownerID, jobID)
 }
 
 // CreateFileRequest holds params for creating a file record

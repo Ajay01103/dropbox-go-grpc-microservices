@@ -1,8 +1,4 @@
-ALTER TABLE files_by_folder ADD updated_at timestamp;
-ALTER TABLE files_by_folder ADD is_deleted boolean;
-ALTER TABLE files_by_folder ADD deleted_at timestamp;
-ALTER TABLE files_by_folder ADD current boolean;
-ALTER TABLE files_by_folder ADD deleted_batch_id uuid;
+-- CALL ensure_file_metadata_columns;
 
 CREATE TABLE IF NOT EXISTS files_by_id (
   file_id          uuid PRIMARY KEY,

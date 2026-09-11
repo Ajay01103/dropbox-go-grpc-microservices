@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package metadata;
 
-import "google/protobuf/empty.proto";
 
 option go_package = "github.com/Ajay01103/go-dropbox/metadata/gen/pb;pb";
 
@@ -169,6 +168,23 @@ message PermanentlyDeleteFileRequest {
   string file_id = 1;
 }
 
+message PurgeJob {
+  string job_id = 1;
+  string file_id = 2;
+  int32 file_version = 3;
+  string state = 4;
+  bool has_reconciliation_errors = 5;
+  int32 attempts = 6;
+  string last_error = 7;
+  string created_at = 8;
+  string updated_at = 9;
+  string completed_at = 10;
+}
+
+message GetPurgeJobStatusRequest {
+  string job_id = 1;
+}
+
 message ListTrashRequest {
   string page_token = 1;
   int32 page_size = 2;
@@ -218,7 +234,8 @@ service FileService {
   rpc MoveFile(MoveFileRequest) returns (File);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
   rpc RestoreFile(RestoreFileRequest) returns (File);
-  rpc PermanentlyDeleteFile(PermanentlyDeleteFileRequest) returns (google.protobuf.Empty);
+  rpc PermanentlyDeleteFile(PermanentlyDeleteFileRequest) returns (PurgeJob);
+  rpc GetPurgeJobStatus(GetPurgeJobStatusRequest) returns (PurgeJob);
   rpc ListTrash(ListTrashRequest) returns (ListTrashResponse);
 }
 

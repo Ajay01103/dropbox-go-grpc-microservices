@@ -5,6 +5,7 @@ import { createClient, type Interceptor } from "@connectrpc/connect"
 import { createGrpcTransport } from "@connectrpc/connect-node" // ✅ NOT connect-web
 import { AuthService } from "@/gen/pb/auth/auth_pb"
 import { UploadService } from "@/gen/pb/upload/upload_pb"
+import { FolderService } from "@/gen/pb/metadata/metadata_pb"
 import { getServerAccessToken } from "@/lib/server-access-token"
 
 // ─────────────────────────────────────────────────────────────
@@ -22,6 +23,7 @@ export const unauthenticatedAuthClient = createClient(
 // ✅ Private — no NEXT_PUBLIC_ prefix, never reaches browser bundle
 const AUTH_BASE_URL = process.env.AUTH_RPC_URL ?? "http://localhost:50051"
 const UPLOAD_BASE_URL = process.env.UPLOAD_RPC_URL ?? "http://localhost:50052"
+const METADATA_BASE_URL = process.env.METADATA_RPC_URL ?? "http://localhost:50053"
 
 function bearerInterceptor(token: string | null): Interceptor {
   return (next) => (req) => {
@@ -52,5 +54,6 @@ export const getServerRpcClients = cache(async () => {
     token,
     authClient: createClient(AuthService, make(AUTH_BASE_URL)),
     uploadClient: createClient(UploadService, make(UPLOAD_BASE_URL)),
+    folderClient: createClient(FolderService, make(METADATA_BASE_URL)),
   }
 })

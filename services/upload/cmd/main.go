@@ -28,6 +28,7 @@ import (
 	"github.com/Ajay01103/go-dropbox/upload/internal/repository"
 	"github.com/Ajay01103/go-dropbox/upload/internal/service"
 	"github.com/Ajay01103/go-dropbox/upload/internal/storagegateway"
+	"github.com/Ajay01103/go-dropbox/upload/internal/worker"
 	"github.com/Ajay01103/go-dropbox/upload/server"
 )
 
@@ -172,7 +173,27 @@ func run() error {
 		defer eventPublisher.Close()
 	}
 
-	// 9. Setup service layer
+	// 9. Start the durable block-reference decrement worker.
+	decrementWorker, err := worker.NewBlockDecrementWorker(
+		cfg.NATSURL,
+		cfg.NATSBlockRefsRequestedSubject,
+		cfg.NATSBlockRefsCompletedSubject,
+		cfg.BlockLedgerStaleClaimThreshold,
+		blockRepo,
+		logger,
+	)
+	if err != nil {
+		logger.Warn("block decrement worker unavailable; continuing without ledger consumer", zap.Error(err))
+	} else {
+		if err := decrementWorker.Start(context.Background()); err != nil {
+			_ = decrementWorker.Close()
+			logger.Warn("block decrement worker failed to start", zap.Error(err))
+		} else {
+			defer decrementWorker.Close()
+		}
+	}
+
+	// 10. Setup service layer
 	uploadSvc := service.New(
 		sessionRepo,
 		blockRepo,
@@ -186,10 +207,10 @@ func run() error {
 		blockBackend,
 	)
 
-	// 9. Setup Connect RPC server
+	// 11. Setup Connect RPC server
 	uploadHandler := server.New(uploadSvc, logger)
 
-	// 10. Start HTTP server with h2c (HTTP/2 Cleartext) support for gRPC
+	// 12. Start HTTP server with h2c (HTTP/2 Cleartext) support for gRPC
 	addr := ":" + cfg.GRPCPort
 	mux := http.NewServeMux()
 	uploadPath, uploadHandlerHTTP := pbconnect.NewUploadServiceHandler(

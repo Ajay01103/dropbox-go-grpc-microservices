@@ -7,14 +7,14 @@ SHARING_SVC   := services/sharing
 # Do not globally export per-service .env values here; Goose variables can
 # collide across services and cause migrations to run against the wrong DB.
 
-.PHONY: help proto proto-auth proto-upload proto-metadata build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
+.PHONY: help proto proto-auth proto-upload proto-metadata proto-sharing proto-blocks build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # ─── Code Generation ──────────────────────────────────────────────────────────
 
-proto: proto-auth proto-upload proto-metadata proto-sharing ## Generate gRPC Go and TS code for all services from proto files
+proto: proto-auth proto-upload proto-metadata proto-sharing proto-blocks ## Generate proto code for all services from proto files
 
 proto-auth: ## Generate proto code for Auth service
 	cd $(PROTO_DIR)/auth && npx @bufbuild/buf generate
@@ -31,6 +31,10 @@ proto-metadata: ## Generate proto code for Metadata service
 proto-sharing: ## Generate proto code for Sharing service
 	cd $(PROTO_DIR)/sharing && npx @bufbuild/buf generate
 	@echo "✓ Sharing proto generated"
+
+proto-blocks: ## Generate shared block-reference event code
+	cd $(PROTO_DIR)/blocks && npx @bufbuild/buf generate
+	@echo "✓ Blocks proto generated"
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 

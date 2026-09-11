@@ -5,12 +5,14 @@ import { createConnectTransport, createGrpcWebTransport } from "@connectrpc/conn
 
 import { AuthService } from "../gen/pb/auth/auth_pb"
 import { UploadService } from "../gen/pb/upload/upload_pb"
+import { FolderService } from "../gen/pb/metadata/metadata_pb"
 
 // Same-origin proxy paths — browser calls Next.js, Next.js attaches Bearer
 // from the HttpOnly cookie and forwards to the real Go service.
 // No NEXT_PUBLIC_*_RPC_URL, no credentials:include, no token in JS.
 const AUTH_BASE_URL = "/api/rpc/auth"
 const UPLOAD_BASE_URL = "/api/rpc/upload"
+const METADATA_BASE_URL = "/api/rpc/metadata"
 
 function createTransport(baseUrl: string) {
   // Go services use connectrpc with h2c — they accept grpc-web but not the
@@ -32,3 +34,4 @@ const uploadBrowserTransport = createConnectTransport({
 // login/register/logout go through server actions, not this client.
 export const authBrowserRpcClient = createClient(AuthService, createTransport(AUTH_BASE_URL))
 export const uploadBrowserRpcClient = createClient(UploadService, uploadBrowserTransport)
+export const metadataBrowserRpcClient = createClient(FolderService, createTransport(METADATA_BASE_URL))

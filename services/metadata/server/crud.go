@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/emptypb"
 
 	"github.com/Ajay01103/go-dropbox/metadata/gen/pb"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
@@ -33,6 +33,20 @@ func mapError(err error) error {
 		code = connect.CodePermissionDenied
 	}
 	return connect.NewError(code, err)
+}
+
+func purgeJobMessage(job repository.PurgeJob) *pb.PurgeJob {
+	result := &pb.PurgeJob{
+		JobId: job.JobID, FileId: job.FileID, FileVersion: job.FileVersion,
+		State: job.State, HasReconciliationErrors: job.HasReconciliationErrors,
+		Attempts: int32(job.Attempts), LastError: job.LastError,
+		CreatedAt: job.CreatedAt.UTC().Format(time.RFC3339Nano),
+		UpdatedAt: job.UpdatedAt.UTC().Format(time.RFC3339Nano),
+	}
+	if !job.CompletedAt.IsZero() {
+		result.CompletedAt = job.CompletedAt.UTC().Format(time.RFC3339Nano)
+	}
+	return result
 }
 
 func fileMessage(file repository.File) *pb.File {
@@ -113,8 +127,34 @@ func (s *MetadataServer) RestoreFile(ctx context.Context, req *connect.Request[p
 	return connect.NewResponse(fileMessage(file)), nil
 }
 
-func (s *MetadataServer) PermanentlyDeleteFile(context.Context, *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[emptypb.Empty], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("permanent deletion is not enabled in this phase"))
+func (s *MetadataServer) PermanentlyDeleteFile(ctx context.Context, req *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if req.Msg.GetFileId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
+	}
+	job, err := s.svc.RequestPermanentDelete(ctx, userID, req.Msg.GetFileId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(purgeJobMessage(job)), nil
+}
+
+func (s *MetadataServer) GetPurgeJobStatus(ctx context.Context, req *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if req.Msg.GetJobId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("job_id is required"))
+	}
+	job, err := s.svc.GetPurgeJobStatus(ctx, userID, req.Msg.GetJobId())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(purgeJobMessage(job)), nil
 }
 
 func (s *MetadataServer) ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {

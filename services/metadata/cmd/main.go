@@ -21,6 +21,7 @@ import (
 	"github.com/Ajay01103/go-dropbox/metadata/config"
 	"github.com/Ajay01103/go-dropbox/metadata/db"
 	"github.com/Ajay01103/go-dropbox/metadata/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/metadata/internal/purge"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/service"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/thumbnail"
@@ -131,6 +132,7 @@ func run() error {
 	// 5. Setup repositories
 	metadataRepo := repository.NewMetadataRepo(session)
 	folderRepo := repository.NewFolderRepo(session)
+	purgeRepo := repository.NewPurgeRepo(session)
 
 	// 6. Setup service layer
 	metadataSvc := service.New(
@@ -140,6 +142,18 @@ func run() error {
 		cfg,
 		logger,
 	)
+
+	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, cfg.NATSBlockRefsRequestedSubject, cfg.NATSBlockRefsCompletedSubject, purgeRepo, metadataRepo, logger)
+	if err != nil {
+		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
+	} else if err := purgeCoordinator.Start(context.Background()); err != nil {
+		purgeCoordinator.Close()
+		logger.Warn("purge coordinator failed to start; permanent deletion disabled", zap.Error(err))
+	} else {
+		metadataSvc.SetPurgeCoordinator(purgeCoordinator)
+		defer purgeCoordinator.Close()
+		logger.Info("purge coordinator started")
+	}
 
 	thumbnailWorker, err := thumbnail.New(cfg.NATSURL, cfg.NATSEventSubject, cfg.ThumbnailStoragePath, thumbnail.S3Config{
 		Bucket:    cfg.S3Bucket,

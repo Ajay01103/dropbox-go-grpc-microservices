@@ -1,0 +1,122 @@
+package repository
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/gocql/gocql"
+)
+
+const (
+	BlockDecrementClaimed        = "CLAIMED"
+	BlockDecrementCounterApplied = "COUNTER_APPLIED"
+	BlockDecrementComplete       = "COMPLETE"
+	BlockDecrementFailed         = "FAILED"
+)
+
+type BlockDecrementOperation struct {
+	JobID             string
+	Occurrence        int
+	BlockHash         string
+	Status            string
+	NewRefCount       int64
+	BecameGCCandidate bool
+	Error             string
+	ClaimedAt         time.Time
+	UpdatedAt         time.Time
+}
+
+type BlockDecrementClaim struct {
+	Operation BlockDecrementOperation
+	Claimed   bool
+	WasReplay bool
+}
+
+// ClaimBlockDecrement inserts an operation claim, or resumes a stale claim.
+// The by-hash table is deliberately updated after the primary row, matching
+// the denormalized recovery/read model used by GC.
+func (r *BlockRepo) ClaimBlockDecrement(ctx context.Context, jobID string, occurrence int, blockHash string, staleAfter time.Duration) (BlockDecrementClaim, error) {
+	jobUUID, err := gocql.ParseUUID(jobID)
+	if err != nil {
+		return BlockDecrementClaim{}, fmt.Errorf("parse decrement job id: %w", err)
+	}
+	if occurrence < 0 || blockHash == "" {
+		return BlockDecrementClaim{}, fmt.Errorf("occurrence and block hash are required")
+	}
+
+	now := time.Now().UTC()
+	var applied bool
+	err = r.session.Query(`
+		INSERT INTO block_decrement_operations
+		(job_id, occurrence, block_hash, status, new_ref_count, became_gc_candidate, error, claimed_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) IF NOT EXISTS`,
+		jobUUID, occurrence, blockHash, BlockDecrementClaimed, int64(0), false, "", now, now,
+	).WithContext(ctx).Scan(&applied)
+	if err != nil {
+		return BlockDecrementClaim{}, fmt.Errorf("claim decrement operation: %w", err)
+	}
+	if applied {
+		if err := r.updateBlockDecrementByHash(ctx, jobUUID, occurrence, blockHash, BlockDecrementClaimed, now); err != nil {
+			return BlockDecrementClaim{}, err
+		}
+		return BlockDecrementClaim{Operation: BlockDecrementOperation{
+			JobID: jobID, Occurrence: occurrence, BlockHash: blockHash,
+			Status: BlockDecrementClaimed, ClaimedAt: now, UpdatedAt: now,
+		}, Claimed: true}, nil
+	}
+
+	var operation BlockDecrementOperation
+	err = r.session.Query(`
+		SELECT block_hash, status, new_ref_count, became_gc_candidate, error, claimed_at, updated_at
+		FROM block_decrement_operations WHERE job_id = ? AND occurrence = ?`, jobUUID, occurrence).
+		WithContext(ctx).Scan(&operation.BlockHash, &operation.Status, &operation.NewRefCount,
+		&operation.BecameGCCandidate, &operation.Error, &operation.ClaimedAt, &operation.UpdatedAt)
+	if err != nil {
+		return BlockDecrementClaim{}, fmt.Errorf("read decrement operation: %w", err)
+	}
+	operation.JobID, operation.Occurrence = jobID, occurrence
+	if operation.Status == BlockDecrementClaimed && time.Since(operation.UpdatedAt) >= staleAfter {
+		// Take over only the exact version observed above. A competing worker
+		// either wins this LWT or the next delivery will observe its progress.
+		var tookOver bool
+		err = r.session.Query(`UPDATE block_decrement_operations SET claimed_at = ?, updated_at = ? WHERE job_id = ? AND occurrence = ? IF updated_at = ?`,
+			now, now, jobUUID, occurrence, operation.UpdatedAt).WithContext(ctx).Scan(&tookOver)
+		if err != nil {
+			return BlockDecrementClaim{}, fmt.Errorf("resume stale decrement operation: %w", err)
+		}
+		if tookOver {
+			operation.ClaimedAt, operation.UpdatedAt = now, now
+			if err := r.updateBlockDecrementByHash(ctx, jobUUID, occurrence, blockHashOr(operation.BlockHash, blockHash), BlockDecrementClaimed, now); err != nil {
+				return BlockDecrementClaim{}, err
+			}
+			return BlockDecrementClaim{Operation: operation, Claimed: true, WasReplay: true}, nil
+		}
+	}
+	return BlockDecrementClaim{Operation: operation, WasReplay: true}, nil
+}
+
+func blockHashOr(existing, requested string) string {
+	if existing != "" {
+		return existing
+	}
+	return requested
+}
+
+func (r *BlockRepo) updateBlockDecrementByHash(ctx context.Context, jobID gocql.UUID, occurrence int, hash, status string, updatedAt time.Time) error {
+	return r.session.Query(`INSERT INTO block_decrement_operations_by_hash (block_hash, job_id, occurrence, status, updated_at) VALUES (?, ?, ?, ?, ?)`,
+		hash, jobID, occurrence, status, updatedAt).WithContext(ctx).Exec()
+}
+
+func (r *BlockRepo) UpdateBlockDecrement(ctx context.Context, operation BlockDecrementOperation) error {
+	jobID, err := gocql.ParseUUID(operation.JobID)
+	if err != nil {
+		return fmt.Errorf("parse decrement job id: %w", err)
+	}
+	now := time.Now().UTC()
+	if err := r.session.Query(`UPDATE block_decrement_operations SET status = ?, new_ref_count = ?, became_gc_candidate = ?, error = ?, updated_at = ? WHERE job_id = ? AND occurrence = ?`,
+		operation.Status, operation.NewRefCount, operation.BecameGCCandidate, operation.Error, now, jobID, operation.Occurrence).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("update decrement operation: %w", err)
+	}
+	return r.updateBlockDecrementByHash(ctx, jobID, operation.Occurrence, operation.BlockHash, operation.Status, now)
+}

@@ -93,6 +93,21 @@ func (s *MetadataServer) SetThumbnail(ctx context.Context, req *connect.Request[
 	return connect.NewResponse(&pb.SetThumbnailResponse{Success: true}), nil
 }
 
+func (s *MetadataServer) GetThumbnailURL(ctx context.Context, req *connect.Request[pb.GetThumbnailURLRequest]) (*connect.Response[pb.GetThumbnailURLResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if req.Msg.GetFileId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
+	}
+	url, status, err := s.svc.GetThumbnailURL(ctx, userID, req.Msg.GetFileId())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, err)
+	}
+	return connect.NewResponse(&pb.GetThumbnailURLResponse{Url: url, ThumbnailStatus: status}), nil
+}
+
 func (s *MetadataServer) GetThumbnailStatus(ctx context.Context, req *connect.Request[pb.GetThumbnailStatusRequest]) (*connect.Response[pb.GetThumbnailStatusResponse], error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {

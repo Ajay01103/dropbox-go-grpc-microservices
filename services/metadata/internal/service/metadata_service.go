@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync/atomic"
+	"time"
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/google/uuid"
@@ -19,34 +21,60 @@ type PurgeCoordinator interface {
 	Status(context.Context, string, string) (repository.PurgeJob, error)
 }
 
+type ThumbnailURLer interface {
+	PresignThumbnail(context.Context, string, time.Duration) (string, error)
+}
+
 type MetadataService struct {
-	metadataRepo     *repository.MetadataRepo
-	folderRepo       *repository.FolderRepo
-	cache            *ristretto.Cache
-	cfg              config.Config
-	logger           *zap.Logger
-	purgeCoordinator PurgeCoordinator
+	metadataRepo      *repository.MetadataRepo
+	folderRepo        *repository.FolderRepo
+	itemsRepo         *repository.ItemsRepo
+	recentItemsRepo   *repository.RecentItemsRepo
+	cache             *ristretto.Cache
+	cfg               config.Config
+	logger            *zap.Logger
+	purgeCoordinator  PurgeCoordinator
+	thumbnailURLer    ThumbnailURLer
+	accessQueue       chan repository.RecentItem
+	dualWriteFailures atomic.Uint64
+	accessWriteErrors atomic.Uint64
+	accessQueueDrops  atomic.Uint64
 }
 
 // New creates a MetadataService with its dependencies wired
 func New(
 	metadataRepo *repository.MetadataRepo,
 	folderRepo *repository.FolderRepo,
+	itemsRepo *repository.ItemsRepo,
+	recentItemsRepo *repository.RecentItemsRepo,
 	cache *ristretto.Cache,
 	cfg config.Config,
 	logger *zap.Logger,
 ) *MetadataService {
-	return &MetadataService{
-		metadataRepo: metadataRepo,
-		folderRepo:   folderRepo,
-		cache:        cache,
-		cfg:          cfg,
-		logger:       logger,
+	svc := &MetadataService{
+		metadataRepo:    metadataRepo,
+		folderRepo:      folderRepo,
+		itemsRepo:       itemsRepo,
+		recentItemsRepo: recentItemsRepo,
+		cache:           cache,
+		cfg:             cfg,
+		logger:          logger,
+		accessQueue:     make(chan repository.RecentItem, 256),
 	}
+	if recentItemsRepo != nil {
+		for i := 0; i < 4; i++ {
+			go svc.accessWorker()
+		}
+	}
+	return svc
 }
 
 func (s *MetadataService) SetPurgeCoordinator(coordinator PurgeCoordinator) {
 	s.purgeCoordinator = coordinator
+}
+
+func (s *MetadataService) SetThumbnailURLer(urler ThumbnailURLer) {
+	s.thumbnailURLer = urler
 }
 
 func (s *MetadataService) RequestPermanentDelete(ctx context.Context, ownerID, fileID string) (repository.PurgeJob, error) {
@@ -118,6 +146,8 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		return nil, fmt.Errorf("create file: %w", err)
 	}
 
+	s.indexItem(ctx, folderItemFromFile(file))
+
 	s.logger.Info("file record created",
 		zap.String("fileID", file.FileID),
 		zap.String("filename", file.Filename),
@@ -150,7 +180,28 @@ func (s *MetadataService) SetThumbnail(ctx context.Context, fileID, folderID, th
 		)
 		return fmt.Errorf("set thumbnail: %w", err)
 	}
+	if file, err := s.GetFileOwned(ctx, folderID, fileID); err == nil {
+		s.replaceIndexedItem(ctx, folderItemFromFile(file), folderItemFromFile(file))
+	}
 	return nil
+}
+
+func (s *MetadataService) GetThumbnailURL(ctx context.Context, ownerID, fileID string) (string, string, error) {
+	file, err := s.GetFileOwned(ctx, ownerID, fileID)
+	if err != nil {
+		return "", "", err
+	}
+	if file.ThumbnailStatus != "ready" || file.ThumbnailKey == "" {
+		return "", file.ThumbnailStatus, nil
+	}
+	if s.thumbnailURLer == nil {
+		return "", file.ThumbnailStatus, errors.New("thumbnail URL service is unavailable")
+	}
+	url, err := s.thumbnailURLer.PresignThumbnail(ctx, file.ThumbnailKey, 10*time.Minute)
+	if err != nil {
+		return "", file.ThumbnailStatus, err
+	}
+	return url, file.ThumbnailStatus, nil
 }
 
 func (s *MetadataService) GetThumbnailStatus(ctx context.Context, fileID, folderID string) (string, string, error) {

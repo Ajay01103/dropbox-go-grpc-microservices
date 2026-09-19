@@ -122,7 +122,6 @@ func (p *NATSEventPublisher) PublishObjectStored(ctx context.Context, evt *Objec
 type UploadService struct {
 	sessionRepo    *repository.SessionRepo
 	blockRepo      *repository.BlockRepo
-	gateway        storagegateway.StorageGateway
 	blockGateway   storagegateway.BlockGateway
 	blockBackend   string
 	redisClient    *redis.Client
@@ -136,7 +135,6 @@ type UploadService struct {
 func New(
 	sessionRepo *repository.SessionRepo,
 	blockRepo *repository.BlockRepo,
-	gateway storagegateway.StorageGateway,
 	blockGateway storagegateway.BlockGateway,
 	redisClient *redis.Client,
 	cache *ristretto.Cache,
@@ -151,7 +149,6 @@ func New(
 	return &UploadService{
 		sessionRepo:    sessionRepo,
 		blockRepo:      blockRepo,
-		gateway:        gateway,
 		blockGateway:   blockGateway,
 		blockBackend:   blockBackend,
 		redisClient:    redisClient,
@@ -531,14 +528,6 @@ func (s *UploadService) AbortUpload(ctx context.Context, uploadID string) error 
 			zap.Error(err))
 	}
 
-	// Clean up storage
-	if err := s.gateway.AbortUpload(ctx, uploadID); err != nil {
-		s.logger.Warn("failed to clean up storage",
-			zap.String("uploadID", uploadID),
-			zap.Error(err))
-	}
-
-	// Clean up Redis
 	s.logger.Info("upload aborted",
 		zap.String("uploadID", uploadID))
 

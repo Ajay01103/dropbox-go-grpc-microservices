@@ -1,6 +1,6 @@
 **.png
-plan.md
 test_file.mp4
+.freebuff
 
 .kiro
 .codegraph
@@ -18,6 +18,8 @@ dist/
 .env
 .env.*
 !.env.example
+*.json
+*.md
 
 # OS
 .DS_Store

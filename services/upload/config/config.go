@@ -35,6 +35,10 @@ type Config struct {
 	S3SecretKey                    string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 	S3StorageBackend               string        `mapstructure:"S3_STORAGE_BACKEND"`
 	SessionTTLSeconds              int64         `mapstructure:"SESSION_TTL_SECONDS"`
+	// Block GC worker settings
+	BlockGCInterval   time.Duration `mapstructure:"BLOCK_GC_INTERVAL"`
+	BlockGCBatchSize  int           `mapstructure:"BLOCK_GC_BATCH_SIZE"`
+	BlockGCGracePeriod time.Duration `mapstructure:"BLOCK_GC_GRACE_PERIOD"`
 }
 
 // Load reads configuration from environment variables (and optionally a .env file).
@@ -73,6 +77,9 @@ func Load() (Config, error) {
 	viper.SetDefault("S3_STORAGE_BACKEND", "s3")
 	viper.SetDefault("UPLOAD_STORAGE_PATH", "./uploads")
 	viper.SetDefault("SESSION_TTL_SECONDS", 86400) // 24 hours
+	viper.SetDefault("BLOCK_GC_INTERVAL", 5*time.Minute)
+	viper.SetDefault("BLOCK_GC_BATCH_SIZE", 100)
+	viper.SetDefault("BLOCK_GC_GRACE_PERIOD", 24*time.Hour)
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {

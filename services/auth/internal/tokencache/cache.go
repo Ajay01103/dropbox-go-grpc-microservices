@@ -1,6 +1,7 @@
 package tokencache
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/dgraph-io/ristretto"
@@ -12,19 +13,22 @@ const (
 	GlobalVerCost    = 1
 	JWKSCost         = 1
 	TheftCountCost   = 1
+	RotatedTokenCost = 1
 
 	SessionStateTTL = 15 * time.Minute // Must be at least the default access token lifetime; LWT validates gen
 	CurrentUserTTL  = 15 * time.Minute
 	GlobalVerTTL    = 5 * time.Minute  // Separate from session; invalidation independent
 	JWKSTTL         = 55 * time.Minute // Slightly under the HTTP Cache-Control max-age
 	TheftCountTTL   = 1 * time.Hour
-	TheftThreshold  = 3 // Bump global_ver after N theft events in the TTL window
+	RotatedTokenTTL = 30 * time.Second // Allow overlapping requests to reuse one rotation
+	TheftThreshold  = 3                // Bump global_ver after N theft events in the TTL window
 
-	prefixSess  = "sess:"
-	prefixCur   = "cur:"
-	prefixGver  = "gver:"
-	prefixJWKS  = "jwks:"
-	prefixTheft = "theft:"
+	prefixSess    = "sess:"
+	prefixCur     = "cur:"
+	prefixGver    = "gver:"
+	prefixJWKS    = "jwks:"
+	prefixTheft   = "theft:"
+	prefixRotated = "rotated:"
 )
 
 const JWKSKey = prefixJWKS + "current"
@@ -69,4 +73,11 @@ func InvalidateJWKS(cache *ristretto.Cache) {
 
 func TheftCounterKey(userID string) string {
 	return prefixTheft + userID
+}
+
+// RotatedTokenKey identifies the refresh token generation immediately before a
+// successful rotation. It lets concurrent browser requests receive the same
+// replacement pair instead of being misclassified as token theft.
+func RotatedTokenKey(sessionID string, generation int64) string {
+	return prefixRotated + sessionID + ":" + strconv.FormatInt(generation, 10)
 }

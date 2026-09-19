@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -29,7 +30,6 @@ import (
 type ObjectStoredEvent struct {
 	SchemaVersion string   `json:"schema_version"`
 	FileID        string   `json:"file_id"`
-	StorageKey    string   `json:"storage_key"`
 	BlockHashList []string `json:"block_hash_list"`
 	ContentType   string   `json:"content_type"`
 	OwnerID       string   `json:"owner_id"`
@@ -55,6 +55,15 @@ type S3Config struct {
 }
 
 func New(url, subject, storagePath string, s3Config S3Config, repo *repository.MetadataRepo, logger *zap.Logger) (*Worker, error) {
+	// Resolve storagePath to absolute so it doesn't depend on the process CWD.
+	// This is important on Windows where relative paths like "../upload/uploads"
+	// resolve differently depending on which directory the service is started from.
+	absPath, err := filepath.Abs(storagePath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve thumbnail storage path %q: %w", storagePath, err)
+	}
+	storagePath = absPath
+
 	conn, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("connect nats: %w", err)
@@ -99,6 +108,53 @@ func (w *Worker) Start(ctx context.Context) error {
 		<-ctx.Done()
 		_ = w.Close()
 	}()
+	return nil
+}
+
+func (w *Worker) PresignThumbnail(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	if w.s3Client == nil {
+		return "", errors.New("S3 thumbnail storage is not configured")
+	}
+	if key == "" {
+		return "", errors.New("thumbnail key is empty")
+	}
+	presigner := s3.NewPresignClient(w.s3Client)
+	result, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(w.s3Bucket),
+		Key:    aws.String(key),
+	}, func(options *s3.PresignOptions) { options.Expires = expiry })
+	if err != nil {
+		return "", fmt.Errorf("presign thumbnail: %w", err)
+	}
+	return result.URL, nil
+}
+
+// DeleteThumbnail removes a thumbnail object from storage. It is called by the
+// purge coordinator when permanently deleting a file. The operation is
+// idempotent: a missing object is treated as already deleted.
+func (w *Worker) DeleteThumbnail(ctx context.Context, key string) error {
+	if key == "" {
+		return nil // nothing to delete
+	}
+	if w.s3Client != nil {
+		_, err := w.s3Client.DeleteObject(ctx, &s3.DeleteObjectInput{
+			Bucket: aws.String(w.s3Bucket),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			var apiErr smithy.APIError
+			if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NotFound" || apiErr.ErrorCode() == "NoSuchKey") {
+				return nil
+			}
+			return fmt.Errorf("delete thumbnail from S3: %w", err)
+		}
+		return nil
+	}
+	// Local filesystem fallback.
+	thumbnailPath := filepath.Join(w.storagePath, filepath.FromSlash(key))
+	if err := os.Remove(thumbnailPath); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete local thumbnail: %w", err)
+	}
 	return nil
 }
 
@@ -156,29 +212,21 @@ func (w *Worker) generate(event ObjectStoredEvent) (string, error) {
 		return thumbnailKey, nil
 	}
 	var source io.Reader
-	if len(event.BlockHashList) > 0 {
-		var content bytes.Buffer
-		for _, hash := range event.BlockHashList {
-			if len(hash) < 4 {
-				return "", fmt.Errorf("invalid block hash %q", hash)
-			}
-			block, err := w.readBlock(context.Background(), hash)
-			if err != nil {
-				return "", err
-			}
-			_, _ = content.Write(block)
-		}
-		source = bytes.NewReader(content.Bytes())
-	} else {
-		uploadID := filepath.Base(filepath.Dir(event.StorageKey))
-		sourcePath := filepath.Join(w.storagePath, uploadID, "final.bin")
-		file, err := os.Open(sourcePath)
-		if err != nil {
-			return "", fmt.Errorf("open source: %w", err)
-		}
-		defer file.Close()
-		source = file
+	if len(event.BlockHashList) == 0 {
+		return "", fmt.Errorf("no block hashes in object stored event")
 	}
+	var content bytes.Buffer
+	for _, hash := range event.BlockHashList {
+		if len(hash) < 4 {
+			return "", fmt.Errorf("invalid block hash %q", hash)
+		}
+		block, err := w.readBlock(context.Background(), hash)
+		if err != nil {
+			return "", err
+		}
+		_, _ = content.Write(block)
+	}
+	source = bytes.NewReader(content.Bytes())
 
 	img, _, err := image.Decode(source)
 	if err != nil {

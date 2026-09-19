@@ -118,6 +118,10 @@ func (r *MetadataRepo) ListFilesByFolder(ctx context.Context, ownerID, folderID 
 	if err != nil {
 		return nil, "", err
 	}
+	if includeDeleted {
+		return r.listFilesByFolderIncludingDeleted(ctx, ownerID, folder, pageSize)
+	}
+
 	state, err := decodePageState(pageToken)
 	if err != nil {
 		return nil, "", err
@@ -143,6 +147,41 @@ func (r *MetadataRepo) ListFilesByFolder(ctx context.Context, ownerID, folderID 
 		return nil, "", fmt.Errorf("list files: %w", err)
 	}
 	return files, encodePageState(iter.PageState()), nil
+}
+
+// listFilesByFolderIncludingDeleted reads the folder's authoritative file
+// index and hydrates each record from files_by_id. The updated-time index is
+// optimized for active listings and is not rewritten by soft deletion.
+func (r *MetadataRepo) listFilesByFolderIncludingDeleted(ctx context.Context, ownerID string, folder gocql.UUID, pageSize int) ([]File, string, error) {
+	owner, err := parseID(ownerID)
+	if err != nil {
+		return nil, "", err
+	}
+	iter := r.session.Query(`SELECT file_id, owner_id FROM files_by_folder WHERE folder_id = ?`, folder).PageSize(pageSize).WithContext(ctx).Iter()
+	defer iter.Close()
+
+	files := make([]File, 0, pageSize)
+	for {
+		var id, fileOwner gocql.UUID
+		if !iter.Scan(&id, &fileOwner) {
+			break
+		}
+		if fileOwner != owner {
+			continue
+		}
+		file, getErr := r.GetFileByID(ctx, ownerID, id.String())
+		if getErr != nil || !file.Current {
+			continue
+		}
+		files = append(files, file)
+		if len(files) >= pageSize {
+			break
+		}
+	}
+	if err := iter.Close(); err != nil {
+		return nil, "", fmt.Errorf("list files including deleted: %w", err)
+	}
+	return files, "", nil
 }
 
 func (r *FolderRepo) ListBreadcrumbs(ctx context.Context, ownerID, folderID string) ([]Folder, error) {

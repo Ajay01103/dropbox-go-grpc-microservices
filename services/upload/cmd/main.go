@@ -144,8 +144,8 @@ func run() error {
 	sessionRepo := repository.NewSessionRepo(session)
 	blockRepo := repository.NewBlockRepo(session)
 
-	// 7. Setup storage gateway (local filesystem for Build Order 1)
-	gateway := storagegateway.NewLocalFileSystemGateway(cfg.UploadStoragePath)
+	// 7. Setup block storage gateway (S3-compatible when S3_ENDPOINT is set,
+	// local content-addressed block store otherwise)
 	var blockGateway storagegateway.BlockGateway = storagegateway.NewLocalBlockGateway(cfg.UploadStoragePath)
 	blockBackend := "local"
 	if cfg.S3Endpoint != "" {
@@ -179,6 +179,7 @@ func run() error {
 		cfg.NATSBlockRefsRequestedSubject,
 		cfg.NATSBlockRefsCompletedSubject,
 		cfg.BlockLedgerStaleClaimThreshold,
+		cfg.BlockGCGracePeriod,
 		blockRepo,
 		logger,
 	)
@@ -193,11 +194,25 @@ func run() error {
 		}
 	}
 
+	// 9b. Start the block GC worker that physically deletes zero-ref blocks
+	// from S3 and the blocks table once their grace period has elapsed.
+	gcWorker := worker.NewBlockGCWorker(
+		blockRepo,
+		blockGateway,
+		cfg.BlockGCInterval,
+		cfg.BlockGCBatchSize,
+		cfg.BlockLedgerStaleClaimThreshold,
+		logger,
+	)
+	gcWorker.Start(context.Background())
+	logger.Info("block GC worker started",
+		zap.Duration("interval", cfg.BlockGCInterval),
+		zap.Int("batchSize", cfg.BlockGCBatchSize))
+
 	// 10. Setup service layer
 	uploadSvc := service.New(
 		sessionRepo,
 		blockRepo,
-		gateway,
 		blockGateway,
 		redisClient,
 		cache,

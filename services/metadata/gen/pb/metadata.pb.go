@@ -446,6 +446,102 @@ func (x *GetThumbnailStatusResponse) GetThumbnailStatus() string {
 	return ""
 }
 
+type GetThumbnailURLRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetThumbnailURLRequest) Reset() {
+	*x = GetThumbnailURLRequest{}
+	mi := &file_metadata_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThumbnailURLRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThumbnailURLRequest) ProtoMessage() {}
+
+func (x *GetThumbnailURLRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThumbnailURLRequest.ProtoReflect.Descriptor instead.
+func (*GetThumbnailURLRequest) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GetThumbnailURLRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+type GetThumbnailURLResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Url             string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	ThumbnailStatus string                 `protobuf:"bytes,2,opt,name=thumbnail_status,json=thumbnailStatus,proto3" json:"thumbnail_status,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *GetThumbnailURLResponse) Reset() {
+	*x = GetThumbnailURLResponse{}
+	mi := &file_metadata_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetThumbnailURLResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetThumbnailURLResponse) ProtoMessage() {}
+
+func (x *GetThumbnailURLResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetThumbnailURLResponse.ProtoReflect.Descriptor instead.
+func (*GetThumbnailURLResponse) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *GetThumbnailURLResponse) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+func (x *GetThumbnailURLResponse) GetThumbnailStatus() string {
+	if x != nil {
+		return x.ThumbnailStatus
+	}
+	return ""
+}
+
 type GetFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
@@ -455,7 +551,7 @@ type GetFileRequest struct {
 
 func (x *GetFileRequest) Reset() {
 	*x = GetFileRequest{}
-	mi := &file_metadata_proto_msgTypes[6]
+	mi := &file_metadata_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -467,7 +563,7 @@ func (x *GetFileRequest) String() string {
 func (*GetFileRequest) ProtoMessage() {}
 
 func (x *GetFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[6]
+	mi := &file_metadata_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -480,7 +576,7 @@ func (x *GetFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFileRequest.ProtoReflect.Descriptor instead.
 func (*GetFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{6}
+	return file_metadata_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetFileRequest) GetFileId() string {
@@ -513,7 +609,7 @@ type File struct {
 
 func (x *File) Reset() {
 	*x = File{}
-	mi := &file_metadata_proto_msgTypes[7]
+	mi := &file_metadata_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -525,7 +621,7 @@ func (x *File) String() string {
 func (*File) ProtoMessage() {}
 
 func (x *File) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[7]
+	mi := &file_metadata_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -538,7 +634,7 @@ func (x *File) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use File.ProtoReflect.Descriptor instead.
 func (*File) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{7}
+	return file_metadata_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *File) GetFileId() string {
@@ -663,7 +759,7 @@ type Folder struct {
 
 func (x *Folder) Reset() {
 	*x = Folder{}
-	mi := &file_metadata_proto_msgTypes[8]
+	mi := &file_metadata_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -675,7 +771,7 @@ func (x *Folder) String() string {
 func (*Folder) ProtoMessage() {}
 
 func (x *Folder) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[8]
+	mi := &file_metadata_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -688,7 +784,7 @@ func (x *Folder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Folder.ProtoReflect.Descriptor instead.
 func (*Folder) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{8}
+	return file_metadata_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Folder) GetFolderId() string {
@@ -764,7 +860,7 @@ type CreateFolderRequest struct {
 
 func (x *CreateFolderRequest) Reset() {
 	*x = CreateFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[9]
+	mi := &file_metadata_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -776,7 +872,7 @@ func (x *CreateFolderRequest) String() string {
 func (*CreateFolderRequest) ProtoMessage() {}
 
 func (x *CreateFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[9]
+	mi := &file_metadata_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -789,7 +885,7 @@ func (x *CreateFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateFolderRequest.ProtoReflect.Descriptor instead.
 func (*CreateFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{9}
+	return file_metadata_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *CreateFolderRequest) GetParentId() string {
@@ -815,7 +911,7 @@ type GetFolderRequest struct {
 
 func (x *GetFolderRequest) Reset() {
 	*x = GetFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[10]
+	mi := &file_metadata_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -827,7 +923,7 @@ func (x *GetFolderRequest) String() string {
 func (*GetFolderRequest) ProtoMessage() {}
 
 func (x *GetFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[10]
+	mi := &file_metadata_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -840,7 +936,7 @@ func (x *GetFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetFolderRequest.ProtoReflect.Descriptor instead.
 func (*GetFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{10}
+	return file_metadata_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetFolderRequest) GetFolderId() string {
@@ -861,7 +957,7 @@ type ListFolderContentsRequest struct {
 
 func (x *ListFolderContentsRequest) Reset() {
 	*x = ListFolderContentsRequest{}
-	mi := &file_metadata_proto_msgTypes[11]
+	mi := &file_metadata_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +969,7 @@ func (x *ListFolderContentsRequest) String() string {
 func (*ListFolderContentsRequest) ProtoMessage() {}
 
 func (x *ListFolderContentsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[11]
+	mi := &file_metadata_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +982,7 @@ func (x *ListFolderContentsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFolderContentsRequest.ProtoReflect.Descriptor instead.
 func (*ListFolderContentsRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{11}
+	return file_metadata_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListFolderContentsRequest) GetFolderId() string {
@@ -921,7 +1017,7 @@ type ListFolderContentsResponse struct {
 
 func (x *ListFolderContentsResponse) Reset() {
 	*x = ListFolderContentsResponse{}
-	mi := &file_metadata_proto_msgTypes[12]
+	mi := &file_metadata_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -933,7 +1029,7 @@ func (x *ListFolderContentsResponse) String() string {
 func (*ListFolderContentsResponse) ProtoMessage() {}
 
 func (x *ListFolderContentsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[12]
+	mi := &file_metadata_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -946,7 +1042,7 @@ func (x *ListFolderContentsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFolderContentsResponse.ProtoReflect.Descriptor instead.
 func (*ListFolderContentsResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{12}
+	return file_metadata_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListFolderContentsResponse) GetFolders() []*Folder {
@@ -980,7 +1076,7 @@ type RenameFolderRequest struct {
 
 func (x *RenameFolderRequest) Reset() {
 	*x = RenameFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[13]
+	mi := &file_metadata_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -992,7 +1088,7 @@ func (x *RenameFolderRequest) String() string {
 func (*RenameFolderRequest) ProtoMessage() {}
 
 func (x *RenameFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[13]
+	mi := &file_metadata_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1005,7 +1101,7 @@ func (x *RenameFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameFolderRequest.ProtoReflect.Descriptor instead.
 func (*RenameFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{13}
+	return file_metadata_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *RenameFolderRequest) GetFolderId() string {
@@ -1032,7 +1128,7 @@ type MoveFolderRequest struct {
 
 func (x *MoveFolderRequest) Reset() {
 	*x = MoveFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[14]
+	mi := &file_metadata_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1140,7 @@ func (x *MoveFolderRequest) String() string {
 func (*MoveFolderRequest) ProtoMessage() {}
 
 func (x *MoveFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[14]
+	mi := &file_metadata_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1153,7 @@ func (x *MoveFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveFolderRequest.ProtoReflect.Descriptor instead.
 func (*MoveFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{14}
+	return file_metadata_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *MoveFolderRequest) GetFolderId() string {
@@ -1083,7 +1179,7 @@ type DeleteFolderRequest struct {
 
 func (x *DeleteFolderRequest) Reset() {
 	*x = DeleteFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[15]
+	mi := &file_metadata_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1095,7 +1191,7 @@ func (x *DeleteFolderRequest) String() string {
 func (*DeleteFolderRequest) ProtoMessage() {}
 
 func (x *DeleteFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[15]
+	mi := &file_metadata_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1108,7 +1204,7 @@ func (x *DeleteFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFolderRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{15}
+	return file_metadata_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteFolderRequest) GetFolderId() string {
@@ -1127,7 +1223,7 @@ type DeleteFolderResponse struct {
 
 func (x *DeleteFolderResponse) Reset() {
 	*x = DeleteFolderResponse{}
-	mi := &file_metadata_proto_msgTypes[16]
+	mi := &file_metadata_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1139,7 +1235,7 @@ func (x *DeleteFolderResponse) String() string {
 func (*DeleteFolderResponse) ProtoMessage() {}
 
 func (x *DeleteFolderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[16]
+	mi := &file_metadata_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1152,7 +1248,7 @@ func (x *DeleteFolderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFolderResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFolderResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{16}
+	return file_metadata_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteFolderResponse) GetSuccess() bool {
@@ -1171,7 +1267,7 @@ type RestoreFolderRequest struct {
 
 func (x *RestoreFolderRequest) Reset() {
 	*x = RestoreFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[17]
+	mi := &file_metadata_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1183,7 +1279,7 @@ func (x *RestoreFolderRequest) String() string {
 func (*RestoreFolderRequest) ProtoMessage() {}
 
 func (x *RestoreFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[17]
+	mi := &file_metadata_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1196,7 +1292,7 @@ func (x *RestoreFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreFolderRequest.ProtoReflect.Descriptor instead.
 func (*RestoreFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{17}
+	return file_metadata_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *RestoreFolderRequest) GetFolderId() string {
@@ -1215,7 +1311,7 @@ type GetBreadcrumbsRequest struct {
 
 func (x *GetBreadcrumbsRequest) Reset() {
 	*x = GetBreadcrumbsRequest{}
-	mi := &file_metadata_proto_msgTypes[18]
+	mi := &file_metadata_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1227,7 +1323,7 @@ func (x *GetBreadcrumbsRequest) String() string {
 func (*GetBreadcrumbsRequest) ProtoMessage() {}
 
 func (x *GetBreadcrumbsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[18]
+	mi := &file_metadata_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1240,7 +1336,7 @@ func (x *GetBreadcrumbsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBreadcrumbsRequest.ProtoReflect.Descriptor instead.
 func (*GetBreadcrumbsRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{18}
+	return file_metadata_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetBreadcrumbsRequest) GetFolderId() string {
@@ -1259,7 +1355,7 @@ type GetBreadcrumbsResponse struct {
 
 func (x *GetBreadcrumbsResponse) Reset() {
 	*x = GetBreadcrumbsResponse{}
-	mi := &file_metadata_proto_msgTypes[19]
+	mi := &file_metadata_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1271,7 +1367,7 @@ func (x *GetBreadcrumbsResponse) String() string {
 func (*GetBreadcrumbsResponse) ProtoMessage() {}
 
 func (x *GetBreadcrumbsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[19]
+	mi := &file_metadata_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1284,7 +1380,7 @@ func (x *GetBreadcrumbsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBreadcrumbsResponse.ProtoReflect.Descriptor instead.
 func (*GetBreadcrumbsResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{19}
+	return file_metadata_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *GetBreadcrumbsResponse) GetFolders() []*Folder {
@@ -1306,7 +1402,7 @@ type ListFilesRequest struct {
 
 func (x *ListFilesRequest) Reset() {
 	*x = ListFilesRequest{}
-	mi := &file_metadata_proto_msgTypes[20]
+	mi := &file_metadata_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1318,7 +1414,7 @@ func (x *ListFilesRequest) String() string {
 func (*ListFilesRequest) ProtoMessage() {}
 
 func (x *ListFilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[20]
+	mi := &file_metadata_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1331,7 +1427,7 @@ func (x *ListFilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFilesRequest.ProtoReflect.Descriptor instead.
 func (*ListFilesRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{20}
+	return file_metadata_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ListFilesRequest) GetFolderId() string {
@@ -1372,7 +1468,7 @@ type ListFilesResponse struct {
 
 func (x *ListFilesResponse) Reset() {
 	*x = ListFilesResponse{}
-	mi := &file_metadata_proto_msgTypes[21]
+	mi := &file_metadata_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1384,7 +1480,7 @@ func (x *ListFilesResponse) String() string {
 func (*ListFilesResponse) ProtoMessage() {}
 
 func (x *ListFilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[21]
+	mi := &file_metadata_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1397,7 +1493,7 @@ func (x *ListFilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFilesResponse.ProtoReflect.Descriptor instead.
 func (*ListFilesResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{21}
+	return file_metadata_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *ListFilesResponse) GetFiles() []*File {
@@ -1414,6 +1510,424 @@ func (x *ListFilesResponse) GetNextPageToken() string {
 	return ""
 }
 
+type Item struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	ItemType string                 `protobuf:"bytes,1,opt,name=item_type,json=itemType,proto3" json:"item_type,omitempty"` // file | folder
+	ItemId   string                 `protobuf:"bytes,2,opt,name=item_id,json=itemId,proto3" json:"item_id,omitempty"`
+	FolderId string                 `protobuf:"bytes,3,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	// Types that are valid to be assigned to Details:
+	//
+	//	*Item_File
+	//	*Item_Folder
+	Details       isItem_Details `protobuf_oneof:"details"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Item) Reset() {
+	*x = Item{}
+	mi := &file_metadata_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Item) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Item) ProtoMessage() {}
+
+func (x *Item) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Item.ProtoReflect.Descriptor instead.
+func (*Item) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{24}
+}
+
+func (x *Item) GetItemType() string {
+	if x != nil {
+		return x.ItemType
+	}
+	return ""
+}
+
+func (x *Item) GetItemId() string {
+	if x != nil {
+		return x.ItemId
+	}
+	return ""
+}
+
+func (x *Item) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *Item) GetDetails() isItem_Details {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+func (x *Item) GetFile() *File {
+	if x != nil {
+		if x, ok := x.Details.(*Item_File); ok {
+			return x.File
+		}
+	}
+	return nil
+}
+
+func (x *Item) GetFolder() *Folder {
+	if x != nil {
+		if x, ok := x.Details.(*Item_Folder); ok {
+			return x.Folder
+		}
+	}
+	return nil
+}
+
+type isItem_Details interface {
+	isItem_Details()
+}
+
+type Item_File struct {
+	File *File `protobuf:"bytes,4,opt,name=file,proto3,oneof"`
+}
+
+type Item_Folder struct {
+	Folder *Folder `protobuf:"bytes,5,opt,name=folder,proto3,oneof"`
+}
+
+func (*Item_File) isItem_Details() {}
+
+func (*Item_Folder) isItem_Details() {}
+
+type ListFolderItemsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FolderId      string                 `protobuf:"bytes,1,opt,name=folder_id,json=folderId,proto3" json:"folder_id,omitempty"`
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize      int32                  `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	Sort          FileSort               `protobuf:"varint,4,opt,name=sort,proto3,enum=metadata.FileSort" json:"sort,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFolderItemsRequest) Reset() {
+	*x = ListFolderItemsRequest{}
+	mi := &file_metadata_proto_msgTypes[25]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFolderItemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFolderItemsRequest) ProtoMessage() {}
+
+func (x *ListFolderItemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[25]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFolderItemsRequest.ProtoReflect.Descriptor instead.
+func (*ListFolderItemsRequest) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{25}
+}
+
+func (x *ListFolderItemsRequest) GetFolderId() string {
+	if x != nil {
+		return x.FolderId
+	}
+	return ""
+}
+
+func (x *ListFolderItemsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListFolderItemsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListFolderItemsRequest) GetSort() FileSort {
+	if x != nil {
+		return x.Sort
+	}
+	return FileSort_FILE_SORT_UPDATED_AT
+}
+
+type ListFolderItemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Item                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListFolderItemsResponse) Reset() {
+	*x = ListFolderItemsResponse{}
+	mi := &file_metadata_proto_msgTypes[26]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListFolderItemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListFolderItemsResponse) ProtoMessage() {}
+
+func (x *ListFolderItemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[26]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListFolderItemsResponse.ProtoReflect.Descriptor instead.
+func (*ListFolderItemsResponse) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{26}
+}
+
+func (x *ListFolderItemsResponse) GetItems() []*Item {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListFolderItemsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type ListRecentItemsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageToken     string                 `protobuf:"bytes,1,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	PageSize      int32                  `protobuf:"varint,2,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRecentItemsRequest) Reset() {
+	*x = ListRecentItemsRequest{}
+	mi := &file_metadata_proto_msgTypes[27]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecentItemsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecentItemsRequest) ProtoMessage() {}
+
+func (x *ListRecentItemsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[27]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecentItemsRequest.ProtoReflect.Descriptor instead.
+func (*ListRecentItemsRequest) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{27}
+}
+
+func (x *ListRecentItemsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+func (x *ListRecentItemsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ListRecentItemsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*Item                `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListRecentItemsResponse) Reset() {
+	*x = ListRecentItemsResponse{}
+	mi := &file_metadata_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListRecentItemsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListRecentItemsResponse) ProtoMessage() {}
+
+func (x *ListRecentItemsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListRecentItemsResponse.ProtoReflect.Descriptor instead.
+func (*ListRecentItemsResponse) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ListRecentItemsResponse) GetItems() []*Item {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListRecentItemsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+type RecordFileAccessRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordFileAccessRequest) Reset() {
+	*x = RecordFileAccessRequest{}
+	mi := &file_metadata_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordFileAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordFileAccessRequest) ProtoMessage() {}
+
+func (x *RecordFileAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordFileAccessRequest.ProtoReflect.Descriptor instead.
+func (*RecordFileAccessRequest) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *RecordFileAccessRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+type RecordFileAccessResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RecordFileAccessResponse) Reset() {
+	*x = RecordFileAccessResponse{}
+	mi := &file_metadata_proto_msgTypes[30]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RecordFileAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RecordFileAccessResponse) ProtoMessage() {}
+
+func (x *RecordFileAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[30]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RecordFileAccessResponse.ProtoReflect.Descriptor instead.
+func (*RecordFileAccessResponse) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{30}
+}
+
+func (x *RecordFileAccessResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 type RenameFileRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
@@ -1424,7 +1938,7 @@ type RenameFileRequest struct {
 
 func (x *RenameFileRequest) Reset() {
 	*x = RenameFileRequest{}
-	mi := &file_metadata_proto_msgTypes[22]
+	mi := &file_metadata_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1436,7 +1950,7 @@ func (x *RenameFileRequest) String() string {
 func (*RenameFileRequest) ProtoMessage() {}
 
 func (x *RenameFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[22]
+	mi := &file_metadata_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1449,7 +1963,7 @@ func (x *RenameFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameFileRequest.ProtoReflect.Descriptor instead.
 func (*RenameFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{22}
+	return file_metadata_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *RenameFileRequest) GetFileId() string {
@@ -1476,7 +1990,7 @@ type MoveFileRequest struct {
 
 func (x *MoveFileRequest) Reset() {
 	*x = MoveFileRequest{}
-	mi := &file_metadata_proto_msgTypes[23]
+	mi := &file_metadata_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1488,7 +2002,7 @@ func (x *MoveFileRequest) String() string {
 func (*MoveFileRequest) ProtoMessage() {}
 
 func (x *MoveFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[23]
+	mi := &file_metadata_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1501,7 +2015,7 @@ func (x *MoveFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoveFileRequest.ProtoReflect.Descriptor instead.
 func (*MoveFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{23}
+	return file_metadata_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *MoveFileRequest) GetFileId() string {
@@ -1527,7 +2041,7 @@ type RestoreFileRequest struct {
 
 func (x *RestoreFileRequest) Reset() {
 	*x = RestoreFileRequest{}
-	mi := &file_metadata_proto_msgTypes[24]
+	mi := &file_metadata_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1539,7 +2053,7 @@ func (x *RestoreFileRequest) String() string {
 func (*RestoreFileRequest) ProtoMessage() {}
 
 func (x *RestoreFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[24]
+	mi := &file_metadata_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1552,7 +2066,7 @@ func (x *RestoreFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RestoreFileRequest.ProtoReflect.Descriptor instead.
 func (*RestoreFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{24}
+	return file_metadata_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *RestoreFileRequest) GetFileId() string {
@@ -1571,7 +2085,7 @@ type PermanentlyDeleteFileRequest struct {
 
 func (x *PermanentlyDeleteFileRequest) Reset() {
 	*x = PermanentlyDeleteFileRequest{}
-	mi := &file_metadata_proto_msgTypes[25]
+	mi := &file_metadata_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1583,7 +2097,7 @@ func (x *PermanentlyDeleteFileRequest) String() string {
 func (*PermanentlyDeleteFileRequest) ProtoMessage() {}
 
 func (x *PermanentlyDeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[25]
+	mi := &file_metadata_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1596,7 +2110,7 @@ func (x *PermanentlyDeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PermanentlyDeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*PermanentlyDeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{25}
+	return file_metadata_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *PermanentlyDeleteFileRequest) GetFileId() string {
@@ -1624,7 +2138,7 @@ type PurgeJob struct {
 
 func (x *PurgeJob) Reset() {
 	*x = PurgeJob{}
-	mi := &file_metadata_proto_msgTypes[26]
+	mi := &file_metadata_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1636,7 +2150,7 @@ func (x *PurgeJob) String() string {
 func (*PurgeJob) ProtoMessage() {}
 
 func (x *PurgeJob) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[26]
+	mi := &file_metadata_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1649,7 +2163,7 @@ func (x *PurgeJob) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PurgeJob.ProtoReflect.Descriptor instead.
 func (*PurgeJob) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{26}
+	return file_metadata_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *PurgeJob) GetJobId() string {
@@ -1731,7 +2245,7 @@ type GetPurgeJobStatusRequest struct {
 
 func (x *GetPurgeJobStatusRequest) Reset() {
 	*x = GetPurgeJobStatusRequest{}
-	mi := &file_metadata_proto_msgTypes[27]
+	mi := &file_metadata_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1743,7 +2257,7 @@ func (x *GetPurgeJobStatusRequest) String() string {
 func (*GetPurgeJobStatusRequest) ProtoMessage() {}
 
 func (x *GetPurgeJobStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[27]
+	mi := &file_metadata_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1756,7 +2270,7 @@ func (x *GetPurgeJobStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPurgeJobStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetPurgeJobStatusRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{27}
+	return file_metadata_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *GetPurgeJobStatusRequest) GetJobId() string {
@@ -1776,7 +2290,7 @@ type ListTrashRequest struct {
 
 func (x *ListTrashRequest) Reset() {
 	*x = ListTrashRequest{}
-	mi := &file_metadata_proto_msgTypes[28]
+	mi := &file_metadata_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1788,7 +2302,7 @@ func (x *ListTrashRequest) String() string {
 func (*ListTrashRequest) ProtoMessage() {}
 
 func (x *ListTrashRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[28]
+	mi := &file_metadata_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1801,7 +2315,7 @@ func (x *ListTrashRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTrashRequest.ProtoReflect.Descriptor instead.
 func (*ListTrashRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{28}
+	return file_metadata_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *ListTrashRequest) GetPageToken() string {
@@ -1829,7 +2343,7 @@ type ListTrashResponse struct {
 
 func (x *ListTrashResponse) Reset() {
 	*x = ListTrashResponse{}
-	mi := &file_metadata_proto_msgTypes[29]
+	mi := &file_metadata_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1841,7 +2355,7 @@ func (x *ListTrashResponse) String() string {
 func (*ListTrashResponse) ProtoMessage() {}
 
 func (x *ListTrashResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[29]
+	mi := &file_metadata_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1854,7 +2368,7 @@ func (x *ListTrashResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListTrashResponse.ProtoReflect.Descriptor instead.
 func (*ListTrashResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{29}
+	return file_metadata_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *ListTrashResponse) GetFiles() []*File {
@@ -1889,7 +2403,7 @@ type ListFolderRequest struct {
 
 func (x *ListFolderRequest) Reset() {
 	*x = ListFolderRequest{}
-	mi := &file_metadata_proto_msgTypes[30]
+	mi := &file_metadata_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1901,7 +2415,7 @@ func (x *ListFolderRequest) String() string {
 func (*ListFolderRequest) ProtoMessage() {}
 
 func (x *ListFolderRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[30]
+	mi := &file_metadata_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1914,7 +2428,7 @@ func (x *ListFolderRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFolderRequest.ProtoReflect.Descriptor instead.
 func (*ListFolderRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{30}
+	return file_metadata_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ListFolderRequest) GetFolderId() string {
@@ -1948,7 +2462,7 @@ type ListFolderResponse struct {
 
 func (x *ListFolderResponse) Reset() {
 	*x = ListFolderResponse{}
-	mi := &file_metadata_proto_msgTypes[31]
+	mi := &file_metadata_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1960,7 +2474,7 @@ func (x *ListFolderResponse) String() string {
 func (*ListFolderResponse) ProtoMessage() {}
 
 func (x *ListFolderResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[31]
+	mi := &file_metadata_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1973,7 +2487,7 @@ func (x *ListFolderResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListFolderResponse.ProtoReflect.Descriptor instead.
 func (*ListFolderResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{31}
+	return file_metadata_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ListFolderResponse) GetFiles() []*File {
@@ -1999,7 +2513,7 @@ type DeleteFileRequest struct {
 
 func (x *DeleteFileRequest) Reset() {
 	*x = DeleteFileRequest{}
-	mi := &file_metadata_proto_msgTypes[32]
+	mi := &file_metadata_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2011,7 +2525,7 @@ func (x *DeleteFileRequest) String() string {
 func (*DeleteFileRequest) ProtoMessage() {}
 
 func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[32]
+	mi := &file_metadata_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2024,7 +2538,7 @@ func (x *DeleteFileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileRequest.ProtoReflect.Descriptor instead.
 func (*DeleteFileRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{32}
+	return file_metadata_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DeleteFileRequest) GetFileId() string {
@@ -2043,7 +2557,7 @@ type DeleteFileResponse struct {
 
 func (x *DeleteFileResponse) Reset() {
 	*x = DeleteFileResponse{}
-	mi := &file_metadata_proto_msgTypes[33]
+	mi := &file_metadata_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2055,7 +2569,7 @@ func (x *DeleteFileResponse) String() string {
 func (*DeleteFileResponse) ProtoMessage() {}
 
 func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[33]
+	mi := &file_metadata_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2068,7 +2582,7 @@ func (x *DeleteFileResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteFileResponse.ProtoReflect.Descriptor instead.
 func (*DeleteFileResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{33}
+	return file_metadata_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *DeleteFileResponse) GetSuccess() bool {
@@ -2111,6 +2625,11 @@ const file_metadata_proto_rawDesc = "" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\"l\n" +
 	"\x1aGetThumbnailStatusResponse\x12#\n" +
 	"\rthumbnail_key\x18\x01 \x01(\tR\fthumbnailKey\x12)\n" +
+	"\x10thumbnail_status\x18\x02 \x01(\tR\x0fthumbnailStatus\"1\n" +
+	"\x16GetThumbnailURLRequest\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\"V\n" +
+	"\x17GetThumbnailURLResponse\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\x12)\n" +
 	"\x10thumbnail_status\x18\x02 \x01(\tR\x0fthumbnailStatus\")\n" +
 	"\x0eGetFileRequest\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\"\xe3\x03\n" +
@@ -2187,7 +2706,34 @@ const file_metadata_proto_rawDesc = "" +
 	"\x04sort\x18\x04 \x01(\x0e2\x12.metadata.FileSortR\x04sort\"a\n" +
 	"\x11ListFilesResponse\x12$\n" +
 	"\x05files\x18\x01 \x03(\v2\x0e.metadata.FileR\x05files\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"G\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xb6\x01\n" +
+	"\x04Item\x12\x1b\n" +
+	"\titem_type\x18\x01 \x01(\tR\bitemType\x12\x17\n" +
+	"\aitem_id\x18\x02 \x01(\tR\x06itemId\x12\x1b\n" +
+	"\tfolder_id\x18\x03 \x01(\tR\bfolderId\x12$\n" +
+	"\x04file\x18\x04 \x01(\v2\x0e.metadata.FileH\x00R\x04file\x12*\n" +
+	"\x06folder\x18\x05 \x01(\v2\x10.metadata.FolderH\x00R\x06folderB\t\n" +
+	"\adetails\"\x99\x01\n" +
+	"\x16ListFolderItemsRequest\x12\x1b\n" +
+	"\tfolder_id\x18\x01 \x01(\tR\bfolderId\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\x05R\bpageSize\x12&\n" +
+	"\x04sort\x18\x04 \x01(\x0e2\x12.metadata.FileSortR\x04sort\"g\n" +
+	"\x17ListFolderItemsResponse\x12$\n" +
+	"\x05items\x18\x01 \x03(\v2\x0e.metadata.ItemR\x05items\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"T\n" +
+	"\x16ListRecentItemsRequest\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x01 \x01(\tR\tpageToken\x12\x1b\n" +
+	"\tpage_size\x18\x02 \x01(\x05R\bpageSize\"g\n" +
+	"\x17ListRecentItemsResponse\x12$\n" +
+	"\x05items\x18\x01 \x03(\v2\x0e.metadata.ItemR\x05items\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"2\n" +
+	"\x17RecordFileAccessRequest\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\"4\n" +
+	"\x18RecordFileAccessResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"G\n" +
 	"\x11RenameFileRequest\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x19\n" +
 	"\bnew_name\x18\x02 \x01(\tR\anewName\"N\n" +
@@ -2238,17 +2784,18 @@ const file_metadata_proto_rawDesc = "" +
 	"\bFileSort\x12\x18\n" +
 	"\x14FILE_SORT_UPDATED_AT\x10\x00\x12\x12\n" +
 	"\x0eFILE_SORT_NAME\x10\x01\x12\x12\n" +
-	"\x0eFILE_SORT_SIZE\x10\x022\xd1\x03\n" +
+	"\x0eFILE_SORT_SIZE\x10\x022\xa9\x04\n" +
 	"\x0fMetadataService\x12G\n" +
 	"\n" +
 	"CreateFile\x12\x1b.metadata.CreateFileRequest\x1a\x1c.metadata.CreateFileResponse\x12M\n" +
 	"\fSetThumbnail\x12\x1d.metadata.SetThumbnailRequest\x1a\x1e.metadata.SetThumbnailResponse\x12_\n" +
-	"\x12GetThumbnailStatus\x12#.metadata.GetThumbnailStatusRequest\x1a$.metadata.GetThumbnailStatusResponse\x123\n" +
+	"\x12GetThumbnailStatus\x12#.metadata.GetThumbnailStatusRequest\x1a$.metadata.GetThumbnailStatusResponse\x12V\n" +
+	"\x0fGetThumbnailURL\x12 .metadata.GetThumbnailURLRequest\x1a!.metadata.GetThumbnailURLResponse\x123\n" +
 	"\aGetFile\x12\x18.metadata.GetFileRequest\x1a\x0e.metadata.File\x12G\n" +
 	"\n" +
 	"ListFolder\x12\x1b.metadata.ListFolderRequest\x1a\x1c.metadata.ListFolderResponse\x12G\n" +
 	"\n" +
-	"DeleteFile\x12\x1b.metadata.DeleteFileRequest\x1a\x1c.metadata.DeleteFileResponse2\xb1\x05\n" +
+	"DeleteFile\x12\x1b.metadata.DeleteFileRequest\x1a\x1c.metadata.DeleteFileResponse2\xe4\x06\n" +
 	"\vFileService\x12G\n" +
 	"\n" +
 	"CreateFile\x12\x1b.metadata.CreateFileRequest\x1a\x1c.metadata.CreateFileResponse\x123\n" +
@@ -2262,11 +2809,14 @@ const file_metadata_proto_rawDesc = "" +
 	"\vRestoreFile\x12\x1c.metadata.RestoreFileRequest\x1a\x0e.metadata.File\x12S\n" +
 	"\x15PermanentlyDeleteFile\x12&.metadata.PermanentlyDeleteFileRequest\x1a\x12.metadata.PurgeJob\x12K\n" +
 	"\x11GetPurgeJobStatus\x12\".metadata.GetPurgeJobStatusRequest\x1a\x12.metadata.PurgeJob\x12D\n" +
-	"\tListTrash\x12\x1a.metadata.ListTrashRequest\x1a\x1b.metadata.ListTrashResponse2\xd1\x04\n" +
+	"\tListTrash\x12\x1a.metadata.ListTrashRequest\x1a\x1b.metadata.ListTrashResponse\x12V\n" +
+	"\x0fListRecentItems\x12 .metadata.ListRecentItemsRequest\x1a!.metadata.ListRecentItemsResponse\x12Y\n" +
+	"\x10RecordFileAccess\x12!.metadata.RecordFileAccessRequest\x1a\".metadata.RecordFileAccessResponse2\xa9\x05\n" +
 	"\rFolderService\x12?\n" +
 	"\fCreateFolder\x12\x1d.metadata.CreateFolderRequest\x1a\x10.metadata.Folder\x129\n" +
 	"\tGetFolder\x12\x1a.metadata.GetFolderRequest\x1a\x10.metadata.Folder\x12_\n" +
-	"\x12ListFolderContents\x12#.metadata.ListFolderContentsRequest\x1a$.metadata.ListFolderContentsResponse\x12?\n" +
+	"\x12ListFolderContents\x12#.metadata.ListFolderContentsRequest\x1a$.metadata.ListFolderContentsResponse\x12V\n" +
+	"\x0fListFolderItems\x12 .metadata.ListFolderItemsRequest\x1a!.metadata.ListFolderItemsResponse\x12?\n" +
 	"\fRenameFolder\x12\x1d.metadata.RenameFolderRequest\x1a\x10.metadata.Folder\x12;\n" +
 	"\n" +
 	"MoveFolder\x12\x1b.metadata.MoveFolderRequest\x1a\x10.metadata.Folder\x12M\n" +
@@ -2287,7 +2837,7 @@ func file_metadata_proto_rawDescGZIP() []byte {
 }
 
 var file_metadata_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 34)
+var file_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_metadata_proto_goTypes = []any{
 	(FileSort)(0),                        // 0: metadata.FileSort
 	(*CreateFileRequest)(nil),            // 1: metadata.CreateFileRequest
@@ -2296,97 +2846,119 @@ var file_metadata_proto_goTypes = []any{
 	(*SetThumbnailResponse)(nil),         // 4: metadata.SetThumbnailResponse
 	(*GetThumbnailStatusRequest)(nil),    // 5: metadata.GetThumbnailStatusRequest
 	(*GetThumbnailStatusResponse)(nil),   // 6: metadata.GetThumbnailStatusResponse
-	(*GetFileRequest)(nil),               // 7: metadata.GetFileRequest
-	(*File)(nil),                         // 8: metadata.File
-	(*Folder)(nil),                       // 9: metadata.Folder
-	(*CreateFolderRequest)(nil),          // 10: metadata.CreateFolderRequest
-	(*GetFolderRequest)(nil),             // 11: metadata.GetFolderRequest
-	(*ListFolderContentsRequest)(nil),    // 12: metadata.ListFolderContentsRequest
-	(*ListFolderContentsResponse)(nil),   // 13: metadata.ListFolderContentsResponse
-	(*RenameFolderRequest)(nil),          // 14: metadata.RenameFolderRequest
-	(*MoveFolderRequest)(nil),            // 15: metadata.MoveFolderRequest
-	(*DeleteFolderRequest)(nil),          // 16: metadata.DeleteFolderRequest
-	(*DeleteFolderResponse)(nil),         // 17: metadata.DeleteFolderResponse
-	(*RestoreFolderRequest)(nil),         // 18: metadata.RestoreFolderRequest
-	(*GetBreadcrumbsRequest)(nil),        // 19: metadata.GetBreadcrumbsRequest
-	(*GetBreadcrumbsResponse)(nil),       // 20: metadata.GetBreadcrumbsResponse
-	(*ListFilesRequest)(nil),             // 21: metadata.ListFilesRequest
-	(*ListFilesResponse)(nil),            // 22: metadata.ListFilesResponse
-	(*RenameFileRequest)(nil),            // 23: metadata.RenameFileRequest
-	(*MoveFileRequest)(nil),              // 24: metadata.MoveFileRequest
-	(*RestoreFileRequest)(nil),           // 25: metadata.RestoreFileRequest
-	(*PermanentlyDeleteFileRequest)(nil), // 26: metadata.PermanentlyDeleteFileRequest
-	(*PurgeJob)(nil),                     // 27: metadata.PurgeJob
-	(*GetPurgeJobStatusRequest)(nil),     // 28: metadata.GetPurgeJobStatusRequest
-	(*ListTrashRequest)(nil),             // 29: metadata.ListTrashRequest
-	(*ListTrashResponse)(nil),            // 30: metadata.ListTrashResponse
-	(*ListFolderRequest)(nil),            // 31: metadata.ListFolderRequest
-	(*ListFolderResponse)(nil),           // 32: metadata.ListFolderResponse
-	(*DeleteFileRequest)(nil),            // 33: metadata.DeleteFileRequest
-	(*DeleteFileResponse)(nil),           // 34: metadata.DeleteFileResponse
+	(*GetThumbnailURLRequest)(nil),       // 7: metadata.GetThumbnailURLRequest
+	(*GetThumbnailURLResponse)(nil),      // 8: metadata.GetThumbnailURLResponse
+	(*GetFileRequest)(nil),               // 9: metadata.GetFileRequest
+	(*File)(nil),                         // 10: metadata.File
+	(*Folder)(nil),                       // 11: metadata.Folder
+	(*CreateFolderRequest)(nil),          // 12: metadata.CreateFolderRequest
+	(*GetFolderRequest)(nil),             // 13: metadata.GetFolderRequest
+	(*ListFolderContentsRequest)(nil),    // 14: metadata.ListFolderContentsRequest
+	(*ListFolderContentsResponse)(nil),   // 15: metadata.ListFolderContentsResponse
+	(*RenameFolderRequest)(nil),          // 16: metadata.RenameFolderRequest
+	(*MoveFolderRequest)(nil),            // 17: metadata.MoveFolderRequest
+	(*DeleteFolderRequest)(nil),          // 18: metadata.DeleteFolderRequest
+	(*DeleteFolderResponse)(nil),         // 19: metadata.DeleteFolderResponse
+	(*RestoreFolderRequest)(nil),         // 20: metadata.RestoreFolderRequest
+	(*GetBreadcrumbsRequest)(nil),        // 21: metadata.GetBreadcrumbsRequest
+	(*GetBreadcrumbsResponse)(nil),       // 22: metadata.GetBreadcrumbsResponse
+	(*ListFilesRequest)(nil),             // 23: metadata.ListFilesRequest
+	(*ListFilesResponse)(nil),            // 24: metadata.ListFilesResponse
+	(*Item)(nil),                         // 25: metadata.Item
+	(*ListFolderItemsRequest)(nil),       // 26: metadata.ListFolderItemsRequest
+	(*ListFolderItemsResponse)(nil),      // 27: metadata.ListFolderItemsResponse
+	(*ListRecentItemsRequest)(nil),       // 28: metadata.ListRecentItemsRequest
+	(*ListRecentItemsResponse)(nil),      // 29: metadata.ListRecentItemsResponse
+	(*RecordFileAccessRequest)(nil),      // 30: metadata.RecordFileAccessRequest
+	(*RecordFileAccessResponse)(nil),     // 31: metadata.RecordFileAccessResponse
+	(*RenameFileRequest)(nil),            // 32: metadata.RenameFileRequest
+	(*MoveFileRequest)(nil),              // 33: metadata.MoveFileRequest
+	(*RestoreFileRequest)(nil),           // 34: metadata.RestoreFileRequest
+	(*PermanentlyDeleteFileRequest)(nil), // 35: metadata.PermanentlyDeleteFileRequest
+	(*PurgeJob)(nil),                     // 36: metadata.PurgeJob
+	(*GetPurgeJobStatusRequest)(nil),     // 37: metadata.GetPurgeJobStatusRequest
+	(*ListTrashRequest)(nil),             // 38: metadata.ListTrashRequest
+	(*ListTrashResponse)(nil),            // 39: metadata.ListTrashResponse
+	(*ListFolderRequest)(nil),            // 40: metadata.ListFolderRequest
+	(*ListFolderResponse)(nil),           // 41: metadata.ListFolderResponse
+	(*DeleteFileRequest)(nil),            // 42: metadata.DeleteFileRequest
+	(*DeleteFileResponse)(nil),           // 43: metadata.DeleteFileResponse
 }
 var file_metadata_proto_depIdxs = []int32{
-	9,  // 0: metadata.ListFolderContentsResponse.folders:type_name -> metadata.Folder
-	8,  // 1: metadata.ListFolderContentsResponse.files:type_name -> metadata.File
-	9,  // 2: metadata.GetBreadcrumbsResponse.folders:type_name -> metadata.Folder
+	11, // 0: metadata.ListFolderContentsResponse.folders:type_name -> metadata.Folder
+	10, // 1: metadata.ListFolderContentsResponse.files:type_name -> metadata.File
+	11, // 2: metadata.GetBreadcrumbsResponse.folders:type_name -> metadata.Folder
 	0,  // 3: metadata.ListFilesRequest.sort:type_name -> metadata.FileSort
-	8,  // 4: metadata.ListFilesResponse.files:type_name -> metadata.File
-	8,  // 5: metadata.ListTrashResponse.files:type_name -> metadata.File
-	9,  // 6: metadata.ListTrashResponse.folders:type_name -> metadata.Folder
-	8,  // 7: metadata.ListFolderResponse.files:type_name -> metadata.File
-	1,  // 8: metadata.MetadataService.CreateFile:input_type -> metadata.CreateFileRequest
-	3,  // 9: metadata.MetadataService.SetThumbnail:input_type -> metadata.SetThumbnailRequest
-	5,  // 10: metadata.MetadataService.GetThumbnailStatus:input_type -> metadata.GetThumbnailStatusRequest
-	7,  // 11: metadata.MetadataService.GetFile:input_type -> metadata.GetFileRequest
-	31, // 12: metadata.MetadataService.ListFolder:input_type -> metadata.ListFolderRequest
-	33, // 13: metadata.MetadataService.DeleteFile:input_type -> metadata.DeleteFileRequest
-	1,  // 14: metadata.FileService.CreateFile:input_type -> metadata.CreateFileRequest
-	7,  // 15: metadata.FileService.GetFile:input_type -> metadata.GetFileRequest
-	21, // 16: metadata.FileService.ListFiles:input_type -> metadata.ListFilesRequest
-	23, // 17: metadata.FileService.RenameFile:input_type -> metadata.RenameFileRequest
-	24, // 18: metadata.FileService.MoveFile:input_type -> metadata.MoveFileRequest
-	33, // 19: metadata.FileService.DeleteFile:input_type -> metadata.DeleteFileRequest
-	25, // 20: metadata.FileService.RestoreFile:input_type -> metadata.RestoreFileRequest
-	26, // 21: metadata.FileService.PermanentlyDeleteFile:input_type -> metadata.PermanentlyDeleteFileRequest
-	28, // 22: metadata.FileService.GetPurgeJobStatus:input_type -> metadata.GetPurgeJobStatusRequest
-	29, // 23: metadata.FileService.ListTrash:input_type -> metadata.ListTrashRequest
-	10, // 24: metadata.FolderService.CreateFolder:input_type -> metadata.CreateFolderRequest
-	11, // 25: metadata.FolderService.GetFolder:input_type -> metadata.GetFolderRequest
-	12, // 26: metadata.FolderService.ListFolderContents:input_type -> metadata.ListFolderContentsRequest
-	14, // 27: metadata.FolderService.RenameFolder:input_type -> metadata.RenameFolderRequest
-	15, // 28: metadata.FolderService.MoveFolder:input_type -> metadata.MoveFolderRequest
-	16, // 29: metadata.FolderService.DeleteFolder:input_type -> metadata.DeleteFolderRequest
-	18, // 30: metadata.FolderService.RestoreFolder:input_type -> metadata.RestoreFolderRequest
-	19, // 31: metadata.FolderService.GetBreadcrumbs:input_type -> metadata.GetBreadcrumbsRequest
-	2,  // 32: metadata.MetadataService.CreateFile:output_type -> metadata.CreateFileResponse
-	4,  // 33: metadata.MetadataService.SetThumbnail:output_type -> metadata.SetThumbnailResponse
-	6,  // 34: metadata.MetadataService.GetThumbnailStatus:output_type -> metadata.GetThumbnailStatusResponse
-	8,  // 35: metadata.MetadataService.GetFile:output_type -> metadata.File
-	32, // 36: metadata.MetadataService.ListFolder:output_type -> metadata.ListFolderResponse
-	34, // 37: metadata.MetadataService.DeleteFile:output_type -> metadata.DeleteFileResponse
-	2,  // 38: metadata.FileService.CreateFile:output_type -> metadata.CreateFileResponse
-	8,  // 39: metadata.FileService.GetFile:output_type -> metadata.File
-	22, // 40: metadata.FileService.ListFiles:output_type -> metadata.ListFilesResponse
-	8,  // 41: metadata.FileService.RenameFile:output_type -> metadata.File
-	8,  // 42: metadata.FileService.MoveFile:output_type -> metadata.File
-	34, // 43: metadata.FileService.DeleteFile:output_type -> metadata.DeleteFileResponse
-	8,  // 44: metadata.FileService.RestoreFile:output_type -> metadata.File
-	27, // 45: metadata.FileService.PermanentlyDeleteFile:output_type -> metadata.PurgeJob
-	27, // 46: metadata.FileService.GetPurgeJobStatus:output_type -> metadata.PurgeJob
-	30, // 47: metadata.FileService.ListTrash:output_type -> metadata.ListTrashResponse
-	9,  // 48: metadata.FolderService.CreateFolder:output_type -> metadata.Folder
-	9,  // 49: metadata.FolderService.GetFolder:output_type -> metadata.Folder
-	13, // 50: metadata.FolderService.ListFolderContents:output_type -> metadata.ListFolderContentsResponse
-	9,  // 51: metadata.FolderService.RenameFolder:output_type -> metadata.Folder
-	9,  // 52: metadata.FolderService.MoveFolder:output_type -> metadata.Folder
-	17, // 53: metadata.FolderService.DeleteFolder:output_type -> metadata.DeleteFolderResponse
-	9,  // 54: metadata.FolderService.RestoreFolder:output_type -> metadata.Folder
-	20, // 55: metadata.FolderService.GetBreadcrumbs:output_type -> metadata.GetBreadcrumbsResponse
-	32, // [32:56] is the sub-list for method output_type
-	8,  // [8:32] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	10, // 4: metadata.ListFilesResponse.files:type_name -> metadata.File
+	10, // 5: metadata.Item.file:type_name -> metadata.File
+	11, // 6: metadata.Item.folder:type_name -> metadata.Folder
+	0,  // 7: metadata.ListFolderItemsRequest.sort:type_name -> metadata.FileSort
+	25, // 8: metadata.ListFolderItemsResponse.items:type_name -> metadata.Item
+	25, // 9: metadata.ListRecentItemsResponse.items:type_name -> metadata.Item
+	10, // 10: metadata.ListTrashResponse.files:type_name -> metadata.File
+	11, // 11: metadata.ListTrashResponse.folders:type_name -> metadata.Folder
+	10, // 12: metadata.ListFolderResponse.files:type_name -> metadata.File
+	1,  // 13: metadata.MetadataService.CreateFile:input_type -> metadata.CreateFileRequest
+	3,  // 14: metadata.MetadataService.SetThumbnail:input_type -> metadata.SetThumbnailRequest
+	5,  // 15: metadata.MetadataService.GetThumbnailStatus:input_type -> metadata.GetThumbnailStatusRequest
+	7,  // 16: metadata.MetadataService.GetThumbnailURL:input_type -> metadata.GetThumbnailURLRequest
+	9,  // 17: metadata.MetadataService.GetFile:input_type -> metadata.GetFileRequest
+	40, // 18: metadata.MetadataService.ListFolder:input_type -> metadata.ListFolderRequest
+	42, // 19: metadata.MetadataService.DeleteFile:input_type -> metadata.DeleteFileRequest
+	1,  // 20: metadata.FileService.CreateFile:input_type -> metadata.CreateFileRequest
+	9,  // 21: metadata.FileService.GetFile:input_type -> metadata.GetFileRequest
+	23, // 22: metadata.FileService.ListFiles:input_type -> metadata.ListFilesRequest
+	32, // 23: metadata.FileService.RenameFile:input_type -> metadata.RenameFileRequest
+	33, // 24: metadata.FileService.MoveFile:input_type -> metadata.MoveFileRequest
+	42, // 25: metadata.FileService.DeleteFile:input_type -> metadata.DeleteFileRequest
+	34, // 26: metadata.FileService.RestoreFile:input_type -> metadata.RestoreFileRequest
+	35, // 27: metadata.FileService.PermanentlyDeleteFile:input_type -> metadata.PermanentlyDeleteFileRequest
+	37, // 28: metadata.FileService.GetPurgeJobStatus:input_type -> metadata.GetPurgeJobStatusRequest
+	38, // 29: metadata.FileService.ListTrash:input_type -> metadata.ListTrashRequest
+	28, // 30: metadata.FileService.ListRecentItems:input_type -> metadata.ListRecentItemsRequest
+	30, // 31: metadata.FileService.RecordFileAccess:input_type -> metadata.RecordFileAccessRequest
+	12, // 32: metadata.FolderService.CreateFolder:input_type -> metadata.CreateFolderRequest
+	13, // 33: metadata.FolderService.GetFolder:input_type -> metadata.GetFolderRequest
+	14, // 34: metadata.FolderService.ListFolderContents:input_type -> metadata.ListFolderContentsRequest
+	26, // 35: metadata.FolderService.ListFolderItems:input_type -> metadata.ListFolderItemsRequest
+	16, // 36: metadata.FolderService.RenameFolder:input_type -> metadata.RenameFolderRequest
+	17, // 37: metadata.FolderService.MoveFolder:input_type -> metadata.MoveFolderRequest
+	18, // 38: metadata.FolderService.DeleteFolder:input_type -> metadata.DeleteFolderRequest
+	20, // 39: metadata.FolderService.RestoreFolder:input_type -> metadata.RestoreFolderRequest
+	21, // 40: metadata.FolderService.GetBreadcrumbs:input_type -> metadata.GetBreadcrumbsRequest
+	2,  // 41: metadata.MetadataService.CreateFile:output_type -> metadata.CreateFileResponse
+	4,  // 42: metadata.MetadataService.SetThumbnail:output_type -> metadata.SetThumbnailResponse
+	6,  // 43: metadata.MetadataService.GetThumbnailStatus:output_type -> metadata.GetThumbnailStatusResponse
+	8,  // 44: metadata.MetadataService.GetThumbnailURL:output_type -> metadata.GetThumbnailURLResponse
+	10, // 45: metadata.MetadataService.GetFile:output_type -> metadata.File
+	41, // 46: metadata.MetadataService.ListFolder:output_type -> metadata.ListFolderResponse
+	43, // 47: metadata.MetadataService.DeleteFile:output_type -> metadata.DeleteFileResponse
+	2,  // 48: metadata.FileService.CreateFile:output_type -> metadata.CreateFileResponse
+	10, // 49: metadata.FileService.GetFile:output_type -> metadata.File
+	24, // 50: metadata.FileService.ListFiles:output_type -> metadata.ListFilesResponse
+	10, // 51: metadata.FileService.RenameFile:output_type -> metadata.File
+	10, // 52: metadata.FileService.MoveFile:output_type -> metadata.File
+	43, // 53: metadata.FileService.DeleteFile:output_type -> metadata.DeleteFileResponse
+	10, // 54: metadata.FileService.RestoreFile:output_type -> metadata.File
+	36, // 55: metadata.FileService.PermanentlyDeleteFile:output_type -> metadata.PurgeJob
+	36, // 56: metadata.FileService.GetPurgeJobStatus:output_type -> metadata.PurgeJob
+	39, // 57: metadata.FileService.ListTrash:output_type -> metadata.ListTrashResponse
+	29, // 58: metadata.FileService.ListRecentItems:output_type -> metadata.ListRecentItemsResponse
+	31, // 59: metadata.FileService.RecordFileAccess:output_type -> metadata.RecordFileAccessResponse
+	11, // 60: metadata.FolderService.CreateFolder:output_type -> metadata.Folder
+	11, // 61: metadata.FolderService.GetFolder:output_type -> metadata.Folder
+	15, // 62: metadata.FolderService.ListFolderContents:output_type -> metadata.ListFolderContentsResponse
+	27, // 63: metadata.FolderService.ListFolderItems:output_type -> metadata.ListFolderItemsResponse
+	11, // 64: metadata.FolderService.RenameFolder:output_type -> metadata.Folder
+	11, // 65: metadata.FolderService.MoveFolder:output_type -> metadata.Folder
+	19, // 66: metadata.FolderService.DeleteFolder:output_type -> metadata.DeleteFolderResponse
+	11, // 67: metadata.FolderService.RestoreFolder:output_type -> metadata.Folder
+	22, // 68: metadata.FolderService.GetBreadcrumbs:output_type -> metadata.GetBreadcrumbsResponse
+	41, // [41:69] is the sub-list for method output_type
+	13, // [13:41] is the sub-list for method input_type
+	13, // [13:13] is the sub-list for extension type_name
+	13, // [13:13] is the sub-list for extension extendee
+	0,  // [0:13] is the sub-list for field type_name
 }
 
 func init() { file_metadata_proto_init() }
@@ -2394,13 +2966,17 @@ func file_metadata_proto_init() {
 	if File_metadata_proto != nil {
 		return
 	}
+	file_metadata_proto_msgTypes[24].OneofWrappers = []any{
+		(*Item_File)(nil),
+		(*Item_Folder)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metadata_proto_rawDesc), len(file_metadata_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   34,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

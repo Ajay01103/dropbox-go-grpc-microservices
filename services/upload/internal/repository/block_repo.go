@@ -10,6 +10,42 @@ import (
 	"github.com/gocql/gocql"
 )
 
+// gocqlQuery abstracts *gocql.Query for testability.
+type gocqlQuery interface {
+	WithContext(ctx context.Context) gocqlQuery
+	Scan(dest ...interface{}) error
+	ScanCAS(dest ...interface{}) (bool, error)
+	MapScanCAS(dest map[string]interface{}) (bool, error)
+	Exec() error
+	Iter() *gocql.Iter
+}
+
+// gocqlSession abstracts *gocql.Session for testability.
+type gocqlSession interface {
+	Query(stmt string, values ...interface{}) gocqlQuery
+}
+
+// realSession wraps *gocql.Session so that its Query method satisfies gocqlSession.
+type realSession struct{ s *gocql.Session }
+
+func (r *realSession) Query(stmt string, values ...interface{}) gocqlQuery {
+	return &realQuery{q: r.s.Query(stmt, values...)}
+}
+
+// realQuery wraps *gocql.Query so that it satisfies gocqlQuery.
+type realQuery struct{ q *gocql.Query }
+
+func (rq *realQuery) WithContext(ctx context.Context) gocqlQuery {
+	return &realQuery{q: rq.q.WithContext(ctx)}
+}
+func (rq *realQuery) Scan(dest ...interface{}) error              { return rq.q.Scan(dest...) }
+func (rq *realQuery) ScanCAS(dest ...interface{}) (bool, error)   { return rq.q.ScanCAS(dest...) }
+func (rq *realQuery) MapScanCAS(dest map[string]interface{}) (bool, error) {
+	return rq.q.MapScanCAS(dest)
+}
+func (rq *realQuery) Exec() error          { return rq.q.Exec() }
+func (rq *realQuery) Iter() *gocql.Iter   { return rq.q.Iter() }
+
 type Block struct {
 	Hash           string
 	SizeBytes      int64
@@ -21,11 +57,11 @@ type Block struct {
 }
 
 type BlockRepo struct {
-	session *gocql.Session
+	session gocqlSession
 }
 
 func NewBlockRepo(session *gocql.Session) *BlockRepo {
-	return &BlockRepo{session: session}
+	return &BlockRepo{session: &realSession{s: session}}
 }
 
 func (r *BlockRepo) GetBlock(ctx context.Context, hash string) (Block, error) {
@@ -68,9 +104,13 @@ func (r *BlockRepo) IncrementRefCount(ctx context.Context, hash string) error {
 		if err != nil {
 			return err
 		}
+		// Use MapScanCAS: when the IF condition fails ScyllaDB returns 2 columns
+		// ([applied] + ref_count), which ScanCAS() can't handle without dest args.
+		casMap := make(map[string]interface{})
 		applied, err := r.session.Query(
-			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`, block.RefCount+1, hash, block.RefCount,
-		).WithContext(ctx).ScanCAS()
+			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`,
+			block.RefCount+1, hash, block.RefCount,
+		).WithContext(ctx).MapScanCAS(casMap)
 		if err != nil {
 			return fmt.Errorf("increment block ref_count: %w", err)
 		}
@@ -94,9 +134,13 @@ func (r *BlockRepo) DecrementRefCount(ctx context.Context, hash string) (int64, 
 			return 0, nil
 		}
 		newCount := block.RefCount - 1
+		// Use MapScanCAS: when the IF condition fails ScyllaDB returns 2 columns
+		// ([applied] + ref_count), which ScanCAS() can't handle without dest args.
+		casMap := make(map[string]interface{})
 		applied, err := r.session.Query(
-			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`, newCount, hash, block.RefCount,
-		).WithContext(ctx).ScanCAS()
+			`UPDATE blocks SET ref_count = ? WHERE block_hash = ? IF ref_count = ?`,
+			newCount, hash, block.RefCount,
+		).WithContext(ctx).MapScanCAS(casMap)
 		if err != nil {
 			return 0, fmt.Errorf("decrement block ref_count: %w", err)
 		}

@@ -47,6 +47,15 @@ message GetThumbnailStatusResponse {
   string thumbnail_status = 2;
 }
 
+message GetThumbnailURLRequest {
+  string file_id = 1;
+}
+
+message GetThumbnailURLResponse {
+  string url = 1;
+  string thumbnail_status = 2;
+}
+
 message GetFileRequest {
   string file_id = 1;
 }
@@ -150,6 +159,46 @@ message ListFilesResponse {
   string next_page_token = 2;
 }
 
+message Item {
+  string item_type = 1; // file | folder
+  string item_id = 2;
+  string folder_id = 3;
+  oneof details {
+    File file = 4;
+    Folder folder = 5;
+  }
+}
+
+message ListFolderItemsRequest {
+  string folder_id = 1;
+  string page_token = 2;
+  int32 page_size = 3;
+  FileSort sort = 4;
+}
+
+message ListFolderItemsResponse {
+  repeated Item items = 1;
+  string next_page_token = 2;
+}
+
+message ListRecentItemsRequest {
+  string page_token = 1;
+  int32 page_size = 2;
+}
+
+message ListRecentItemsResponse {
+  repeated Item items = 1;
+  string next_page_token = 2;
+}
+
+message RecordFileAccessRequest {
+  string file_id = 1;
+}
+
+message RecordFileAccessResponse {
+  bool success = 1;
+}
+
 message RenameFileRequest {
   string file_id = 1;
   string new_name = 2;
@@ -221,6 +270,7 @@ service MetadataService {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc SetThumbnail(SetThumbnailRequest) returns (SetThumbnailResponse);
   rpc GetThumbnailStatus(GetThumbnailStatusRequest) returns (GetThumbnailStatusResponse);
+  rpc GetThumbnailURL(GetThumbnailURLRequest) returns (GetThumbnailURLResponse);
   rpc GetFile(GetFileRequest) returns (File);
   rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
@@ -237,12 +287,15 @@ service FileService {
   rpc PermanentlyDeleteFile(PermanentlyDeleteFileRequest) returns (PurgeJob);
   rpc GetPurgeJobStatus(GetPurgeJobStatusRequest) returns (PurgeJob);
   rpc ListTrash(ListTrashRequest) returns (ListTrashResponse);
+  rpc ListRecentItems(ListRecentItemsRequest) returns (ListRecentItemsResponse);
+  rpc RecordFileAccess(RecordFileAccessRequest) returns (RecordFileAccessResponse);
 }
 
 service FolderService {
   rpc CreateFolder(CreateFolderRequest) returns (Folder);
   rpc GetFolder(GetFolderRequest) returns (Folder);
   rpc ListFolderContents(ListFolderContentsRequest) returns (ListFolderContentsResponse);
+  rpc ListFolderItems(ListFolderItemsRequest) returns (ListFolderItemsResponse);
   rpc RenameFolder(RenameFolderRequest) returns (Folder);
   rpc MoveFolder(MoveFolderRequest) returns (Folder);
   rpc DeleteFolder(DeleteFolderRequest) returns (DeleteFolderResponse);

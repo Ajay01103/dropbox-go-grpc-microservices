@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/metadata/gen/pb"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
@@ -63,6 +64,58 @@ func folderMessage(folder repository.Folder) *pb.Folder {
 		result.DeletedAt = folder.DeletedAt.UTC().Format("2006-01-02T15:04:05.999999999Z07:00")
 	}
 	return result
+}
+
+func itemMessage(item service.ItemResult) *pb.Item {
+	result := &pb.Item{ItemType: item.Item.ItemType, ItemId: item.Item.ItemID, FolderId: item.Item.FolderID}
+	if item.File != nil {
+		result.Details = &pb.Item_File{File: fileMessage(*item.File)}
+		return result
+	}
+	if item.Folder != nil {
+		result.Details = &pb.Item_Folder{Folder: folderMessage(*item.Folder)}
+		return result
+	}
+	if item.Item.ItemType == "folder" {
+		result.Details = &pb.Item_Folder{Folder: folderMessage(repository.Folder{FolderID: item.Item.ItemID, OwnerID: item.Item.OwnerID, ParentID: item.Item.FolderID, FolderName: item.Item.Name, CreatedAt: item.Item.CreatedAt, UpdatedAt: item.Item.UpdatedAt, IsDeleted: item.Item.IsDeleted})}
+	} else {
+		thumbnailStatus := ""
+		if item.Item.ThumbnailKey != "" {
+			thumbnailStatus = "ready"
+		}
+		result.Details = &pb.Item_File{File: fileMessage(repository.File{FileID: item.Item.ItemID, FolderID: item.Item.FolderID, Filename: item.Item.Name, SizeBytes: item.Item.SizeBytes, ContentType: item.Item.ContentType, OwnerID: item.Item.OwnerID, CreatedAt: item.Item.CreatedAt, UpdatedAt: item.Item.UpdatedAt, ThumbnailKey: item.Item.ThumbnailKey, ThumbnailStatus: thumbnailStatus, IsDeleted: item.Item.IsDeleted, Current: item.Item.Current})}
+	}
+	return result
+}
+
+func (s *MetadataServer) ListRecentItems(ctx context.Context, req *connect.Request[pb.ListRecentItemsRequest]) (*connect.Response[pb.ListRecentItemsResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	items, next, err := s.svc.ListRecentItemsOwned(ctx, userID, int(req.Msg.GetPageSize()), req.Msg.GetPageToken())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	response := &pb.ListRecentItemsResponse{NextPageToken: next, Items: make([]*pb.Item, 0, len(items))}
+	for _, item := range items {
+		response.Items = append(response.Items, itemMessage(item))
+	}
+	return connect.NewResponse(response), nil
+}
+
+func (s *MetadataServer) RecordFileAccess(ctx context.Context, req *connect.Request[pb.RecordFileAccessRequest]) (*connect.Response[pb.RecordFileAccessResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if req.Msg.GetFileId() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
+	}
+	if err := s.svc.RecordFileAccess(ctx, userID, req.Msg.GetFileId()); err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&pb.RecordFileAccessResponse{Success: true}), nil
 }
 
 func (s *MetadataServer) ListFiles(ctx context.Context, req *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error) {
@@ -157,8 +210,32 @@ func (s *MetadataServer) GetPurgeJobStatus(ctx context.Context, req *connect.Req
 	return connect.NewResponse(purgeJobMessage(job)), nil
 }
 
-func (s *MetadataServer) ListTrash(context.Context, *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("trash listing is not enabled in this phase"))
+func (s *MetadataServer) ListTrash(ctx context.Context, req *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	trash, err := s.svc.ListTrashOwned(ctx, userID, int(req.Msg.GetPageSize()))
+	if err != nil {
+		s.logger.Error("ListTrash failed", zap.String("userID", userID), zap.Error(err))
+		return nil, mapError(err)
+	}
+
+	response := &pb.ListTrashResponse{
+		Files:   make([]*pb.File, 0, len(trash.Files)),
+		Folders: make([]*pb.Folder, 0, len(trash.Folders)),
+	}
+	for _, file := range trash.Files {
+		response.Files = append(response.Files, fileMessage(file))
+	}
+	for _, folder := range trash.Folders {
+		response.Folders = append(response.Folders, folderMessage(folder))
+	}
+	return connect.NewResponse(response), nil
 }
 
 func servicePageSize(size int32) error {
@@ -190,6 +267,44 @@ func (s *MetadataServer) GetFolder(ctx context.Context, req *connect.Request[pb.
 		return nil, mapError(err)
 	}
 	return connect.NewResponse(folderMessage(folder)), nil
+}
+
+func (s *MetadataServer) ListFolderItems(ctx context.Context, req *connect.Request[pb.ListFolderItemsRequest]) (*connect.Response[pb.ListFolderItemsResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	folderID := req.Msg.GetFolderId()
+	if folderID == "" {
+		root, rootErr := s.svc.EnsureRootFolder(ctx, userID)
+		if rootErr != nil {
+			return nil, mapError(rootErr)
+		}
+		folderID = root.FolderID
+	}
+	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+	sortBy := "updated"
+	switch req.Msg.GetSort() {
+	case pb.FileSort_FILE_SORT_NAME:
+		sortBy = "name"
+	case pb.FileSort_FILE_SORT_SIZE:
+		sortBy = "size"
+	case pb.FileSort_FILE_SORT_UPDATED_AT:
+		sortBy = "updated"
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid sort"))
+	}
+	items, next, err := s.svc.ListFolderItemsOwned(ctx, userID, folderID, sortBy, int(req.Msg.GetPageSize()), req.Msg.GetPageToken())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	response := &pb.ListFolderItemsResponse{NextPageToken: next, Items: make([]*pb.Item, 0, len(items))}
+	for _, item := range items {
+		response.Items = append(response.Items, itemMessage(item))
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (s *MetadataServer) ListFolderContents(ctx context.Context, req *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error) {

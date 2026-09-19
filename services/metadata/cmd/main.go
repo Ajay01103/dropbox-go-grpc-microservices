@@ -129,32 +129,31 @@ func run() error {
 	}
 	defer cache.Close()
 
+	rateLimiter, err := server.NewRateLimiter(20, 40, 10*time.Minute)
+	if err != nil {
+		return fmt.Errorf("create metadata rate limiter: %w", err)
+	}
+
 	// 5. Setup repositories
 	metadataRepo := repository.NewMetadataRepo(session)
 	folderRepo := repository.NewFolderRepo(session)
+	itemsRepo := repository.NewItemsRepo(session)
+	recentItemsRepo := repository.NewRecentItemsRepo(session)
 	purgeRepo := repository.NewPurgeRepo(session)
 
 	// 6. Setup service layer
 	metadataSvc := service.New(
 		metadataRepo,
 		folderRepo,
+		itemsRepo,
+		recentItemsRepo,
 		cache,
 		cfg,
 		logger,
 	)
 
-	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, cfg.NATSBlockRefsRequestedSubject, cfg.NATSBlockRefsCompletedSubject, purgeRepo, metadataRepo, logger)
-	if err != nil {
-		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
-	} else if err := purgeCoordinator.Start(context.Background()); err != nil {
-		purgeCoordinator.Close()
-		logger.Warn("purge coordinator failed to start; permanent deletion disabled", zap.Error(err))
-	} else {
-		metadataSvc.SetPurgeCoordinator(purgeCoordinator)
-		defer purgeCoordinator.Close()
-		logger.Info("purge coordinator started")
-	}
-
+	// Build the thumbnail worker first so it can be passed to the purge
+	// coordinator as a ThumbnailDeleter.
 	thumbnailWorker, err := thumbnail.New(cfg.NATSURL, cfg.NATSEventSubject, cfg.ThumbnailStoragePath, thumbnail.S3Config{
 		Bucket:    cfg.S3Bucket,
 		Region:    cfg.S3Region,
@@ -167,9 +166,30 @@ func run() error {
 	} else if err := thumbnailWorker.Start(context.Background()); err != nil {
 		thumbnailWorker.Close()
 		logger.Warn("thumbnail worker failed to start; continuing without thumbnail generation", zap.Error(err))
+		thumbnailWorker = nil
 	} else {
+		metadataSvc.SetThumbnailURLer(thumbnailWorker)
 		defer thumbnailWorker.Close()
 		logger.Info("thumbnail worker started", zap.String("subject", cfg.NATSEventSubject))
+	}
+
+	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, cfg.NATSBlockRefsRequestedSubject, cfg.NATSBlockRefsCompletedSubject, purgeRepo, metadataRepo, logger)
+	if err != nil {
+		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
+	} else {
+		// Wire in thumbnail deletion so thumbnails are removed when a file is
+		// permanently deleted.
+		if thumbnailWorker != nil {
+			purgeCoordinator.SetThumbnailDeleter(thumbnailWorker)
+		}
+		if err := purgeCoordinator.Start(context.Background()); err != nil {
+			purgeCoordinator.Close()
+			logger.Warn("purge coordinator failed to start; permanent deletion disabled", zap.Error(err))
+		} else {
+			metadataSvc.SetPurgeCoordinator(purgeCoordinator)
+			defer purgeCoordinator.Close()
+			logger.Info("purge coordinator started")
+		}
 	}
 
 	// 7. Setup Connect RPC server
@@ -180,18 +200,15 @@ func run() error {
 	mux := http.NewServeMux()
 	mux.Handle(pbconnect.NewMetadataServiceHandler(
 		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor),
-		connect.WithInterceptors(authInterceptor),
+		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
 	))
 	mux.Handle(pbconnect.NewFileServiceHandler(
 		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor),
-		connect.WithInterceptors(authInterceptor),
+		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
 	))
 	mux.Handle(pbconnect.NewFolderServiceHandler(
 		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor),
-		connect.WithInterceptors(authInterceptor),
+		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
 	))
 
 	httpServer := &http.Server{

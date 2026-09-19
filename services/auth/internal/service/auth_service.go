@@ -136,6 +136,15 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	uid := payload.UserID.String()
 	sid := payload.SessionID.String()
 
+	// Several browser requests can arrive with the same refresh token while
+	// middleware is refreshing the access cookie. Return the pair produced by
+	// that rotation instead of treating the overlap as token theft.
+	if cached, ok := s.cache.Get(tokencache.RotatedTokenKey(sid, payload.Gen)); ok {
+		if pair, ok := cached.(*RotatedTokenPair); ok {
+			return &RefreshResult{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken}, nil
+		}
+	}
+
 	// ── L1: Ristretto session cache ────────────────────────────────────────
 	var sessionGen int64
 	var minGlobalVer int
@@ -210,6 +219,13 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 		return nil, fmt.Errorf("bump session gen: %w", err)
 	}
 	if !ok {
+		// The first overlapping request may have completed the rotation just
+		// before this CAS lost. Reuse its replacement pair if available.
+		if cached, found := s.cache.Get(tokencache.RotatedTokenKey(sid, payload.Gen)); found {
+			if pair, valid := cached.(*RotatedTokenPair); valid {
+				return &RefreshResult{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken}, nil
+			}
+		}
 		s.logger.Warn("concurrent refresh detected: gen mismatch on CAS",
 			zap.String("userID", uid),
 			zap.String("sessionID", sid),
@@ -239,6 +255,13 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 	if err != nil {
 		return nil, fmt.Errorf("create session access token: %w", err)
 	}
+
+	s.cache.SetWithTTL(
+		tokencache.RotatedTokenKey(sid, payload.Gen),
+		&RotatedTokenPair{AccessToken: newAccessStr, RefreshToken: newRefreshStr},
+		tokencache.RotatedTokenCost,
+		tokencache.RotatedTokenTTL,
+	)
 
 	return &RefreshResult{AccessToken: newAccessStr, RefreshToken: newRefreshStr}, nil
 }
@@ -395,6 +418,13 @@ func (s *AuthService) GetUserByID(ctx context.Context, userID uuid.UUID) (*repos
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
+// RotatedTokenPair is the replacement pair for one just-consumed refresh
+// generation. It is intentionally short-lived and only used for overlap.
+type RotatedTokenPair struct {
+	AccessToken  string
+	RefreshToken string
+}
+
 // CachedSession stores session state in Ristretto for fast rotation checks.
 type CachedSession struct {
 	Gen          int64
@@ -468,6 +498,11 @@ func (s *AuthService) issueAndUpdateSessionCache(
 		return nil, fmt.Errorf("bump session gen: %w", err)
 	}
 	if !ok {
+		if cached, found := s.cache.Get(tokencache.RotatedTokenKey(sessionID, currentGen)); found {
+			if pair, valid := cached.(*RotatedTokenPair); valid {
+				return &RefreshResult{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken}, nil
+			}
+		}
 		s.logger.Warn("concurrent refresh during cache hit",
 			zap.String("userID", userID),
 			zap.String("sessionID", sessionID),
@@ -489,6 +524,15 @@ func (s *AuthService) issueAndUpdateSessionCache(
 	if err != nil {
 		return nil, fmt.Errorf("create session access token: %w", err)
 	}
+
+	// Keep the old generation's replacement pair briefly so overlapping
+	// requests can complete without invalidating the session.
+	s.cache.SetWithTTL(
+		tokencache.RotatedTokenKey(sessionID, currentGen),
+		&RotatedTokenPair{AccessToken: newAccessStr, RefreshToken: newRefreshStr},
+		tokencache.RotatedTokenCost,
+		tokencache.RotatedTokenTTL,
+	)
 
 	// Refresh cache
 	s.cache.SetWithTTL(

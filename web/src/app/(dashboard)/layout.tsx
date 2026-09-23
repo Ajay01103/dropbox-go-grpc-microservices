@@ -1,6 +1,6 @@
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { DashboardSidebar } from "@/modules/dashboard/components/dashboard-sidebar";
-import UploadDrawer from "@/modules/files/components/upload-drawer";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
+import { DashboardSidebar } from "@/modules/dashboard/components/dashboard-sidebar"
+import UploadDrawer from "@/modules/files/components/upload-drawer"
 
 const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
   return (
@@ -15,7 +15,7 @@ const DashboardLayout = async ({ children }: { children: React.ReactNode }) => {
       </SidebarInset>
       <UploadDrawer />
     </SidebarProvider>
-  );
-};
+  )
+}
 
-export default DashboardLayout;
+export default DashboardLayout

@@ -1,26 +1,29 @@
 module github.com/Ajay01103/go-dropbox/upload
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/Ajay01103/go-dropbox/pkg v0.0.0-00010101000000-000000000000
-	github.com/dgraph-io/ristretto v0.1.1
+	github.com/aws/aws-sdk-go-v2 v1.46.0
+	github.com/aws/aws-sdk-go-v2/config v1.33.3
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.3
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.111.0
+	github.com/aws/smithy-go v1.28.1
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/gocql/gocql v1.7.0
 	github.com/google/uuid v1.6.0
-	github.com/nats-io/nats.go v1.39.1
+	github.com/nats-io/nats.go v1.54.0
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/net v0.52.0
+	golang.org/x/net v0.58.0
 	google.golang.org/protobuf v1.36.11
 )
 
 require (
-	github.com/aws/aws-sdk-go-v2 v1.46.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.20 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.33.3 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.3 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.19.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.2 // indirect
@@ -29,12 +32,47 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.11.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.20.2 // indirect
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.111.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.9.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.37.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.42.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.49.0 // indirect
-	github.com/aws/smithy-go v1.28.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/fsnotify/fsnotify v1.9.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
+	github.com/goccy/go-json v0.10.3 // indirect
+	github.com/golang/snappy v0.0.4 // indirect
+	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
+	github.com/klauspost/compress v1.20.0 // indirect
+	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
+	github.com/lestrrat-go/httpcc v1.0.1 // indirect
+	github.com/lestrrat-go/httprc v1.0.6 // indirect
+	github.com/lestrrat-go/iter v1.0.2 // indirect
+	github.com/lestrrat-go/jwx/v2 v2.1.6 // indirect
+	github.com/lestrrat-go/option v1.0.1 // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
+	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/sagikazarmark/locafero v0.11.0 // indirect
+	github.com/scylladb/go-reflectx v1.0.1 // indirect
+	github.com/segmentio/asm v1.2.0 // indirect
+	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
+	github.com/spf13/afero v1.15.0 // indirect
+	github.com/spf13/cast v1.10.0 // indirect
+	github.com/spf13/pflag v1.0.10 // indirect
+	github.com/subosito/gotenv v1.6.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
+	go.uber.org/multierr v1.10.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
+	gopkg.in/inf.v0 v0.9.1 // indirect
 )
 
 replace github.com/Ajay01103/go-dropbox/pkg => ../../pkg

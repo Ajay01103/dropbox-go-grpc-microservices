@@ -84,6 +84,13 @@ func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filena
 		return File{}, fmt.Errorf("index file sort order: %w", err)
 	}
 
+	// Thumbnail sweeper work list. Best-effort: the file row is authoritative
+	// (thumbnail_status), so a failed insert only means THIS file can't be
+	// recovered by the sweeper — the normal worker path is unaffected.
+	_ = r.InsertThumbnailPending(ctx, ThumbnailPendingRef{
+		FileID: fileID, OwnerID: ownerID, FileVersion: 1, CreatedAt: now,
+	})
+
 	return file, nil
 }
 
@@ -164,6 +171,44 @@ func (r *MetadataRepo) SetThumbnailByFolder(ctx context.Context, folderID, fileI
 	return r.session.Query(`UPDATE files_by_id SET thumbnail_key = ?, thumbnail_status = ? WHERE file_id = ?`, thumbnailKey, thumbnailStatus, id).WithContext(ctx).Exec()
 }
 
+// SetThumbnailLWT sets thumbnail fields with lightweight-transaction guards
+// (IF EXISTS) on both projections and reports whether both rows were applied.
+//
+// It exists for the thumbnail worker: if a file row has vanished between the
+// ObjectStored event and thumbnail completion (soft delete / purge raced the
+// generation), the update is not applied and the caller can Ack the message
+// instead of resurrecting a ghost row with a blind UPDATE.
+//
+// applied=false means at least one projection was missing. Unlike
+// SetThumbnailByFolder this does NOT return an error for missing rows —
+// missing is an expected, benign outcome here.
+func (r *MetadataRepo) SetThumbnailLWT(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string) (applied bool, err error) {
+	id, idErr := parseID(fileID)
+	if idErr != nil {
+		return false, fmt.Errorf("parse file id: %w", idErr)
+	}
+	folderUUID, folderErr := parseID(folderID)
+	if folderErr != nil {
+		return false, fmt.Errorf("parse folder id: %w", folderErr)
+	}
+
+	folderApplied, err := r.session.Query(
+		`UPDATE files_by_folder SET thumbnail_key = ?, thumbnail_status = ? WHERE folder_id = ? AND file_id = ? IF EXISTS`,
+		thumbnailKey, thumbnailStatus, folderUUID, id,
+	).WithContext(ctx).MapScanCAS(map[string]interface{}{})
+	if err != nil {
+		return false, fmt.Errorf("set thumbnail (files_by_folder): %w", err)
+	}
+	idApplied, err := r.session.Query(
+		`UPDATE files_by_id SET thumbnail_key = ?, thumbnail_status = ? WHERE file_id = ? IF EXISTS`,
+		thumbnailKey, thumbnailStatus, id,
+	).WithContext(ctx).MapScanCAS(map[string]interface{}{})
+	if err != nil {
+		return false, fmt.Errorf("set thumbnail (files_by_id): %w", err)
+	}
+	return folderApplied && idApplied, nil
+}
+
 func (r *MetadataRepo) GetThumbnailStatus(ctx context.Context, folderID, fileID string) (string, string, error) {
 	file, err := r.GetFileByID(ctx, folderID, fileID)
 	if err != nil {
@@ -191,6 +236,11 @@ type Folder struct {
 	ParentID       string    `db:"parent_id"`
 	FolderName     string    `db:"folder_name"`
 	PathCache      string    `db:"path_cache"`
+	// AncestorIDs is the ordered chain of ancestor folder ids, root first and
+	// direct parent last, excluding the folder itself. Empty for the root.
+	// Backed by the ancestor_ids list<uuid> column (z18 migration); used by
+	// breadcrumb resolution so a deep folder is O(1) reads, not O(depth).
+	AncestorIDs    []string  `db:"ancestor_ids"`
 	CreatedAt      time.Time `db:"created_at"`
 	UpdatedAt      time.Time `db:"updated_at"`
 	IsDeleted      bool      `db:"is_deleted"`
@@ -206,49 +256,4 @@ type FolderRepo struct {
 // NewFolderRepo creates a FolderRepo backed by a ScyllaDB session
 func NewFolderRepo(session *gocql.Session) *FolderRepo {
 	return &FolderRepo{session: session}
-}
-
-// CreateFolder inserts a new folder record
-func (r *FolderRepo) CreateFolder(ctx context.Context, userID, folderName string) (Folder, error) {
-	folderID := uuid.New().String()
-	now := time.Now().UTC()
-
-	folder := Folder{
-		FolderID:   folderID,
-		UserID:     userID,
-		FolderName: folderName,
-		CreatedAt:  now,
-	}
-
-	if err := r.session.Query(
-		`INSERT INTO folders_by_user (user_id, folder_id, folder_name, created_at)
-		VALUES (?, ?, ?, ?)`,
-		userID, folderID, folderName, now,
-	).WithContext(ctx).Exec(); err != nil {
-		return Folder{}, fmt.Errorf("insert folder: %w", err)
-	}
-
-	return folder, nil
-}
-
-// ListUserFolders returns all folders owned by a user
-func (r *FolderRepo) ListUserFolders(ctx context.Context, userID string) ([]Folder, error) {
-	var folders []Folder
-	iter := r.session.Query(
-		`SELECT user_id, folder_id, folder_name, created_at
-		FROM folders_by_user WHERE user_id = ?`,
-		userID,
-	).WithContext(ctx).Iter()
-	defer iter.Close()
-
-	var folder Folder
-	for iter.Scan(&folder.UserID, &folder.FolderID, &folder.FolderName, &folder.CreatedAt) {
-		folders = append(folders, folder)
-	}
-
-	if err := iter.Close(); err != nil {
-		return nil, fmt.Errorf("list folders: %w", err)
-	}
-
-	return folders, nil
 }

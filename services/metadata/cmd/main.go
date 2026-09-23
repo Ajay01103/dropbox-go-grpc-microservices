@@ -26,6 +26,7 @@ import (
 	"github.com/Ajay01103/go-dropbox/metadata/internal/service"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/thumbnail"
 	"github.com/Ajay01103/go-dropbox/metadata/server"
+	"github.com/Ajay01103/go-dropbox/pkg/events"
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
 	"github.com/Ajay01103/go-dropbox/pkg/jwks"
 	pkglogger "github.com/Ajay01103/go-dropbox/pkg/logger"
@@ -103,7 +104,7 @@ func run() error {
 
 	// 3. Run migrations
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-	migrated, err := db.Migrate(ctx, session)
+	migrated, err := db.Migrate(ctx, session, db.Keyspace)
 	cancel()
 
 	if err != nil {
@@ -154,7 +155,7 @@ func run() error {
 
 	// Build the thumbnail worker first so it can be passed to the purge
 	// coordinator as a ThumbnailDeleter.
-	thumbnailWorker, err := thumbnail.New(cfg.NATSURL, cfg.NATSEventSubject, cfg.ThumbnailStoragePath, thumbnail.S3Config{
+	thumbnailWorker, err := thumbnail.New(cfg.ThumbnailStoragePath, thumbnail.S3Config{
 		Bucket:    cfg.S3Bucket,
 		Region:    cfg.S3Region,
 		Endpoint:  cfg.S3Endpoint,
@@ -163,17 +164,46 @@ func run() error {
 	}, metadataRepo, logger)
 	if err != nil {
 		logger.Warn("thumbnail worker unavailable; continuing without thumbnail generation", zap.Error(err))
-	} else if err := thumbnailWorker.Start(context.Background()); err != nil {
-		thumbnailWorker.Close()
-		logger.Warn("thumbnail worker failed to start; continuing without thumbnail generation", zap.Error(err))
 		thumbnailWorker = nil
 	} else {
 		metadataSvc.SetThumbnailURLer(thumbnailWorker)
 		defer thumbnailWorker.Close()
-		logger.Info("thumbnail worker started", zap.String("subject", cfg.NATSEventSubject))
+		logger.Info("thumbnail storage plumbing initialized")
+
+		// Thumbnail consumer — consumes files.v2.stored with per-file
+		// thumbnail keys.
+		thumbnailConsumer, err := thumbnail.NewThumbnailWorker(cfg.NATSURL, thumbnailWorker)
+		if err != nil {
+			logger.Warn("thumbnail worker unavailable", zap.Error(err))
+		} else if err := thumbnailConsumer.Start(context.Background()); err != nil {
+			thumbnailConsumer.Close()
+			logger.Warn("thumbnail worker failed to start", zap.Error(err))
+		} else {
+			defer thumbnailConsumer.Close()
+			logger.Info("thumbnail worker started", zap.String("subject", events.SubjFileStored))
+		}
+
+		// Thumbnail sweeper: re-publishes FileStored (original MsgId — dedup
+		// makes a republish a no-op if the original secretly succeeded) for
+		// files still pending past the stale threshold.
+		if sweeper, err := thumbnail.NewThumbnailSweeper(cfg.NATSURL, metadataRepo, thumbnail.ThumbnailSweeperConfig{
+			Interval:   cfg.ThumbnailSweepInterval,
+			StaleAfter: cfg.ThumbnailSweepStaleAfter,
+		}, logger); err != nil {
+			logger.Warn("thumbnail sweeper unavailable", zap.Error(err))
+		} else if sweeper != nil {
+			if err := sweeper.Start(context.Background()); err != nil {
+				logger.Warn("thumbnail sweeper failed to start", zap.Error(err))
+			} else {
+				defer sweeper.Stop()
+				logger.Info("thumbnail sweeper started",
+					zap.Duration("interval", cfg.ThumbnailSweepInterval),
+					zap.Duration("staleAfter", cfg.ThumbnailSweepStaleAfter))
+			}
+		}
 	}
 
-	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, cfg.NATSBlockRefsRequestedSubject, cfg.NATSBlockRefsCompletedSubject, purgeRepo, metadataRepo, logger)
+	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, purgeRepo, metadataRepo, logger)
 	if err != nil {
 		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
 	} else {
@@ -189,6 +219,26 @@ func run() error {
 			metadataSvc.SetPurgeCoordinator(purgeCoordinator)
 			defer purgeCoordinator.Close()
 			logger.Info("purge coordinator started")
+
+			// Recovery sweeper: re-drives purge jobs that stalled (crash
+			// between insert and publish, lost request/completion messages).
+			// The repo satisfies the work-list/claim parts of the deps
+			// interface; the coordinator satisfies publish/metadata-removal.
+			sweeperCfg := purge.SweeperConfig{
+				Interval:          cfg.PurgeRecoveryInterval,
+				InitialRetryDelay: cfg.PurgeInitialRetryDelay,
+				MaxRetryDelay:     cfg.PurgeMaxRetryDelay,
+				BackoffMultiplier: cfg.PurgeRetryBackoffMultiplier,
+				MaxAttempts:       cfg.PurgeMaxAttempts,
+			}
+			sweeper := purge.NewSweeper(struct {
+				*repository.PurgeRepo
+				*purge.Coordinator
+			}{purgeRepo, purgeCoordinator}, sweeperCfg, logger)
+			sweeper.Start(context.Background())
+			logger.Info("purge sweeper started",
+				zap.Duration("interval", sweeperCfg.Interval),
+				zap.Int("maxAttempts", sweeperCfg.MaxAttempts))
 		}
 	}
 

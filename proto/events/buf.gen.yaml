@@ -1,0 +1,12 @@
+version: v2
+clean: true
+inputs:
+  - directory: .
+    paths:
+      - v2/events.proto
+plugins:
+  - remote: buf.build/protocolbuffers/go
+    # source_relative yields v2/events.pb.go, so the out root is the parent
+    # of the v2 package: output lands at pkg/gen/events/v2/events.pb.go.
+    out: ../../pkg/gen/events
+    opt: paths=source_relative

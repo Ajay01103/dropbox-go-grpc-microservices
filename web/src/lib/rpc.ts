@@ -5,7 +5,7 @@ import { createConnectTransport, createGrpcWebTransport } from "@connectrpc/conn
 
 import { AuthService } from "../gen/pb/auth/auth_pb"
 import { UploadService } from "../gen/pb/upload/upload_pb"
-import { FolderService } from "../gen/pb/metadata/metadata_pb"
+import { FileService, FolderService, MetadataService } from "../gen/pb/metadata/metadata_pb"
 
 // Same-origin proxy paths — browser calls Next.js, Next.js attaches Bearer
 // from the HttpOnly cookie and forwards to the real Go service.
@@ -34,4 +34,15 @@ const uploadBrowserTransport = createConnectTransport({
 // login/register/logout go through server actions, not this client.
 export const authBrowserRpcClient = createClient(AuthService, createTransport(AUTH_BASE_URL))
 export const uploadBrowserRpcClient = createClient(UploadService, uploadBrowserTransport)
-export const metadataBrowserRpcClient = createClient(FolderService, createTransport(METADATA_BASE_URL))
+export const metadataBrowserRpcClient = createClient(
+  FolderService,
+  createTransport(METADATA_BASE_URL),
+)
+export const metadataCoreBrowserRpcClient = createClient(
+  MetadataService,
+  createTransport(METADATA_BASE_URL),
+)
+export const metadataFileBrowserRpcClient = createClient(
+  FileService,
+  createTransport(METADATA_BASE_URL),
+)

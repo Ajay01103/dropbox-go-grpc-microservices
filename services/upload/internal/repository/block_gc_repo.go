@@ -72,35 +72,3 @@ func (r *BlockRepo) DeleteBlockRecord(ctx context.Context, hash string) error {
 	}
 	return r.session.Query(`DELETE FROM blocks WHERE block_hash = ?`, hash).WithContext(ctx).Exec()
 }
-
-// HasInFlightDecrement returns true only if there is a decrement operation for
-// this block that is currently CLAIMED and whose claim has not yet gone stale.
-//
-// Historical rows (COUNTER_APPLIED, COMPLETE, FAILED) are never deleted from
-// block_decrement_operations_by_hash, so we cannot treat any non-terminal
-// status as in-flight — we must check specifically for an active CLAIMED row.
-// A row is only considered actively claimed when its updated_at is within the
-// last staleAfter window; beyond that the decrement worker will take it over or
-// it will be redelivered, and it is safe to proceed with GC.
-func (r *BlockRepo) HasInFlightDecrement(ctx context.Context, hash string, staleAfter time.Duration) (bool, error) {
-	iter := r.session.Query(
-		`SELECT status, updated_at FROM block_decrement_operations_by_hash WHERE block_hash = ?`,
-		hash,
-	).WithContext(ctx).Iter()
-	defer iter.Close()
-
-	var status string
-	var updatedAt time.Time
-	for iter.Scan(&status, &updatedAt) {
-		if status == BlockDecrementClaimed && time.Since(updatedAt) < staleAfter {
-			if err := iter.Close(); err != nil && err != gocql.ErrNotFound {
-				return false, fmt.Errorf("scan block decrement operations: %w", err)
-			}
-			return true, nil
-		}
-	}
-	if err := iter.Close(); err != nil && err != gocql.ErrNotFound {
-		return false, fmt.Errorf("scan block decrement operations: %w", err)
-	}
-	return false, nil
-}

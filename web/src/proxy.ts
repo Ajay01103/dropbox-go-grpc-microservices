@@ -90,8 +90,19 @@ export default async function proxy(request: NextRequest) {
     setAuthCookies(response, res.accessToken, res.refreshToken)
     return response
   } catch (err) {
-    console.error("[proxy] token refresh failed", err)
-    return redirectToLogin(request)
+    // A hot reload or another Next.js worker can lose the in-process
+    // single-flight entry while the backend is finishing the rotation. The
+    // backend keeps the immediately previous pair briefly, so retry once
+    // before treating the session as invalid.
+    try {
+      const retry = await authClient.refreshToken({ refreshToken })
+      const response = NextResponse.next()
+      setAuthCookies(response, retry.accessToken, retry.refreshToken)
+      return response
+    } catch {
+      console.error("[proxy] token refresh failed", err)
+      return redirectToLogin(request)
+    }
   }
 }
 

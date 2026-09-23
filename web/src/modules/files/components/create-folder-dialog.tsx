@@ -7,12 +7,7 @@ import { useForm } from "react-hook-form"
 import * as z from "zod"
 
 import { Button } from "@/components/ui/button"
-import {
-  Field,
-  FieldDescription,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field"
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { useCreateFolder } from "../api/use-files"
 import type { Folder } from "@/gen/pb/metadata/metadata_pb"
@@ -33,11 +28,7 @@ interface CreateFolderDialogProps {
   onCreated: (folder: Folder) => void
 }
 
-export function CreateFolderDialog({
-  open,
-  onOpenChange,
-  onCreated,
-}: CreateFolderDialogProps) {
+export function CreateFolderDialog({ open, onOpenChange, onCreated }: CreateFolderDialogProps) {
   const createFolder = useCreateFolder()
   const form = useForm<CreateFolderValues>({
     resolver: zodResolver(createFolderSchema),
@@ -52,7 +43,7 @@ export function CreateFolderDialog({
 
   const onSubmit = async ({ name }: CreateFolderValues) => {
     try {
-      const folder = await createFolder.mutateAsync({ parentId: "", name, })
+      const folder = await createFolder.mutateAsync({ parentId: "", name })
 
       onCreated(folder)
       onOpenChange(false)
@@ -76,12 +67,15 @@ export function CreateFolderDialog({
       role="dialog"
     >
       <div
-        className="w-full max-w-130 rounded-2xl bg-background p-7 shadow-2xl sm:p-8"
+        className="bg-background w-full max-w-130 rounded-2xl p-7 shadow-2xl sm:p-8"
         onMouseDown={(event) => event.stopPropagation()}
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-base font-semibold" id="create-folder-title">
+            <h2
+              className="text-base font-semibold"
+              id="create-folder-title"
+            >
               Create folder
             </h2>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -90,7 +84,7 @@ export function CreateFolderDialog({
           </div>
           <Button
             aria-label="Close create folder dialog"
-            className="-mr-2 -mt-2 rounded-lg"
+            className="-mt-2 -mr-2 rounded-lg"
             onClick={() => onOpenChange(false)}
             size="icon"
             type="button"
@@ -118,7 +112,9 @@ export function CreateFolderDialog({
               )}
             </Field>
 
-            {rootError && <FieldDescription className="text-destructive">{rootError}</FieldDescription>}
+            {rootError && (
+              <FieldDescription className="text-destructive">{rootError}</FieldDescription>
+            )}
 
             <div className="flex items-center justify-end gap-2 pt-3">
               <Button
@@ -128,7 +124,10 @@ export function CreateFolderDialog({
               >
                 Cancel
               </Button>
-              <Button disabled={form.formState.isSubmitting} type="submit">
+              <Button
+                disabled={form.formState.isSubmitting}
+                type="submit"
+              >
                 {form.formState.isSubmitting ? "Creating..." : "Create"}
               </Button>
             </div>

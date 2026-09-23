@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -13,109 +12,143 @@ import (
 	"connectrpc.com/connect"
 	"github.com/dgraph-io/ristretto"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	httpclient "net/http"
 
 	metadataPB "github.com/Ajay01103/go-dropbox/metadata/gen/pb"
 	metadatapbconnect "github.com/Ajay01103/go-dropbox/metadata/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/pkg/events"
+	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
+	"github.com/Ajay01103/go-dropbox/pkg/natsx"
 	"github.com/Ajay01103/go-dropbox/upload/config"
 	"github.com/Ajay01103/go-dropbox/upload/internal/repository"
 	"github.com/Ajay01103/go-dropbox/upload/internal/storagegateway"
 )
 
-// ObjectStoredEvent is the async event published after a finalized upload is persisted.
-type ObjectStoredEvent struct {
-	SchemaVersion string   `json:"schema_version"`
-	FileID        string   `json:"file_id"`
-	BlockHashList []string `json:"block_hash_list,omitempty"`
-	ContentType   string   `json:"content_type"`
-	SizeBytes     int64    `json:"size_bytes"`
-	OwnerID       string   `json:"owner_id"`
-	StoredAtUnix  int64    `json:"stored_at_unix"`
+// FileStoredEvent is the upload-side input to the event publisher: the fields
+// the FileStored proto needs (version is always 1 today).
+type FileStoredEvent struct {
+	FileID        string
+	BlockHashList []string
+	ContentType   string
+	SizeBytes     int64
+	OwnerID       string
+	StoredAtUnix  int64
 }
 
-// EventPublisher publishes upload lifecycle events to the async bus.
+// EventPublisher publishes upload lifecycle events to the async bus (the v2
+// FileStored proto on files.v2.stored — the only topology since B4).
 type EventPublisher interface {
-	PublishObjectStored(context.Context, *ObjectStoredEvent) error
+	PublishFileStored(context.Context, *FileStoredEvent) error
 }
 
-// NoopEventPublisher keeps the upload path decoupled from the bus when no publisher is configured.
-type NoopEventPublisher struct{}
+// noopLoggingPublisher is the deliberate non-test fallback used when NATS is
+// down and NATS_REQUIRED=false (dev). It is NOT silent: it warns loudly so
+// nobody mistakes a dead event bus for a healthy one — durable state (the
+// thumbnail pending row) is written before publish, so the thumbnail
+// sweeper repairs the gap, but nothing else on the bus will work.
+type noopLoggingPublisher struct{ logger *zap.Logger }
 
-func (NoopEventPublisher) PublishObjectStored(context.Context, *ObjectStoredEvent) error {
+func (p noopLoggingPublisher) PublishFileStored(ctx context.Context, evt *FileStoredEvent) error {
+	p.logger.Warn("EVENT DROPPED: no NATS publisher available (NATS down, NATS_REQUIRED=false) — "+
+		"thumbnail generation and any future bus consumers will not see this file",
+		zap.String("fileID", evt.FileID))
 	return nil
 }
 
-// NATSEventPublisher publishes to JetStream using a durable subject and per-file message dedup.
-type NATSEventPublisher struct {
-	js      nats.JetStreamContext
-	subject string
-	conn    *nats.Conn
+// NewNoopLoggingPublisher builds the non-test fallback publisher used when
+// NATS is down and NATS_REQUIRED=false. It warns loudly on every publish.
+func NewNoopLoggingPublisher(logger *zap.Logger) EventPublisher {
+	return noopLoggingPublisher{logger: logger}
 }
 
-func NewNATSEventPublisher(url, subject string) (*NATSEventPublisher, error) {
+// NATSEventPublisher publishes the protobuf FileStored event to
+// files.v2.stored with the message conventions (Nats-Msg-Id, X-Type) and a
+// bounded retry instead of log-and-forget.
+type NATSEventPublisher struct {
+	jsv2 jetstream.JetStream
+	conn *nats.Conn
+}
+
+// NewNATSEventPublisher connects and ensures the v2 topology (streams are
+// idempotent creates, safe on every boot).
+func NewNATSEventPublisher(ctx context.Context, url string) (*NATSEventPublisher, error) {
 	if url == "" {
 		return nil, errors.New("nats url is empty")
 	}
-
 	nc, err := nats.Connect(url)
 	if err != nil {
-		return nil, fmt.Errorf("connect nats: %w", err)
+		return nil, fmt.Errorf("connect nats (v2): %w", err)
 	}
-
-	js, err := nc.JetStream()
+	jsv2, err := jetstream.New(nc)
 	if err != nil {
 		nc.Close()
-		return nil, fmt.Errorf("create jetstream context: %w", err)
+		return nil, fmt.Errorf("create jetstream (v2): %w", err)
 	}
-
-	const streamName = "UPLOAD_EVENTS"
-	if _, err := js.StreamInfo(streamName); err != nil {
-		if !errors.Is(err, nats.ErrStreamNotFound) {
-			nc.Close()
-			return nil, fmt.Errorf("inspect jetstream stream %s: %w", streamName, err)
-		}
-
-		if _, err := js.AddStream(&nats.StreamConfig{
-			Name:      streamName,
-			Subjects:  []string{subject},
-			Retention: nats.LimitsPolicy,
-			Storage:   nats.FileStorage,
-			MaxAge:    7 * 24 * time.Hour,
-		}); err != nil {
-			nc.Close()
-			return nil, fmt.Errorf("create jetstream stream %s: %w", streamName, err)
-		}
+	if err := natsx.EnsureTopology(ctx, jsv2, 1); err != nil {
+		nc.Close()
+		return nil, fmt.Errorf("ensure v2 topology: %w", err)
 	}
-
-	return &NATSEventPublisher{js: js, subject: subject, conn: nc}, nil
+	return &NATSEventPublisher{jsv2: jsv2, conn: nc}, nil
 }
 
 func (p *NATSEventPublisher) Close() {
 	if p != nil && p.conn != nil {
 		p.conn.Drain()
-		p.conn.Close()
 	}
 }
 
-func (p *NATSEventPublisher) PublishObjectStored(ctx context.Context, evt *ObjectStoredEvent) error {
-	if p == nil || p.js == nil {
+// PublishFileStored implements the v2 publish path with bounded retry:
+// 3 tries at 200ms / 1s / 3s. A final failure is returned to the caller,
+// which logs a warning — the thumbnail sweeper repairs the gap because the
+// metadata row is created before publish with thumbnail_status='pending'.
+func (p *NATSEventPublisher) PublishFileStored(ctx context.Context, evt *FileStoredEvent) error {
+	if p == nil || p.jsv2 == nil || evt == nil {
 		return nil
 	}
-	if evt == nil {
-		return nil
+	hashes := make([][]byte, 0, len(evt.BlockHashList))
+	for _, h := range evt.BlockHashList {
+		b, err := hex.DecodeString(h)
+		if err != nil {
+			return fmt.Errorf("decode block hash: %w", err)
+		}
+		hashes = append(hashes, b)
 	}
-
-	payload, err := json.Marshal(evt)
-	if err != nil {
-		return fmt.Errorf("marshal object stored event: %w", err)
+	msg := &eventsv2.FileStored{
+		FileId:      evt.FileID,
+		FileVersion: 1, // creation is always version 1 today
+		OwnerId:     evt.OwnerID,
+		ContentType: evt.ContentType,
+		SizeBytes:   evt.SizeBytes,
+		BlockHashes: hashes,
+		StoredAt:    timestamppb.New(time.Unix(evt.StoredAtUnix, 0).UTC()),
 	}
+	msgID := events.MsgIDFileStored(evt.FileID, 1)
 
-	_, err = p.js.Publish(p.subject, payload, nats.MsgId(evt.FileID))
-	return err
+	const tries = 3
+	var lastErr error
+	for i, delay := range []time.Duration{0, 200 * time.Millisecond, 1 * time.Second, 3 * time.Second} {
+		if i == tries+1 {
+			break
+		}
+		if delay > 0 {
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		lastErr = natsx.PublishProto(ctx, p.jsv2, events.SubjFileStored, msgID, msg)
+		if lastErr == nil {
+			return nil
+		}
+	}
+	return fmt.Errorf("publish FileStored after %d tries: %w", tries, lastErr)
 }
 
 // UploadService orchestrates chunked file uploads
@@ -144,7 +177,7 @@ func New(
 	blockBackend string,
 ) *UploadService {
 	if eventPublisher == nil {
-		eventPublisher = NoopEventPublisher{}
+		eventPublisher = noopLoggingPublisher{logger: logger}
 	}
 	return &UploadService{
 		sessionRepo:    sessionRepo,
@@ -304,6 +337,13 @@ func (s *UploadService) ReceiveChunk(ctx context.Context, uploadID string, offse
 					deduplicated = true
 				}
 				if err := s.blockRepo.IncrementRefCount(ctx, actualSha256); err != nil {
+					if repository.IsBlockDeleting(err) {
+						// The block is fenced for GC deletion. The fence will fail
+						// on GC's next look (we hold the data) or the row is
+						// gone; a short client retry re-uploads cleanly.
+						return nil, connect.NewError(connect.CodeUnavailable,
+							fmt.Errorf("block is being deleted, retry shortly: %s", actualSha256))
+					}
 					return nil, fmt.Errorf("increment block reference: %w", err)
 				}
 				_ = block
@@ -438,7 +478,7 @@ func (s *UploadService) finalizeUpload(ctx context.Context, uploadID string) err
 		return fmt.Errorf("create metadata record: %w", err)
 	}
 
-	if err := s.publishObjectStoredEvent(ctx, fileID, session, blockHashes); err != nil {
+	if err := s.publishFileStoredEvent(ctx, fileID, session, blockHashes); err != nil {
 		s.logger.Warn("object stored event publish failed; reconciliation will repair",
 			zap.String("uploadID", uploadID),
 			zap.String("fileID", fileID),
@@ -495,7 +535,7 @@ func (s *UploadService) createMetadataRecord(ctx context.Context, session Upload
 	return resp.Msg.GetFileId(), nil
 }
 
-func (s *UploadService) publishObjectStoredEvent(ctx context.Context, fileID string, session UploadSession, blockHashes []string) error {
+func (s *UploadService) publishFileStoredEvent(ctx context.Context, fileID string, session UploadSession, blockHashes []string) error {
 	if s.eventPublisher == nil {
 		return nil
 	}
@@ -503,8 +543,7 @@ func (s *UploadService) publishObjectStoredEvent(ctx context.Context, fileID str
 		return nil
 	}
 
-	evt := &ObjectStoredEvent{
-		SchemaVersion: "v2",
+	evt := &FileStoredEvent{
 		FileID:        fileID,
 		BlockHashList: blockHashes,
 		ContentType:   session.ContentType,
@@ -513,8 +552,8 @@ func (s *UploadService) publishObjectStoredEvent(ctx context.Context, fileID str
 		StoredAtUnix:  time.Now().Unix(),
 	}
 
-	if err := s.eventPublisher.PublishObjectStored(ctx, evt); err != nil {
-		return fmt.Errorf("publish object stored event: %w", err)
+	if err := s.eventPublisher.PublishFileStored(ctx, evt); err != nil {
+		return fmt.Errorf("publish file stored event: %w", err)
 	}
 	return nil
 }

@@ -20,24 +20,26 @@ type Config struct {
 	JWKSAudience                   []string      `mapstructure:"JWKS_AUDIENCE"`
 	RedisURL                       string        `mapstructure:"REDIS_URL"`
 	MetadataURL                    string        `mapstructure:"METADATA_URL"`
-	NATSURL                        string        `mapstructure:"NATS_URL"`
-	NATSEventSubject               string        `mapstructure:"NATS_EVENT_SUBJECT"`
-	NATSBlockRefsRequestedSubject  string        `mapstructure:"NATS_BLOCK_REFS_REQUESTED_SUBJECT"`
-	NATSBlockRefsCompletedSubject  string        `mapstructure:"NATS_BLOCK_REFS_COMPLETED_SUBJECT"`
-	BlockLedgerStaleClaimThreshold time.Duration `mapstructure:"BLOCK_LEDGER_STALE_CLAIM_THRESHOLD"`
-	ChunkSizeBytes                 int64         `mapstructure:"CHUNK_SIZE_BYTES"`
-	UploadStoragePath              string        `mapstructure:"UPLOAD_STORAGE_PATH"`
-	BlockSizeBytes                 int64         `mapstructure:"BLOCK_SIZE_BYTES"`
-	S3Bucket                       string        `mapstructure:"S3_BUCKET"`
-	S3Region                       string        `mapstructure:"S3_REGION"`
-	S3Endpoint                     string        `mapstructure:"S3_ENDPOINT"`
-	S3AccessKey                    string        `mapstructure:"AWS_ACCESS_KEY_ID"`
-	S3SecretKey                    string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
-	S3StorageBackend               string        `mapstructure:"S3_STORAGE_BACKEND"`
-	SessionTTLSeconds              int64         `mapstructure:"SESSION_TTL_SECONDS"`
+	NATSURL string `mapstructure:"NATS_URL"`
+	// NATS_REQUIRED fails boot when no event publisher could be built.
+	NATSRequired bool `mapstructure:"NATS_REQUIRED"`
+	// Stale-claim threshold for the batched decrement ledger: how long an op
+	// stays CLAIMED before a redelivery may take it over (must be below
+	// the consumer's BackOff[0], which is staleAfter + 5s).
+	BlockLedgerStale   time.Duration `mapstructure:"BLOCK_LEDGER_STALE"`
+	ChunkSizeBytes     int64         `mapstructure:"CHUNK_SIZE_BYTES"`
+	UploadStoragePath  string        `mapstructure:"UPLOAD_STORAGE_PATH"`
+	BlockSizeBytes     int64         `mapstructure:"BLOCK_SIZE_BYTES"`
+	S3Bucket           string        `mapstructure:"S3_BUCKET"`
+	S3Region           string        `mapstructure:"S3_REGION"`
+	S3Endpoint         string        `mapstructure:"S3_ENDPOINT"`
+	S3AccessKey        string        `mapstructure:"AWS_ACCESS_KEY_ID"`
+	S3SecretKey        string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
+	S3StorageBackend   string        `mapstructure:"S3_STORAGE_BACKEND"`
+	SessionTTLSeconds  int64         `mapstructure:"SESSION_TTL_SECONDS"`
 	// Block GC worker settings
-	BlockGCInterval   time.Duration `mapstructure:"BLOCK_GC_INTERVAL"`
-	BlockGCBatchSize  int           `mapstructure:"BLOCK_GC_BATCH_SIZE"`
+	BlockGCInterval    time.Duration `mapstructure:"BLOCK_GC_INTERVAL"`
+	BlockGCBatchSize   int           `mapstructure:"BLOCK_GC_BATCH_SIZE"`
 	BlockGCGracePeriod time.Duration `mapstructure:"BLOCK_GC_GRACE_PERIOD"`
 }
 
@@ -65,10 +67,8 @@ func Load() (Config, error) {
 	viper.SetDefault("REDIS_URL", "redis://localhost:6379")
 	viper.SetDefault("METADATA_URL", "http://localhost:50053")
 	viper.SetDefault("NATS_URL", "nats://localhost:4222")
-	viper.SetDefault("NATS_EVENT_SUBJECT", "uploads.object.stored")
-	viper.SetDefault("NATS_BLOCK_REFS_REQUESTED_SUBJECT", "blocks.refs.decrement.requested")
-	viper.SetDefault("NATS_BLOCK_REFS_COMPLETED_SUBJECT", "blocks.refs.decrement.completed")
-	viper.SetDefault("BLOCK_LEDGER_STALE_CLAIM_THRESHOLD", 15*time.Minute)
+	viper.SetDefault("BLOCK_LEDGER_STALE", 90*time.Second)
+	viper.SetDefault("NATS_REQUIRED", false)
 	viper.SetDefault("CHUNK_SIZE_BYTES", 4194304) // 4 MiB content-addressed blocks
 	viper.SetDefault("BLOCK_SIZE_BYTES", 4194304) // 4 MiB
 	viper.SetDefault("S3_BUCKET", "uploads")

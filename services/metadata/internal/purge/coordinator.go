@@ -2,72 +2,61 @@ package purge
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
-	blockspb "github.com/Ajay01103/go-dropbox/pkg/gen/blocks/blocks/v1"
-	"github.com/google/uuid"
+	"github.com/Ajay01103/go-dropbox/pkg/events"
+	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
+	"github.com/Ajay01103/go-dropbox/pkg/natsx"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
-)
-
-const (
-	requestedSubject = "blocks.refs.decrement.requested"
-	completedSubject = "blocks.refs.decrement.completed"
-	streamName       = "BLOCK_REFS"
 )
 
 // ThumbnailDeleter can remove a thumbnail object from storage. The thumbnail
 // worker satisfies this interface, but a nil value is also accepted (deletion
 // is skipped gracefully).
 type ThumbnailDeleter interface {
-	DeleteThumbnail(ctx context.Context, key string) error
+	// DeleteThumbnail deletes the thumbnail object for fileID stored under
+	// key. Implementations must refuse keys outside thumbnails/<file_id>/
+	// so a malformed row can never cause a cross-file deletion.
+	DeleteThumbnail(ctx context.Context, fileID, key string) error
 }
 
 type Coordinator struct {
-	repo              *repository.PurgeRepo
-	metadataRepo      *repository.MetadataRepo
-	thumbnailDeleter  ThumbnailDeleter
-	conn              *nats.Conn
-	js                nats.JetStreamContext
-	logger            *zap.Logger
-	sub               *nats.Subscription
-	requestedSubject  string
-	completedSubject  string
+	repo             *repository.PurgeRepo
+	metadataRepo     *repository.MetadataRepo
+	thumbnailDeleter ThumbnailDeleter
+	conn             *nats.Conn
+	js             jetstream.JetStream
+	logger           *zap.Logger
+	cc             jetstream.ConsumeContext
 }
 
-func NewCoordinator(url, requested, completed string, repo *repository.PurgeRepo, metadataRepo *repository.MetadataRepo, logger *zap.Logger) (*Coordinator, error) {
+func NewCoordinator(url string, repo *repository.PurgeRepo, metadataRepo *repository.MetadataRepo, logger *zap.Logger) (*Coordinator, error) {
 	if url == "" {
 		return nil, errors.New("nats url is empty")
-	}
-	if requested == "" {
-		requested = requestedSubject
-	}
-	if completed == "" {
-		completed = completedSubject
 	}
 	conn, err := nats.Connect(url)
 	if err != nil {
 		return nil, fmt.Errorf("connect purge nats: %w", err)
 	}
-	js, err := conn.JetStream()
+	js, err := jetstream.New(conn)
 	if err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("create purge jetstream: %w", err)
 	}
-	if err := ensureStream(js); err != nil {
-		conn.Close()
-		return nil, err
-	}
 	return &Coordinator{
 		repo: repo, metadataRepo: metadataRepo,
 		conn: conn, js: js, logger: logger,
-		requestedSubject: requested, completedSubject: completed,
 	}, nil
 }
 
@@ -78,53 +67,48 @@ func (c *Coordinator) SetThumbnailDeleter(d ThumbnailDeleter) {
 	c.thumbnailDeleter = d
 }
 
-// ensureStream creates or repairs the BLOCK_REFS JetStream stream.
-// The stream uses WorkQueuePolicy so each subject-filtered message is consumed
-// by exactly one subscriber group and deleted once acknowledged.
-func ensureStream(js nats.JetStreamContext) error {
-	info, err := js.StreamInfo(streamName)
-	if errors.Is(err, nats.ErrStreamNotFound) {
-		_, err = js.AddStream(&nats.StreamConfig{
-			Name:      streamName,
-			Subjects:  []string{"blocks.refs.>"},
-			Retention: nats.WorkQueuePolicy,
-			Storage:   nats.FileStorage,
-			MaxAge:    30 * 24 * time.Hour,
-			// Allow up to two unique consumers on this stream so that the
-			// upload worker (requested subject) and this coordinator
-			// (completed subject) can each have their own durable.
-			MaxConsumers: 2,
-		})
-		if err != nil {
-			return fmt.Errorf("create %s stream: %w", streamName, err)
-		}
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("inspect %s stream: %w", streamName, err)
-	}
-	// Repair subject list if it was previously misconfigured.
-	if len(info.Config.Subjects) != 1 || info.Config.Subjects[0] != "blocks.refs.>" {
-		info.Config.Subjects = []string{"blocks.refs.>"}
-		if _, err := js.UpdateStream(&info.Config); err != nil {
-			return fmt.Errorf("update %s stream subjects: %w", streamName, err)
-		}
-	}
-	return nil
-}
+// maxOpsPerBatch is the v2 batch size (design B.5): a DecrefRequested carries
+// at most 500 operations, each identified by its GLOBAL occurrence index.
+const maxOpsPerBatch = 500
 
 func (c *Coordinator) Start(ctx context.Context) error {
-	sub, err := c.js.Subscribe(
-		c.completedSubject,
-		c.handleCompletion,
-		nats.ConsumerName("metadata-purge-worker"),
-		nats.ManualAck(),
-		nats.AckWait(30*time.Second),
+	// The streams (FILE_EVENTS, BLOCK_REFS_CMD, BLOCK_REFS_EVT) and the DLQ
+	// are idempotent creates; ensure them before any consumer is made so boot
+	// order between the services doesn't matter. EnsureTopology is the sole
+	// topology owner.
+	if err := natsx.EnsureTopology(ctx, c.js, 1); err != nil {
+		return fmt.Errorf("ensure topology: %w", err)
+	}
+	// The Consume wrapper dead-letters to the DLQ stream; make sure it exists
+	// before any message can exhaust its retries (additive-only, idempotent).
+	if err := natsx.EnsureDLQ(ctx, c.js); err != nil {
+		return err
+	}
+
+	cons, err := natsx.EnsurePullConsumer(ctx, c.js, events.StreamEvt, events.ConsumerPurgeCompletionV2,
+		jetstream.ConsumerConfig{
+			Durable:       events.ConsumerPurgeCompletionV2,
+			FilterSubject: events.SubjDecrefCompleted,
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			AckWait:       2 * time.Minute,
+			MaxDeliver:    8,
+			MaxAckPending: 8,
+			BackOff: []time.Duration{
+				2 * time.Second, 10 * time.Second, 1 * time.Minute,
+				5 * time.Minute, 15 * time.Minute, 30 * time.Minute,
+			},
+		})
+	if err != nil {
+		return fmt.Errorf("ensure purge completion v2 consumer: %w", err)
+	}
+	cc, err := natsx.Consume(ctx, cons, events.ConsumerPurgeCompletionV2, slog.New(slogZap{c.logger}), c.js, c.handleCompletion,
+		natsx.WithPullMaxMessages(1),
+		natsx.WithHeartbeat(30*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("subscribe to %s: %w", completedSubject, err)
+		return fmt.Errorf("start purge completion v2 consumer: %w", err)
 	}
-	c.sub = sub
+	c.cc = cc
 	go func() {
 		<-ctx.Done()
 		_ = c.Close()
@@ -133,8 +117,8 @@ func (c *Coordinator) Start(ctx context.Context) error {
 }
 
 func (c *Coordinator) Close() error {
-	if c.sub != nil {
-		_ = c.sub.Drain()
+	if c.cc != nil {
+		c.cc.Stop()
 	}
 	if c.conn != nil {
 		c.conn.Close()
@@ -161,12 +145,12 @@ func (c *Coordinator) Request(ctx context.Context, ownerID, fileID string) (repo
 		return job, nil
 	}
 
-	if err := c.publishRequest(ctx, job); err != nil {
+	if err := c.publishRequestV2(ctx, job); err != nil {
 		return job, err
 	}
 
 	if job.State == repository.PurgePending {
-		if err := c.repo.UpdateState(ctx, job, repository.PurgeDecrementRequested, false, ""); err != nil {
+		if err := c.repo.UpdateState(ctx, job, repository.PurgeDecrementRequested, ""); err != nil {
 			return job, err
 		}
 		job.State = repository.PurgeDecrementRequested
@@ -185,168 +169,351 @@ func (c *Coordinator) Status(ctx context.Context, ownerID, jobID string) (reposi
 	return job, nil
 }
 
-func (c *Coordinator) publishRequest(ctx context.Context, job repository.PurgeJob) error {
-	id, err := uuid.Parse(job.JobID)
-	if err != nil {
-		return err
+// publishRequestV2 splits the job's block list into ≤500-op batches and
+// publishes one blocks.v2.decref.requested message per batch, each with its
+// own MsgId (decref:<job>:<batch>), then records batch_count so the sweeper
+// can re-drive any batch that never landed.
+//
+// Ordering within one job is safe: every batch carries the same job ID and
+// the completion side unions into sets keyed by batch index, so batches may
+// complete in any order and be recorded in any order.
+func (c *Coordinator) publishRequestV2(ctx context.Context, job repository.PurgeJob) error {
+	batchCount := (len(job.BlockHashList) + maxOpsPerBatch - 1) / maxOpsPerBatch
+	if batchCount < 1 {
+		batchCount = 1
 	}
-	operations := make([]*blockspb.BlockDecrementOperation, 0, len(job.BlockHashList))
-	for index, hash := range job.BlockHashList {
-		operations = append(operations, &blockspb.BlockDecrementOperation{
-			Occurrence: uint32(index),
-			BlockHash:  hash,
-		})
+	if err := c.repo.SetBatchCount(ctx, job.JobID, batchCount); err != nil {
+		return fmt.Errorf("record batch count: %w", err)
 	}
-	payload, err := proto.Marshal(&blockspb.BlockRefDecrementRequested{
-		SchemaVersion: 1,
-		JobId:         job.JobID,
-		Operations:    operations,
-		Reason:        job.Reason,
-		RequestedAt:   timestamppb.New(time.Now().UTC()),
-	})
-	if err != nil {
-		return fmt.Errorf("marshal decrement request: %w", err)
-	}
-	// Use the job UUID as the dedup ID for the request so that clicking
-	// "permanent delete" twice for the same file doesn't enqueue duplicate work.
-	if _, err := c.js.Publish(c.requestedSubject, payload, nats.MsgId(id.String())); err != nil {
-		return fmt.Errorf("publish decrement request: %w", err)
+	for batch := 0; batch < batchCount; batch++ {
+		lo := batch * maxOpsPerBatch
+		hi := lo + maxOpsPerBatch
+		if hi > len(job.BlockHashList) {
+			hi = len(job.BlockHashList)
+		}
+		ops := make([]*eventsv2.DecrefOp, 0, hi-lo)
+		for i := lo; i < hi; i++ {
+			hashBytes, err := hex.DecodeString(job.BlockHashList[i])
+			if err != nil {
+				return fmt.Errorf("decode block hash %q (batch %d): %w", job.BlockHashList[i], batch, err)
+			}
+			ops = append(ops, &eventsv2.DecrefOp{
+				// GLOBAL occurrence index across the whole job — the ledger is
+				// occurrence-addressed, so batching must not renumber ops.
+				Occurrence: uint32(i),
+				BlockHash:  hashBytes,
+			})
+		}
+		evt := &eventsv2.DecrefRequested{
+			JobId:       job.JobID,
+			BatchIndex:  uint32(batch),
+			BatchCount:  uint32(batchCount),
+			Ops:         ops,
+			Reason:      job.Reason,
+			RequestedAt: timestamppb.New(time.Now().UTC()),
+		}
+		// FIRST publish of this batch: plain per-batch MsgId. A sweeper
+		// PENDING re-drive of a v2 job also goes through here for batches the
+		// original never published — the per-batch MsgId is still fresh for
+		// those, and dedup-swallowed for any that secretly did land.
+		if err := natsx.PublishProto(ctx, c.js, events.SubjDecrefRequested,
+			events.MsgIDDecrefRequested(job.JobID, uint32(batch)), evt); err != nil {
+			return fmt.Errorf("publish v2 decrement request (batch %d/%d): %w", batch+1, batchCount, err)
+		}
 	}
 	return nil
 }
 
-func (c *Coordinator) handleCompletion(msg *nats.Msg) {
-	var event blockspb.BlockRefDecrementCompleted
-	if err := proto.Unmarshal(msg.Data, &event); err != nil {
-		c.logger.Error("invalid block decrement completion — terminating message", zap.Error(err))
-		_ = msg.Term()
-		return
+// PublishRequestRedrive re-publishes only the batches a REQUESTED job is
+// still missing, with attempt-suffixed MsgIds (decref:<job>:<batch>:r<attempt>).
+// The original per-batch publish was already delivered at least once, so a
+// re-drive is a genuine loss-retry and MUST NOT reuse a MsgId the dedup
+// window might swallow.
+func (c *Coordinator) PublishRequestRedrive(ctx context.Context, job repository.PurgeJob, attempt int) error {
+	if job.BatchCount <= 0 {
+		return errors.New("v2 redrive on job with no batch_count")
+	}
+	done := make(map[int]bool, len(job.BatchesDone))
+	for _, b := range job.BatchesDone {
+		done[b] = true
+	}
+	for batch := 0; batch < job.BatchCount; batch++ {
+		if done[batch] {
+			continue
+		}
+		if err := c.publishBatchRedrive(ctx, job, batch, attempt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// publishBatchRedrive rebuilds and republishes one batch of a v2 job.
+func (c *Coordinator) publishBatchRedrive(ctx context.Context, job repository.PurgeJob, batch, attempt int) error {
+	lo := batch * maxOpsPerBatch
+	hi := lo + maxOpsPerBatch
+	if hi > len(job.BlockHashList) {
+		hi = len(job.BlockHashList)
+	}
+	if lo >= len(job.BlockHashList) {
+		return fmt.Errorf("batch %d out of range for job with %d blocks", batch, len(job.BlockHashList))
+	}
+	ops := make([]*eventsv2.DecrefOp, 0, hi-lo)
+	for i := lo; i < hi; i++ {
+		hashBytes, err := hex.DecodeString(job.BlockHashList[i])
+		if err != nil {
+			return fmt.Errorf("decode block hash %q (batch %d): %w", job.BlockHashList[i], batch, err)
+		}
+		ops = append(ops, &eventsv2.DecrefOp{
+			Occurrence: uint32(i),
+			BlockHash:  hashBytes,
+		})
+	}
+	evt := &eventsv2.DecrefRequested{
+		JobId:       job.JobID,
+		BatchIndex:  uint32(batch),
+		BatchCount:  uint32(job.BatchCount),
+		Ops:         ops,
+		Reason:      job.Reason,
+		RequestedAt: timestamppb.New(time.Now().UTC()),
+	}
+	return natsx.PublishProto(ctx, c.js, events.SubjDecrefRequested,
+		events.MsgIDDecrefRequestedRedrive(job.JobID, uint32(batch), uint32(attempt)), evt)
+}
+
+// PublishRequest is the sweeper's v2 re-drive entry point (SweeperDeps).
+// PENDING (batch_count unset) → full publish with plain per-batch MsgIds;
+// REQUESTED (batch_count set) → re-publish only the missing batches with
+// attempt-suffixed MsgIds.
+func (c *Coordinator) PublishRequest(ctx context.Context, job repository.PurgeJob, attempt int) error {
+	if job.BatchCount <= 0 {
+		return c.publishRequestV2(ctx, job)
+	}
+	return c.PublishRequestRedrive(ctx, job, attempt)
+}
+
+// orphanNakThreshold: a completion for a missing job row is NAKed with a
+// short delay this many times before being acked. Covers a coordinator crash
+// between the worker's publish and the job row becoming visible / a job row
+// deleted out from under an in-flight completion. After the threshold the
+// message is acked — the row is gone for good and infinite redelivery just
+// burns the log stream (the storm this fixes).
+const orphanNakThreshold = 3
+const orphanNakDelay = 3 * time.Second
+
+// orphanCompletionOutcome maps the delivery count of an orphaned completion
+// (job row missing) to its Outcome: brief retries to cover visibility races,
+// then Ack once the row is provably gone for good.
+func orphanCompletionOutcome(delivery int) natsx.Outcome {
+	if delivery <= orphanNakThreshold {
+		return natsx.RetryAfter(orphanNakDelay, errOrphanedCompletion)
+	}
+	return natsx.Ack()
+}
+
+var errOrphanedCompletion = errors.New("purge job not found for completion")
+
+// handleCompletion processes a blocks.v2.decref.completed message: one
+// batch of one job. Per-batch accounting unions into the job row's
+// batches_done/invalid_ops sets (idempotent under duplicate completions);
+// when the last batch lands the job advances to DECREMENTED and the saga
+// finishes with metadata removal.
+//
+// INVALID ops do NOT fail the job (design failure matrix has no FAILED path
+// for a bad hash): they are recorded in invalid_ops, logged once at ERROR,
+// and the purge completes — a bad hash row will never get better.
+func (c *Coordinator) handleCompletion(ctx context.Context, msg jetstream.Msg) natsx.Outcome {
+	var event eventsv2.DecrefCompleted
+	if err := proto.Unmarshal(msg.Data(), &event); err != nil {
+		c.logger.Error("invalid v2 decrement completion — dead-lettering", zap.Error(err))
+		return natsx.Term("invalid v2 completion payload: " + err.Error())
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	defer cancel()
 
 	job, err := c.repo.Get(ctx, event.GetJobId())
 	if err != nil {
-		c.logger.Error("load purge job for completion",
+		if strings.Contains(err.Error(), "purge job not found") {
+			md, _ := msg.Metadata()
+			delivery := 1
+			if md != nil {
+				delivery = int(md.NumDelivered)
+			}
+			out := orphanCompletionOutcome(delivery)
+			if out == natsx.Ack() {
+				c.logger.Warn("orphaned v2 completion acked after retries",
+					zap.String("jobID", event.GetJobId()),
+					zap.Uint32("batch", event.GetBatchIndex()),
+					zap.Int("delivery", delivery))
+			}
+			return out
+		}
+		c.logger.Error("load purge job for v2 completion",
 			zap.String("jobID", event.GetJobId()), zap.Error(err))
-		_ = msg.Nak()
-		return
+		return natsx.Retry(err) // DB error — transient
 	}
 
-	// Idempotency: if the job is already in a terminal or post-decrement state,
-	// just ACK — we may have crashed after a previous completion was processed.
+	// Idempotency: terminal or post-decrement state — the batch outcome no
+	// longer matters, just ack.
 	switch job.State {
 	case repository.PurgeComplete,
-		repository.PurgeMetadataRemoved,
 		repository.PurgeDecremented,
-		repository.PurgeDecrementedWithError:
-		// State was already advanced; ensure metadata cleanup runs if needed.
-		if job.State == repository.PurgeDecremented || job.State == repository.PurgeDecrementedWithError {
-			if err := c.removeMetadataAndComplete(ctx, job); err != nil {
-				c.logger.Error("metadata removal retry failed",
-					zap.String("jobID", job.JobID), zap.Error(err))
-				_ = msg.Nak()
-				return
-			}
-		}
-		_ = msg.Ack()
-		return
+		repository.PurgeFailed:
+		return natsx.Ack()
 	}
 
-	// Determine if any block operations had errors.
-	hasErrors := false
-	var firstError string
-	for _, result := range event.GetResults() {
-		if result.GetError() != "" {
-			hasErrors = true
-			if firstError == "" {
-				firstError = result.GetError()
-			}
+	if event.GetBatchCount() > 0 && job.BatchCount > 0 && event.GetBatchCount() != uint32(job.BatchCount) {
+		c.logger.Error("v2 completion batch_count mismatch",
+			zap.String("jobID", job.JobID),
+			zap.Uint32("eventBatchCount", event.GetBatchCount()),
+			zap.Int("jobBatchCount", job.BatchCount))
+		return natsx.Retry(errors.New("v2 batch_count mismatch"))
+	}
+
+	invalid := make([]int, 0)
+	for _, r := range event.GetResults() {
+		if r.GetOutcome() == eventsv2.DecrefResult_INVALID {
+			invalid = append(invalid, int(r.GetOccurrence()))
 		}
 	}
-
-	nextState := repository.PurgeDecremented
-	if hasErrors {
-		nextState = repository.PurgeDecrementedWithError
+	allDone, err := c.repo.RecordBatch(ctx, job.JobID, int(event.GetBatchIndex()), invalid)
+	if err != nil {
+		c.logger.Error("record v2 batch",
+			zap.String("jobID", job.JobID),
+			zap.Uint32("batch", event.GetBatchIndex()), zap.Error(err))
+		return natsx.Retry(err)
+	}
+	if len(invalid) > 0 {
+		c.logger.Error("v2 decrement batch had INVALID ops; recorded, purge continues",
+			zap.String("jobID", job.JobID),
+			zap.Uint32("batch", event.GetBatchIndex()),
+			zap.Any("invalidOccurrences", invalid))
+	}
+	if !allDone {
+		// Batches complete independently; ack this one and wait for the rest.
+		return natsx.Ack()
 	}
 
-	if err := c.repo.UpdateState(ctx, job, nextState, hasErrors, firstError); err != nil {
-		c.logger.Error("update purge job state to decremented",
+	// Last batch: advance and finish. INVALID ops keep the job DECREMENTED
+	// (the decrement DID apply for everything valid); they are visible via
+	// invalid_ops on the status API.
+	lastError := ""
+	if len(job.InvalidOps) > 0 {
+		lastError = fmt.Sprintf("%d invalid ops recorded", len(job.InvalidOps))
+	}
+	if err := c.repo.UpdateState(ctx, job, repository.PurgeDecremented, lastError); err != nil {
+		c.logger.Error("update purge job state to decremented (v2)",
 			zap.String("jobID", job.JobID), zap.Error(err))
-		_ = msg.Nak()
-		return
+		return natsx.Retry(err)
 	}
-	job.State = nextState
+	job.State = repository.PurgeDecremented
 
-	if err := c.removeMetadataAndComplete(ctx, job); err != nil {
-		c.logger.Error("metadata removal failed",
+	if err := c.RemoveMetadataAndComplete(ctx, job); err != nil {
+		c.logger.Error("metadata removal failed (v2)",
 			zap.String("jobID", job.JobID), zap.Error(err))
-		_ = msg.Nak()
-		return
+		return natsx.Retry(err)
 	}
-
-	_ = msg.Ack()
+	return natsx.Ack()
 }
 
-// removeMetadataAndComplete removes the file's metadata projections and
-// advances the purge job to COMPLETE. It is idempotent: a missing file row is
-// treated as already removed (the projection delete may have committed before a
-// prior crash).
-func (c *Coordinator) removeMetadataAndComplete(ctx context.Context, job repository.PurgeJob) error {
-	if job.State != repository.PurgeMetadataRemoved && job.State != repository.PurgeComplete {
-		file, err := c.metadataRepo.GetFileByID(ctx, job.OwnerID, job.FileID)
-		if err != nil {
-			if !strings.Contains(err.Error(), "file not found") {
-				return fmt.Errorf("load file for purge: %w", err)
-			}
-			// File projections already gone — treat as removed.
-		} else if file.Filename != "" {
-			// Delete the thumbnail from storage before removing DB projections
-			// so that a crash here causes a retry that re-attempts both steps.
-			if file.ThumbnailKey != "" && c.thumbnailDeleter != nil {
-				if err := c.thumbnailDeleter.DeleteThumbnail(ctx, file.ThumbnailKey); err != nil {
-					// Log but don't fail the purge — a stale thumbnail is not
-					// critical and the GC scan can catch it later if needed.
-					c.logger.Warn("purge: failed to delete thumbnail",
-						zap.String("jobID", job.JobID),
-						zap.String("fileID", job.FileID),
-						zap.String("thumbnailKey", file.ThumbnailKey),
-						zap.Error(err))
-				} else {
-					c.logger.Info("purge: thumbnail deleted",
-						zap.String("jobID", job.JobID),
-						zap.String("thumbnailKey", file.ThumbnailKey))
-				}
-			}
+// slogZap bridges the metadata service's zap logger to the *slog.Logger the
+// natsx wrapper expects.
+type slogZap struct{ l *zap.Logger }
 
-			if err := c.metadataRepo.RemoveFileProjections(ctx, file); err != nil {
-				return fmt.Errorf("remove file projections: %w", err)
+func (h slogZap) Enabled(_ context.Context, level slog.Level) bool {
+	switch {
+	case level >= slog.LevelError:
+		return h.l.Core().Enabled(zapcore.ErrorLevel)
+	case level >= slog.LevelWarn:
+		return h.l.Core().Enabled(zapcore.WarnLevel)
+	case level >= slog.LevelInfo:
+		return h.l.Core().Enabled(zapcore.InfoLevel)
+	default:
+		return h.l.Core().Enabled(zapcore.DebugLevel)
+	}
+}
+
+func (h slogZap) Handle(_ context.Context, r slog.Record) error {
+	fields := make([]zap.Field, 0, r.NumAttrs()+2)
+	r.Attrs(func(attr slog.Attr) bool {
+		fields = append(fields, zap.Any(attr.Key, attr.Value.Resolve()))
+		return true
+	})
+	switch {
+	case r.Level >= slog.LevelError:
+		h.l.Error(r.Message, fields...)
+	case r.Level >= slog.LevelWarn:
+		h.l.Warn(r.Message, fields...)
+	case r.Level >= slog.LevelInfo:
+		h.l.Info(r.Message, fields...)
+	default:
+		h.l.Debug(r.Message, fields...)
+	}
+	return nil
+}
+
+func (h slogZap) WithAttrs([]slog.Attr) slog.Handler { return h }
+
+func (h slogZap) WithGroup(string) slog.Handler { return h }
+
+// RemoveMetadataAndComplete finishes the saga once decrements have landed:
+// removes the file's metadata projections and marks the job COMPLETE. It is
+// idempotent and exported because the recovery sweeper re-drives jobs stuck
+// in a post-decrement state. There is no intermediate METADATA_REMOVED
+// checkpoint: metadata removal is idempotent, so a crash anywhere here is
+// repaired by re-running the whole step.
+func (c *Coordinator) RemoveMetadataAndComplete(ctx context.Context, job repository.PurgeJob) error {
+	if job.State == repository.PurgeComplete {
+		return nil
+	}
+
+	file, err := c.metadataRepo.GetFileByID(ctx, job.OwnerID, job.FileID)
+	if err != nil {
+		if !strings.Contains(err.Error(), "file not found") {
+			return fmt.Errorf("load file for purge: %w", err)
+		}
+		// The files_by_id row is gone (already purged, or a job whose
+		// core rows were removed before a crash). The other projections may
+		// still exist — e.g. the updated_at-keyed sort indexes were never
+		// rewritten by soft delete, so their rows outlive files_by_id. Run the
+		// projection removal with the job's own folder/filename values; every
+		// step is idempotent, and the updated_at-keyed sweeps are
+		// timestamp-independent.
+		file = repository.File{
+			FileID: job.FileID, FolderID: job.FolderID, OwnerID: job.OwnerID,
+			Filename: "", BlockHashList: job.BlockHashList,
+		}
+		if err := c.metadataRepo.RemoveFileProjections(ctx, file); err != nil {
+			return fmt.Errorf("remove residual projections for vanished file: %w", err)
+		}
+	} else if file.Filename != "" {
+		// Delete the thumbnail from storage before removing DB projections
+		// so that a crash here causes a retry that re-attempts both steps.			// DeleteThumbnail enforces the thumbnails/<file_id>/ prefix rule, so
+			// a malformed row can never cause a cross-file deletion.
+		if file.ThumbnailKey != "" && c.thumbnailDeleter != nil {
+			if err := c.thumbnailDeleter.DeleteThumbnail(ctx, job.FileID, file.ThumbnailKey); err != nil {
+				// Log but don't fail the purge — a stale thumbnail is not
+				// critical and the GC scan can catch it later if needed.
+				c.logger.Warn("purge: failed to delete thumbnail",
+					zap.String("jobID", job.JobID),
+					zap.String("fileID", job.FileID),
+					zap.String("thumbnailKey", file.ThumbnailKey),
+					zap.Error(err))
+			} else {
+				c.logger.Info("purge: thumbnail deleted",
+					zap.String("jobID", job.JobID),
+					zap.String("thumbnailKey", file.ThumbnailKey))
 			}
 		}
 
-		if err := c.repo.UpdateState(ctx, job, repository.PurgeMetadataRemoved, job.HasReconciliationErrors, job.LastError); err != nil {
-			return fmt.Errorf("mark metadata removed: %w", err)
+		if err := c.metadataRepo.RemoveFileProjections(ctx, file); err != nil {
+			return fmt.Errorf("remove file projections: %w", err)
 		}
-		job.State = repository.PurgeMetadataRemoved
 	}
 
-	if job.State != repository.PurgeComplete {
-		if err := c.repo.UpdateState(ctx, job, repository.PurgeComplete, job.HasReconciliationErrors, job.LastError); err != nil {
-			return fmt.Errorf("mark purge complete: %w", err)
-		}
-		job.State = repository.PurgeComplete
+	if err := c.repo.UpdateState(ctx, job, repository.PurgeComplete, job.LastError); err != nil {
+		return fmt.Errorf("mark purge complete: %w", err)
 	}
-
-	// Clean up all purge tracking rows now that the job is fully done.
-	// Failures here are non-fatal — the job has already completed successfully
-	// and rows will eventually expire via gc_grace_seconds.
-	if err := c.repo.DeleteCompletedJob(ctx, job); err != nil {
-		c.logger.Warn("purge: failed to clean up job rows (non-fatal)",
-			zap.String("jobID", job.JobID),
-			zap.String("fileID", job.FileID),
-			zap.Error(err))
-	}
-
 	return nil
 }

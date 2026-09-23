@@ -141,6 +141,14 @@ message GetBreadcrumbsResponse {
   repeated Folder folders = 1;
 }
 
+message GetOrCreateRootFolderRequest {
+  // empty — owner is derived from the authenticated session
+}
+
+message GetOrCreateRootFolderResponse {
+  Folder folder = 1;
+}
+
 enum FileSort {
   FILE_SORT_UPDATED_AT = 0;
   FILE_SORT_NAME = 1;
@@ -222,12 +230,16 @@ message PurgeJob {
   string file_id = 2;
   int32 file_version = 3;
   string state = 4;
+  // B4 semantic change: previously true also for benign "block missing"
+  // decrements. Now true only when the job has INVALID decrement ops.
   bool has_reconciliation_errors = 5;
   int32 attempts = 6;
   string last_error = 7;
   string created_at = 8;
   string updated_at = 9;
   string completed_at = 10;
+  // B4: additive exposure of the v2 invalid occurrence indices.
+  repeated int32 invalid_ops = 11;
 }
 
 message GetPurgeJobStatusRequest {
@@ -301,4 +313,5 @@ service FolderService {
   rpc DeleteFolder(DeleteFolderRequest) returns (DeleteFolderResponse);
   rpc RestoreFolder(RestoreFolderRequest) returns (Folder);
   rpc GetBreadcrumbs(GetBreadcrumbsRequest) returns (GetBreadcrumbsResponse);
+  rpc GetOrCreateRootFolder(GetOrCreateRootFolderRequest) returns (GetOrCreateRootFolderResponse);
 }

@@ -74,13 +74,7 @@ function UploadDrawerContent({ userId }: { userId: string }) {
   const [open, setOpen] = useState(false)
   const [minimized, setMinimized] = useState(false)
   const [tab, setTab] = useState<UploadTab>("all")
-  const {
-    files,
-    inputProps,
-    openFileDialog,
-    isUploading,
-    clearAll,
-  } = useUppyFileUpload({
+  const { files, inputProps, openFileDialog, isUploading, clearAll } = useUppyFileUpload({
     userId,
     maxFiles: 20,
     autoProceed: true,
@@ -124,9 +118,14 @@ function UploadDrawerContent({ userId }: { userId: string }) {
 
   return (
     <>
-      <input className="sr-only" type="file" aria-label="Select files to upload" {...inputProps} />
+      <input
+        className="sr-only"
+        type="file"
+        aria-label="Select files to upload"
+        {...inputProps}
+      />
       {open && (
-        <aside className="fixed bottom-5 right-5 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 text-white shadow-2xl">
+        <aside className="fixed right-5 bottom-5 z-50 w-[min(380px,calc(100vw-2rem))] overflow-hidden rounded-xl border border-neutral-800 bg-neutral-900 text-white shadow-2xl">
           <div className="flex items-center justify-between px-4 py-3">
             <button
               className="flex min-w-0 flex-1 items-center gap-2 text-left"
@@ -148,7 +147,9 @@ function UploadDrawerContent({ userId }: { userId: string }) {
                 size="icon"
                 variant="ghost"
               >
-                <ChevronDown className={`size-4 transition-transform ${minimized ? "" : "rotate-180"}`} />
+                <ChevronDown
+                  className={`size-4 transition-transform ${minimized ? "" : "rotate-180"}`}
+                />
               </Button>
               <Button
                 aria-label="Close uploads"
@@ -168,7 +169,9 @@ function UploadDrawerContent({ userId }: { userId: string }) {
                 {(["all", "completed", "failed"] as UploadTab[]).map((value) => (
                   <button
                     className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                      tab === value ? "bg-neutral-700 text-white" : "text-neutral-400 hover:bg-neutral-800"
+                      tab === value
+                        ? "bg-neutral-700 text-white"
+                        : "text-neutral-400 hover:bg-neutral-800"
                     }`}
                     key={value}
                     onClick={() => setTab(value)}
@@ -182,7 +185,12 @@ function UploadDrawerContent({ userId }: { userId: string }) {
 
               <div className="max-h-64 overflow-y-auto">
                 {filteredFiles.length > 0 ? (
-                  filteredFiles.map((file) => <FileRow file={file} key={file.id} />)
+                  filteredFiles.map((file) => (
+                    <FileRow
+                      file={file}
+                      key={file.id}
+                    />
+                  ))
                 ) : (
                   <p className="px-4 py-8 text-center text-xs text-neutral-500">Nothing here yet</p>
                 )}

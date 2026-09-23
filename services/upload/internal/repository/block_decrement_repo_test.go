@@ -137,7 +137,11 @@ func lwtInsertNotApplied1Col() *mockQuery {
 // selectExistingRow returns a mockQuery whose Scan() populates the operation
 // fields (the follow-up SELECT after INSERT not-applied). This is needed so
 // the test can reach the UPDATE LWT on the stale-takeover path.
-func selectExistingRow(jobID string, occurrence int, updatedAt time.Time) *mockQuery {
+//
+// jobID and occurrence are unused — the SELECT is keyed by (job_id,
+// occurrence), which the mock ignores — but they are kept in the signature
+// to document what row is being simulated.
+func selectExistingRow(updatedAt time.Time) *mockQuery {
 	return &mockQuery{
 		scanFn: func(dest ...interface{}) error {
 			// dest order matches the SELECT in ClaimBlockDecrement:
@@ -209,7 +213,7 @@ func TestClaimBlockDecrement_BugCondition_InsertLWTNotApplied(t *testing.T) {
 			// (only reached by fixed code — unfixed code errors before this)
 			func() *mockQuery {
 				// row is fresh (updated 1 second ago), so stale check won't fire
-				return selectExistingRow(jobID, 0, time.Now().UTC().Add(-1*time.Second))
+				return selectExistingRow(time.Now().UTC().Add(-1 * time.Second))
 			},
 		},
 	}
@@ -266,7 +270,7 @@ func TestClaimBlockDecrement_BugCondition_UpdateLWTNotApplied(t *testing.T) {
 			func() *mockQuery { return lwtInsertNotApplied1Col() },
 			// Call 2: SELECT existing row — row is CLAIMED and stale.
 			func() *mockQuery {
-				return selectExistingRow(jobID, 0, staleUpdatedAt)
+				return selectExistingRow(staleUpdatedAt)
 			},
 			// Call 3: UPDATE LWT (takeover attempt) — not applied; ScyllaDB returns
 			// 4 columns (applied, updated_at, job_id, occurrence).
@@ -275,7 +279,7 @@ func TestClaimBlockDecrement_BugCondition_UpdateLWTNotApplied(t *testing.T) {
 			// The rewritten ClaimBlockDecrement always re-reads when tookOver=false
 			// so it can detect a terminal status written by the winning worker.
 			func() *mockQuery {
-				return selectExistingRow(jobID, 0, staleUpdatedAt)
+				return selectExistingRow(staleUpdatedAt)
 			},
 		},
 	}
@@ -312,7 +316,7 @@ func TestClaimBlockDecrement_BugCondition_ErrorShape(t *testing.T) {
 				func() *mockQuery { return lwtInsertNotApplied() },
 				// Call 2: SELECT existing row (reached by fixed code after INSERT not-applied).
 				func() *mockQuery {
-					return selectExistingRow(jobID, 0, time.Now().UTC().Add(-1*time.Second))
+					return selectExistingRow(time.Now().UTC().Add(-1 * time.Second))
 				},
 			},
 		}
@@ -334,11 +338,11 @@ func TestClaimBlockDecrement_BugCondition_ErrorShape(t *testing.T) {
 		sess := &mockSession{
 			handlers: []func() *mockQuery{
 				func() *mockQuery { return lwtInsertNotApplied1Col() },
-				func() *mockQuery { return selectExistingRow(jobID, 0, staleUpdatedAt) },
+				func() *mockQuery { return selectExistingRow(staleUpdatedAt) },
 				func() *mockQuery { return lwtUpdateNotApplied() },
 				// Call 4: re-read after failed takeover (added by the improved
 				// ClaimBlockDecrement which always re-reads to detect terminal status).
-				func() *mockQuery { return selectExistingRow(jobID, 0, staleUpdatedAt) },
+				func() *mockQuery { return selectExistingRow(staleUpdatedAt) },
 			},
 		}
 		repo := &BlockRepo{session: sess}
@@ -388,13 +392,6 @@ func lwtInsertApplied() *mockQuery {
 			// Fixed-code path: applied=true, empty map.
 			return true, nil
 		},
-	}
-}
-
-// execOK returns a mockQuery whose Exec() succeeds (for the by-hash INSERT).
-func execOK() *mockQuery {
-	return &mockQuery{
-		execFn: func() error { return nil },
 	}
 }
 
@@ -453,10 +450,9 @@ func TestClaimBlockDecrement_Preservation_FreshClaim(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			sess := &mockSession{
 				handlers: []func() *mockQuery{
-					// Call 1: INSERT LWT — applied=true (fresh row).
+					// Call 1: INSERT LWT — applied=true (fresh row). No by-hash
+					// dual-write: that table was dropped in B4.
 					func() *mockQuery { return lwtInsertApplied() },
-					// Call 2: INSERT into block_decrement_operations_by_hash (updateBlockDecrementByHash).
-					func() *mockQuery { return execOK() },
 				},
 			}
 			repo := &BlockRepo{session: sess}
@@ -489,9 +485,10 @@ func TestClaimBlockDecrement_Preservation_FreshClaim(t *testing.T) {
 			if claim.Operation.UpdatedAt.IsZero() {
 				t.Errorf("[%s] expected non-zero UpdatedAt, got zero", tc.name)
 			}
-			// Both LWT handlers should have been consumed.
-			if sess.callIndex != 2 {
-				t.Errorf("[%s] expected exactly 2 session calls, got %d", tc.name, sess.callIndex)
+			// Only the INSERT LWT should have run: the by-hash dual-write is
+			// gone (table dropped in B4).
+			if sess.callIndex != 1 {
+				t.Errorf("[%s] expected exactly 1 session call, got %d", tc.name, sess.callIndex)
 			}
 		})
 	}
@@ -528,7 +525,6 @@ func TestClaimBlockDecrement_Preservation_FreshClaim_Property(t *testing.T) {
 		sess := &mockSession{
 			handlers: []func() *mockQuery{
 				func() *mockQuery { return lwtInsertApplied() },
-				func() *mockQuery { return execOK() },
 			},
 		}
 		repo := &BlockRepo{session: sess}
@@ -564,9 +560,9 @@ func TestClaimBlockDecrement_Preservation_InvalidUUID(t *testing.T) {
 	invalidUUIDs := []string{
 		"",
 		"not-a-uuid",
-		"00000000-0000-0000-0000-00000000000Z", // invalid hex char
-		"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx", // invalid hex chars
-		"12345678-1234-1234-1234-12345678901",  // one char too short
+		"00000000-0000-0000-0000-00000000000Z",  // invalid hex char
+		"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",  // invalid hex chars
+		"12345678-1234-1234-1234-12345678901",   // one char too short
 		"12345678-1234-1234-1234-1234567890123", // one char too long
 		"   ",
 		"null",

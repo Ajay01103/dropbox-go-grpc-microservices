@@ -39,8 +39,14 @@ func mapError(err error) error {
 func purgeJobMessage(job repository.PurgeJob) *pb.PurgeJob {
 	result := &pb.PurgeJob{
 		JobId: job.JobID, FileId: job.FileID, FileVersion: job.FileVersion,
-		State: job.State, HasReconciliationErrors: job.HasReconciliationErrors,
-		Attempts: int32(job.Attempts), LastError: job.LastError,
+		State: job.State,
+		// Wire compat (B4): the DB column has_reconciliation_errors is gone.
+		// The field now means "has INVALID ops" (previously it was also set
+		// for benign block-missing decrements) and invalid_ops is exposed
+		// additively.
+		HasReconciliationErrors: len(job.InvalidOps) > 0,
+		InvalidOps:              toInt32s(job.InvalidOps),
+		Attempts:                int32(job.Attempts), LastError: job.LastError,
 		CreatedAt: job.CreatedAt.UTC().Format(time.RFC3339Nano),
 		UpdatedAt: job.UpdatedAt.UTC().Format(time.RFC3339Nano),
 	}
@@ -48,6 +54,14 @@ func purgeJobMessage(job repository.PurgeJob) *pb.PurgeJob {
 		result.CompletedAt = job.CompletedAt.UTC().Format(time.RFC3339Nano)
 	}
 	return result
+}
+
+func toInt32s(in []int) []int32 {
+	out := make([]int32, 0, len(in))
+	for _, v := range in {
+		out = append(out, int32(v))
+	}
+	return out
 }
 
 func fileMessage(file repository.File) *pb.File {
@@ -398,4 +412,16 @@ func (s *MetadataServer) GetBreadcrumbs(ctx context.Context, req *connect.Reques
 		response.Folders = append(response.Folders, folderMessage(folder))
 	}
 	return connect.NewResponse(response), nil
+}
+
+func (s *MetadataServer) GetOrCreateRootFolder(ctx context.Context, req *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+	}
+	root, err := s.svc.EnsureRootFolder(ctx, userID)
+	if err != nil {
+		return nil, mapError(err)
+	}
+	return connect.NewResponse(&pb.GetOrCreateRootFolderResponse{Folder: folderMessage(root)}), nil
 }

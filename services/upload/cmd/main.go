@@ -104,7 +104,7 @@ func run() error {
 
 	// 3. Run migrations
 	ctx, cancel = context.WithTimeout(context.Background(), 30*time.Second)
-	migrated, err := db.Migrate(ctx, session)
+	migrated, err := db.Migrate(ctx, session, db.Keyspace)
 	cancel()
 
 	if err != nil {
@@ -161,34 +161,42 @@ func run() error {
 		logger.Info("using S3-compatible block storage", zap.String("endpoint", cfg.S3Endpoint), zap.String("bucket", cfg.S3Bucket))
 	}
 
-	// 8. Setup async event publisher
-	eventPublisher, err := service.NewNATSEventPublisher(cfg.NATSURL, cfg.NATSEventSubject)
+	// 8. Setup the async event publisher (v2 protobuf FileStored on
+	// files.v2.stored — the only topology since B4). When NATS is down and
+	// NATS_REQUIRED=false (dev), the service boots with a LOUD logging no-op
+	// so the failure is visible; NATS_REQUIRED=true fails boot instead.
+	var eventPublisher service.EventPublisher
+	pub, err := service.NewNATSEventPublisher(context.Background(), cfg.NATSURL)
 	if err != nil {
-		logger.Warn("nats publisher unavailable; continuing without async event bus",
+		if cfg.NATSRequired {
+			logger.Fatal("NATS_REQUIRED=true but the event publisher failed to start", zap.Error(err))
+		}
+		logger.Warn("nats publisher unavailable; booting with a logging no-op publisher — EVENTS ARE DROPPED",
 			zap.String("natsURL", cfg.NATSURL),
 			zap.Error(err),
 		)
-		eventPublisher = nil
+		eventPublisher = service.NewNoopLoggingPublisher(logger)
 	} else {
-		defer eventPublisher.Close()
+		defer pub.Close()
+		eventPublisher = pub
+		logger.Info("v2 event publisher enabled (files.v2.stored)")
 	}
 
-	// 9. Start the durable block-reference decrement worker.
+	// 9. Start the batched decrement worker (blocks.v2.decref.requested).
+	// Its Start() ensures the streams and DLQ itself.
 	decrementWorker, err := worker.NewBlockDecrementWorker(
 		cfg.NATSURL,
-		cfg.NATSBlockRefsRequestedSubject,
-		cfg.NATSBlockRefsCompletedSubject,
-		cfg.BlockLedgerStaleClaimThreshold,
+		cfg.BlockLedgerStale,
 		cfg.BlockGCGracePeriod,
 		blockRepo,
 		logger,
 	)
 	if err != nil {
-		logger.Warn("block decrement worker unavailable; continuing without ledger consumer", zap.Error(err))
+		logger.Warn("batched decrement worker unavailable", zap.Error(err))
 	} else {
 		if err := decrementWorker.Start(context.Background()); err != nil {
 			_ = decrementWorker.Close()
-			logger.Warn("block decrement worker failed to start", zap.Error(err))
+			logger.Warn("batched decrement worker failed to start", zap.Error(err))
 		} else {
 			defer decrementWorker.Close()
 		}
@@ -201,7 +209,6 @@ func run() error {
 		blockGateway,
 		cfg.BlockGCInterval,
 		cfg.BlockGCBatchSize,
-		cfg.BlockLedgerStaleClaimThreshold,
 		logger,
 	)
 	gcWorker.Start(context.Background())

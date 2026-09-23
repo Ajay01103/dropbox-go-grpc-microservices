@@ -33,7 +33,7 @@ func (r *FolderRepo) RenameFolder(ctx context.Context, ownerID, folderID, name s
 	return folder, nil
 }
 
-func (r *FolderRepo) MoveFolder(ctx context.Context, ownerID, folderID, parentID string) (Folder, error) {
+func (r *FolderRepo) MoveFolder(ctx context.Context, ownerID, folderID, parentID string, destinationAncestors []string) (Folder, error) {
 	folder, err := r.GetFolder(ctx, ownerID, folderID)
 	if err != nil {
 		return Folder{}, err
@@ -50,6 +50,17 @@ func (r *FolderRepo) MoveFolder(ctx context.Context, ownerID, folderID, parentID
 	if err != nil {
 		return Folder{}, err
 	}
+	// New ancestor chain: destination's ancestors + the destination itself.
+	newAncestors := make([]gocql.UUID, 0, len(destinationAncestors)+1)
+	for _, a := range destinationAncestors {
+		parsed, err := parseID(a)
+		if err != nil {
+			return Folder{}, fmt.Errorf("invalid ancestor id %q: %w", a, err)
+		}
+		newAncestors = append(newAncestors, parsed)
+	}
+	newAncestors = append(newAncestors, parent)
+
 	now := time.Now().UTC()
 	if folder.ParentID != "" {
 		oldParent, _ := parseID(folder.ParentID)
@@ -57,16 +68,17 @@ func (r *FolderRepo) MoveFolder(ctx context.Context, ownerID, folderID, parentID
 			return Folder{}, err
 		}
 	}
-	if err := r.session.Query(`INSERT INTO folders_by_parent (parent_id, folder_id, owner_id, name, path_cache, created_at, updated_at, is_deleted) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, parent, id, owner, folder.FolderName, folder.PathCache, folder.CreatedAt, now, folder.IsDeleted).WithContext(ctx).Exec(); err != nil {
+	if err := r.session.Query(`INSERT INTO folders_by_parent (parent_id, folder_id, owner_id, name, path_cache, created_at, updated_at, is_deleted, ancestor_ids) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, parent, id, owner, folder.FolderName, folder.PathCache, folder.CreatedAt, now, folder.IsDeleted, newAncestors).WithContext(ctx).Exec(); err != nil {
 		return Folder{}, err
 	}
-	if err := r.session.Query(`UPDATE folders_by_id SET parent_id = ?, updated_at = ? WHERE folder_id = ?`, parent, now, id).WithContext(ctx).Exec(); err != nil {
+	if err := r.session.Query(`UPDATE folders_by_id SET parent_id = ?, ancestor_ids = ?, updated_at = ? WHERE folder_id = ?`, parent, newAncestors, now, id).WithContext(ctx).Exec(); err != nil {
 		return Folder{}, err
 	}
-	if err := r.session.Query(`UPDATE folders_by_owner SET parent_id = ?, updated_at = ? WHERE owner_id = ? AND folder_id = ?`, parent, now, owner, id).WithContext(ctx).Exec(); err != nil {
+	if err := r.session.Query(`UPDATE folders_by_owner SET parent_id = ?, ancestor_ids = ?, updated_at = ? WHERE owner_id = ? AND folder_id = ?`, parent, newAncestors, now, owner, id).WithContext(ctx).Exec(); err != nil {
 		return Folder{}, err
 	}
 	folder.ParentID, folder.UpdatedAt = parent.String(), now
+	folder.AncestorIDs = ancestorIDStrings(newAncestors)
 	return folder, nil
 }
 
@@ -139,6 +151,15 @@ func (r *MetadataRepo) ListFilesByFolder(ctx context.Context, ownerID, folderID 
 		if fileOwner != owner || (!includeDeleted && file.IsDeleted) || !file.Current {
 			continue
 		}
+		// Ghost-row guard: the authoritative row must still resolve in
+		// files_by_id. A purged file's updated_at-keyed row can outlive the
+		// purge if a timestamp drift made the point-delete miss; without this
+		// check such a row would surface as a live file in listings.
+		if !includeDeleted {
+			if _, getErr := r.GetFileByID(ctx, ownerID, id.String()); getErr != nil {
+				continue
+			}
+		}
 		file.FileID, file.FolderID, file.OwnerID = id.String(), folder.String(), fileOwner.String()
 		file.CreatedAt, file.UpdatedAt = createdAt, updatedAt
 		files = append(files, file)
@@ -185,8 +206,51 @@ func (r *MetadataRepo) listFilesByFolderIncludingDeleted(ctx context.Context, ow
 }
 
 func (r *FolderRepo) ListBreadcrumbs(ctx context.Context, ownerID, folderID string) ([]Folder, error) {
+	self, err := r.GetFolder(ctx, ownerID, folderID)
+	if err != nil {
+		return nil, err
+	}
+	// Self-heal: pre-migration rows have an empty ancestor_ids. Fall back to
+	// the parent-chain walk, then rewrite this row so subsequent reads are O(1).
+	if len(self.AncestorIDs) == 0 && self.ParentID != "" {
+		chain, chainErr := r.breadcrumbsByChainWalk(ctx, ownerID, self)
+		if chainErr != nil {
+			return nil, chainErr
+		}
+		if healErr := r.UpdateFolderAncestors(ctx, ownerID, self.FolderID, folderIDs(chain[:len(chain)-1])); healErr != nil {
+			// Non-fatal: the correct chain is still returned; the row heals on a later write.
+			_ = healErr
+		}
+		return chain, nil
+	}
+
+	result := make([]Folder, 0, len(self.AncestorIDs)+1)
+	if len(self.AncestorIDs) > 0 {
+		ancestors, err := r.GetFoldersByIDs(ctx, ownerID, self.AncestorIDs)
+		if err != nil {
+			return nil, err
+		}
+		// Scylla's IN query returns rows in unspecified order; re-sort into
+		// ancestor_ids order (root -> direct parent).
+		byID := make(map[string]Folder, len(ancestors))
+		for _, f := range ancestors {
+			byID[f.FolderID] = f
+		}
+		for _, id := range self.AncestorIDs {
+			if f, ok := byID[id]; ok {
+				result = append(result, f)
+			}
+		}
+	}
+	return append(result, self), nil
+}
+
+// breadcrumbsByChainWalk resolves the ancestor chain by walking ParentID
+// links one GetFolder at a time. Used only as the fallback for pre-migration
+// rows with empty ancestor_ids; bounded by maxFolderDepth.
+func (r *FolderRepo) breadcrumbsByChainWalk(ctx context.Context, ownerID string, self Folder) ([]Folder, error) {
 	result := make([]Folder, 0, maxFolderDepth)
-	current := folderID
+	current := self.ParentID
 	for depth := 0; depth < maxFolderDepth && current != ""; depth++ {
 		folder, err := r.GetFolder(ctx, ownerID, current)
 		if err != nil {
@@ -198,5 +262,40 @@ func (r *FolderRepo) ListBreadcrumbs(ctx context.Context, ownerID, folderID stri
 	if current != "" {
 		return nil, errors.New("folder depth exceeds limit")
 	}
-	return result, nil
+	return append(result, self), nil
+}
+
+// folderIDs extracts the FolderID of each folder, preserving order.
+func folderIDs(folders []Folder) []string {
+	ids := make([]string, len(folders))
+	for i, f := range folders {
+		ids[i] = f.FolderID
+	}
+	return ids
+}
+
+// UpdateFolderAncestors rewrites ancestor_ids for a folder in all three folder
+// tables. Used by the lazy self-heal and by MoveFolder.
+func (r *FolderRepo) UpdateFolderAncestors(ctx context.Context, ownerID, folderID string, ancestors []string) error {
+	id, err := parseID(folderID)
+	if err != nil {
+		return err
+	}
+	owner, err := parseID(ownerID)
+	if err != nil {
+		return err
+	}
+	uuids := make([]gocql.UUID, 0, len(ancestors))
+	for _, a := range ancestors {
+		parsed, err := parseID(a)
+		if err != nil {
+			return fmt.Errorf("invalid ancestor id %q: %w", a, err)
+		}
+		uuids = append(uuids, parsed)
+	}
+	now := time.Now().UTC()
+	if err := r.session.Query(`UPDATE folders_by_id SET ancestor_ids = ?, updated_at = ? WHERE folder_id = ?`, uuids, now, id).WithContext(ctx).Exec(); err != nil {
+		return err
+	}
+	return r.session.Query(`UPDATE folders_by_owner SET ancestor_ids = ?, updated_at = ? WHERE owner_id = ? AND folder_id = ?`, uuids, now, owner, id).WithContext(ctx).Exec()
 }

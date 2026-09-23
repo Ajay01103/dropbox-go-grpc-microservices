@@ -43,8 +43,7 @@ func isTerminal(status string) bool {
 }
 
 // ClaimBlockDecrement atomically claims a new operation row, or resumes work
-// on a stale one. The denormalized by-hash table is updated after the primary
-// row to match the GC read model.
+// on a stale one.
 //
 // Return semantics:
 //   - Claimed=true  → this caller now owns the operation and must do the work.
@@ -74,16 +73,13 @@ func (r *BlockRepo) ClaimBlockDecrement(ctx context.Context, jobID string, occur
 		return BlockDecrementClaim{}, fmt.Errorf("claim decrement operation: %w", err)
 	}
 	if applied {
-		if err := r.updateBlockDecrementByHash(ctx, jobUUID, occurrence, blockHash, BlockDecrementClaimed, now); err != nil {
-			return BlockDecrementClaim{}, err
-		}
 		return BlockDecrementClaim{Operation: BlockDecrementOperation{
-			JobID:     jobID,
+			JobID:      jobID,
 			Occurrence: occurrence,
-			BlockHash: blockHash,
-			Status:    BlockDecrementClaimed,
-			ClaimedAt: now,
-			UpdatedAt: now,
+			BlockHash:  blockHash,
+			Status:     BlockDecrementClaimed,
+			ClaimedAt:  now,
+			UpdatedAt:  now,
 		}, Claimed: true}, nil
 	}
 
@@ -118,10 +114,6 @@ func (r *BlockRepo) ClaimBlockDecrement(ctx context.Context, jobID string, occur
 		}
 		if tookOver {
 			operation.ClaimedAt, operation.UpdatedAt = now, now
-			if err := r.updateBlockDecrementByHash(ctx, jobUUID, occurrence,
-				blockHashOr(operation.BlockHash, blockHash), BlockDecrementClaimed, now); err != nil {
-				return BlockDecrementClaim{}, err
-			}
 			return BlockDecrementClaim{Operation: operation, Claimed: true, WasReplay: true}, nil
 		}
 		// Another worker beat us to the take-over — re-read to get fresh state.
@@ -145,19 +137,6 @@ func (r *BlockRepo) ClaimBlockDecrement(ctx context.Context, jobID string, occur
 	return BlockDecrementClaim{Operation: operation, WasReplay: true}, nil
 }
 
-func blockHashOr(existing, requested string) string {
-	if existing != "" {
-		return existing
-	}
-	return requested
-}
-
-func (r *BlockRepo) updateBlockDecrementByHash(ctx context.Context, jobID gocql.UUID, occurrence int, hash, status string, updatedAt time.Time) error {
-	return r.session.Query(
-		`INSERT INTO block_decrement_operations_by_hash (block_hash, job_id, occurrence, status, updated_at) VALUES (?, ?, ?, ?, ?)`,
-		hash, jobID, occurrence, status, updatedAt).WithContext(ctx).Exec()
-}
-
 func (r *BlockRepo) UpdateBlockDecrement(ctx context.Context, operation BlockDecrementOperation) error {
 	jobID, err := gocql.ParseUUID(operation.JobID)
 	if err != nil {
@@ -170,5 +149,5 @@ func (r *BlockRepo) UpdateBlockDecrement(ctx context.Context, operation BlockDec
 		WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("update decrement operation: %w", err)
 	}
-	return r.updateBlockDecrementByHash(ctx, jobID, operation.Occurrence, operation.BlockHash, operation.Status, now)
+	return nil
 }

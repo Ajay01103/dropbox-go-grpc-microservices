@@ -1,0 +1,1 @@
+-- CALL drop_blocks_storage_key;

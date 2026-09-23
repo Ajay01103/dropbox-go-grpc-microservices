@@ -7,34 +7,24 @@ SHARING_SVC   := services/sharing
 # Do not globally export per-service .env values here; Goose variables can
 # collide across services and cause migrations to run against the wrong DB.
 
-.PHONY: help proto proto-auth proto-upload proto-metadata proto-sharing proto-blocks build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
+.PHONY: help proto build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy check-events scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
 # ─── Code Generation ──────────────────────────────────────────────────────────
 
-proto: proto-auth proto-upload proto-metadata proto-sharing proto-blocks ## Generate proto code for all services from proto files
-
-proto-auth: ## Generate proto code for Auth service
+proto: ## Generate proto code for all services and the v2 events contract
 	cd $(PROTO_DIR)/auth && npx @bufbuild/buf generate
 	@echo "✓ Auth proto generated"
-
-proto-upload: ## Generate proto code for Upload service
 	cd $(PROTO_DIR)/upload && npx @bufbuild/buf generate
 	@echo "✓ Upload proto generated"
-
-proto-metadata: ## Generate proto code for Metadata service
 	cd $(PROTO_DIR)/metadata && npx @bufbuild/buf generate
 	@echo "✓ Metadata proto generated"
-
-proto-sharing: ## Generate proto code for Sharing service
 	cd $(PROTO_DIR)/sharing && npx @bufbuild/buf generate
 	@echo "✓ Sharing proto generated"
-
-proto-blocks: ## Generate shared block-reference event code
-	cd $(PROTO_DIR)/blocks && npx @bufbuild/buf generate
-	@echo "✓ Blocks proto generated"
+	cd $(PROTO_DIR)/events && npx @bufbuild/buf generate
+	@echo "✓ Events v2 proto generated"
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 
@@ -73,6 +63,15 @@ run-sharing: ## Start Sharing service (requires ScyllaDB running)
 tidy: ## Tidy Go modules
 	cd $(AUTH_SVC) && go mod tidy
 	go work sync
+
+check-events: ## Fail if subject/stream/consumer string literals appear outside pkg/events
+	@rg -n --glob '*.go' --glob '!**/*_test.go' \
+	  -e '"(uploads|blocks|files|dlq)\.[a-z0-9_.>*-]+"' \
+	  -e '"(UPLOAD_EVENTS|BLOCK_REFS(_CMD|_EVT)?|FILE_EVENTS|DLQ)"' \
+	  -e '"(metadata-thumbnail-worker|upload-block-decrement-worker|metadata-purge-worker|thumbnail-v2|decref-v2|purge-completion-v2)"' \
+	  services pkg/natsx \
+	  && { echo "ERROR: NATS contract literals found outside pkg/events (docs/NATS-V2-REDESIGN.md A.5)."; exit 1; } \
+	  || true
 
 # ─── ScyllaDB Management ──────────────────────────────────────────────────────
 

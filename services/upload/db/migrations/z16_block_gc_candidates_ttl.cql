@@ -1,0 +1,13 @@
+-- B4 follow-up: bound the lifetime of block_gc_candidates rows.
+--
+-- The GC worker deletes each candidate row after deleting the block object,
+-- so under normal operation the table drains to zero (proven in dev). The
+-- TTL is a failure-mode bound: if the GC worker wedges, a candidate row
+-- would otherwise linger forever. With default_time_to_live the row ages
+-- out after 30 days. Candidates are derived from block_decrement_operations
+-- rows (which carry a 30d TTL themselves), so no candidate can outlive its
+-- source evidence.
+--
+-- Re-runnable by construction - gocqlx skips applied migrations, and ALTER
+-- on an already-TTL'd table is a harmless no-op.
+ALTER TABLE block_gc_candidates WITH default_time_to_live = 2592000;

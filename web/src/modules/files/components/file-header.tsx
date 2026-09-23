@@ -5,33 +5,36 @@ import { Search, UserPlus } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
+import { useBreadcrumbs } from "@/modules/files/api/use-files"
 
 function getInitials(name?: string) {
   if (!name) return "AS"
 
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase() ?? "")
-    .join("") || "AS"
+  return (
+    name
+      .trim()
+      .split(/\s+/)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? "")
+      .join("") || "AS"
+  )
 }
 
-export function FileHeader() {
+export function FileHeader({ folderId }: { folderId?: string }) {
   const { currentUser } = useAuth()
   const initials = getInitials(currentUser?.name)
 
   return (
-    <header className="border-b bg-background">
+    <header className="bg-background border-b">
       <div className="flex min-h-20 flex-wrap items-center gap-3 px-4 py-3 sm:px-6 lg:px-10">
         <div className="relative min-w-48 flex-1 basis-full sm:basis-64 lg:max-w-3xl">
           <Search
             aria-hidden="true"
-            className="text-muted-foreground pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2"
+            className="text-muted-foreground pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2"
           />
           <input
             aria-label="Search files"
-            className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30 h-10 w-full rounded-xl border pl-11 pr-4 text-sm outline-none transition-shadow focus-visible:ring-2"
+            className="border-input bg-background placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/30 h-10 w-full rounded-xl border pr-4 pl-11 text-sm transition-shadow outline-none focus-visible:ring-2"
             placeholder="Search"
             type="search"
           />
@@ -62,9 +65,17 @@ export function FileHeader() {
         </div>
       </div>
 
-      <div className="px-4 pb-4 pt-2 sm:px-6 lg:px-10">
-        <h1 className="text-2xl font-medium tracking-tight">All Files</h1>
+      <div className="px-4 pt-2 pb-4 sm:px-6 lg:px-10">
+        <h1 className="text-2xl font-medium tracking-tight">{folderId ? <FolderTitle folderId={folderId} /> : "All Files"}</h1>
       </div>
     </header>
   )
+}
+
+// FolderTitle resolves the viewed folder's name from the breadcrumb chain
+// (last crumb) so the header tracks navigation without another RPC shape.
+function FolderTitle({ folderId }: { folderId: string }) {
+  const { data: crumbs } = useBreadcrumbs(folderId)
+  const current = crumbs?.[crumbs.length - 1]
+  return <>{current?.name || "My Files"}</>
 }

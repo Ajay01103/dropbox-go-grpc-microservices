@@ -111,6 +111,9 @@ const (
 	// FolderServiceGetBreadcrumbsProcedure is the fully-qualified name of the FolderService's
 	// GetBreadcrumbs RPC.
 	FolderServiceGetBreadcrumbsProcedure = "/metadata.FolderService/GetBreadcrumbs"
+	// FolderServiceGetOrCreateRootFolderProcedure is the fully-qualified name of the FolderService's
+	// GetOrCreateRootFolder RPC.
+	FolderServiceGetOrCreateRootFolderProcedure = "/metadata.FolderService/GetOrCreateRootFolder"
 )
 
 // MetadataServiceClient is a client for the metadata.MetadataService service.
@@ -706,6 +709,7 @@ type FolderServiceClient interface {
 	DeleteFolder(context.Context, *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error)
 	RestoreFolder(context.Context, *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error)
 	GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error)
+	GetOrCreateRootFolder(context.Context, *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error)
 }
 
 // NewFolderServiceClient constructs a client for the metadata.FolderService service. By default, it
@@ -773,20 +777,27 @@ func NewFolderServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(folderServiceMethods.ByName("GetBreadcrumbs")),
 			connect.WithClientOptions(opts...),
 		),
+		getOrCreateRootFolder: connect.NewClient[pb.GetOrCreateRootFolderRequest, pb.GetOrCreateRootFolderResponse](
+			httpClient,
+			baseURL+FolderServiceGetOrCreateRootFolderProcedure,
+			connect.WithSchema(folderServiceMethods.ByName("GetOrCreateRootFolder")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // folderServiceClient implements FolderServiceClient.
 type folderServiceClient struct {
-	createFolder       *connect.Client[pb.CreateFolderRequest, pb.Folder]
-	getFolder          *connect.Client[pb.GetFolderRequest, pb.Folder]
-	listFolderContents *connect.Client[pb.ListFolderContentsRequest, pb.ListFolderContentsResponse]
-	listFolderItems    *connect.Client[pb.ListFolderItemsRequest, pb.ListFolderItemsResponse]
-	renameFolder       *connect.Client[pb.RenameFolderRequest, pb.Folder]
-	moveFolder         *connect.Client[pb.MoveFolderRequest, pb.Folder]
-	deleteFolder       *connect.Client[pb.DeleteFolderRequest, pb.DeleteFolderResponse]
-	restoreFolder      *connect.Client[pb.RestoreFolderRequest, pb.Folder]
-	getBreadcrumbs     *connect.Client[pb.GetBreadcrumbsRequest, pb.GetBreadcrumbsResponse]
+	createFolder          *connect.Client[pb.CreateFolderRequest, pb.Folder]
+	getFolder             *connect.Client[pb.GetFolderRequest, pb.Folder]
+	listFolderContents    *connect.Client[pb.ListFolderContentsRequest, pb.ListFolderContentsResponse]
+	listFolderItems       *connect.Client[pb.ListFolderItemsRequest, pb.ListFolderItemsResponse]
+	renameFolder          *connect.Client[pb.RenameFolderRequest, pb.Folder]
+	moveFolder            *connect.Client[pb.MoveFolderRequest, pb.Folder]
+	deleteFolder          *connect.Client[pb.DeleteFolderRequest, pb.DeleteFolderResponse]
+	restoreFolder         *connect.Client[pb.RestoreFolderRequest, pb.Folder]
+	getBreadcrumbs        *connect.Client[pb.GetBreadcrumbsRequest, pb.GetBreadcrumbsResponse]
+	getOrCreateRootFolder *connect.Client[pb.GetOrCreateRootFolderRequest, pb.GetOrCreateRootFolderResponse]
 }
 
 // CreateFolder calls metadata.FolderService.CreateFolder.
@@ -834,6 +845,11 @@ func (c *folderServiceClient) GetBreadcrumbs(ctx context.Context, req *connect.R
 	return c.getBreadcrumbs.CallUnary(ctx, req)
 }
 
+// GetOrCreateRootFolder calls metadata.FolderService.GetOrCreateRootFolder.
+func (c *folderServiceClient) GetOrCreateRootFolder(ctx context.Context, req *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error) {
+	return c.getOrCreateRootFolder.CallUnary(ctx, req)
+}
+
 // FolderServiceHandler is an implementation of the metadata.FolderService service.
 type FolderServiceHandler interface {
 	CreateFolder(context.Context, *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error)
@@ -845,6 +861,7 @@ type FolderServiceHandler interface {
 	DeleteFolder(context.Context, *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error)
 	RestoreFolder(context.Context, *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error)
 	GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error)
+	GetOrCreateRootFolder(context.Context, *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error)
 }
 
 // NewFolderServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -908,6 +925,12 @@ func NewFolderServiceHandler(svc FolderServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(folderServiceMethods.ByName("GetBreadcrumbs")),
 		connect.WithHandlerOptions(opts...),
 	)
+	folderServiceGetOrCreateRootFolderHandler := connect.NewUnaryHandler(
+		FolderServiceGetOrCreateRootFolderProcedure,
+		svc.GetOrCreateRootFolder,
+		connect.WithSchema(folderServiceMethods.ByName("GetOrCreateRootFolder")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/metadata.FolderService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case FolderServiceCreateFolderProcedure:
@@ -928,6 +951,8 @@ func NewFolderServiceHandler(svc FolderServiceHandler, opts ...connect.HandlerOp
 			folderServiceRestoreFolderHandler.ServeHTTP(w, r)
 		case FolderServiceGetBreadcrumbsProcedure:
 			folderServiceGetBreadcrumbsHandler.ServeHTTP(w, r)
+		case FolderServiceGetOrCreateRootFolderProcedure:
+			folderServiceGetOrCreateRootFolderHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -971,4 +996,8 @@ func (UnimplementedFolderServiceHandler) RestoreFolder(context.Context, *connect
 
 func (UnimplementedFolderServiceHandler) GetBreadcrumbs(context.Context, *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.GetBreadcrumbs is not implemented"))
+}
+
+func (UnimplementedFolderServiceHandler) GetOrCreateRootFolder(context.Context, *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("metadata.FolderService.GetOrCreateRootFolder is not implemented"))
 }

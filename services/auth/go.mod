@@ -1,30 +1,29 @@
 module github.com/Ajay01103/go-dropbox/auth
 
-go 1.25.0
+go 1.26.0
 
 require (
 	connectrpc.com/connect v1.19.1
 	github.com/Ajay01103/go-dropbox/pkg v0.0.0-00010101000000-000000000000
-	github.com/dgraph-io/ristretto v0.1.1
+	github.com/dgraph-io/ristretto v0.2.0
 	github.com/gocql/gocql v1.7.0
 	github.com/google/uuid v1.6.0
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/crypto v0.49.0
-	golang.org/x/net v0.52.0
+	golang.org/x/crypto v0.57.0
+	golang.org/x/net v0.58.0
 	google.golang.org/protobuf v1.36.11
 )
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.0 // indirect
-	github.com/dustin/go-humanize v1.0.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/goccy/go-json v0.10.3 // indirect
 	github.com/golang-jwt/jwt/v5 v5.3.1 // indirect
-	github.com/golang/glog v1.2.5 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/hailocab/go-hostpool v0.0.0-20160125115350-e80d13ce29ed // indirect
 	github.com/lestrrat-go/blackmagic v1.0.3 // indirect
@@ -45,9 +44,9 @@ require (
 	github.com/subosito/gotenv v1.6.0 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.42.0 // indirect
-	golang.org/x/text v0.35.0 // indirect
+	golang.org/x/sync v0.23.0 // indirect
+	golang.org/x/sys v0.48.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 )

@@ -1,0 +1,12 @@
+-- B4 (Part C phase 5): drop the purge_jobs_by_state index.
+--
+-- The sweeper's work list is purge_jobs_active (the authoritative companion
+-- dual-write). purge_jobs_by_state drifted historically (the reason
+-- backfill-purge-active existed) and had no remaining readers after B3.
+--
+-- Verify pre-deploy with a FULL SCAN of the purge_jobs base table — never
+-- through this index, which is the thing that may have drifted.
+--
+-- Safe to re-run after a partial failure: DROP TABLE IF EXISTS is a no-op
+-- when the table is already gone.
+DROP TABLE IF EXISTS purge_jobs_by_state;

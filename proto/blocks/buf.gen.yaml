@@ -1,8 +1,0 @@
-version: v2
-clean: true
-inputs:
-  - directory: .
-plugins:
-  - remote: buf.build/protocolbuffers/go
-    out: ../../pkg/gen/blocks
-    opt: paths=source_relative

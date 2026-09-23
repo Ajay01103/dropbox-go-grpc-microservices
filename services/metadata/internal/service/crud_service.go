@@ -126,7 +126,7 @@ func (s *MetadataService) RenameFileOwned(ctx context.Context, ownerID, fileID, 
 }
 
 func (s *MetadataService) MoveFileOwned(ctx context.Context, ownerID, fileID, folderID string) (repository.File, error) {
-	destination, err := s.folderRepo.GetFolder(ctx, ownerID, folderID)
+	destination, err := s.resolveDestinationFolder(ctx, ownerID, folderID)
 	if err != nil {
 		return repository.File{}, err
 	}
@@ -222,7 +222,7 @@ func (s *MetadataService) CreateChildFolder(ctx context.Context, ownerID, parent
 	if len(breadcrumbs) >= 20 {
 		return repository.Folder{}, errors.New("maximum folder depth exceeded")
 	}
-	folder, err := s.folderRepo.CreateChildFolder(ctx, ownerID, parent.FolderID, name)
+	folder, err := s.folderRepo.CreateChildFolder(ctx, ownerID, parent.FolderID, parent.AncestorIDs, name)
 	if err != nil {
 		return repository.Folder{}, err
 	}
@@ -287,41 +287,96 @@ func (s *MetadataService) RenameFolderOwned(ctx context.Context, ownerID, folder
 	return renamed, nil
 }
 
+// isInSubtree reports whether folderID is the destination itself or one of
+// its ancestors-in-reverse (i.e. moving folderID under destination would
+// create a cycle). Pure so the cycle rules are unit-testable without Scylla.
+func isInSubtree(folderID string, destination repository.Folder) bool {
+	if folderID == destination.FolderID {
+		return true
+	}
+	for _, ancestor := range destination.AncestorIDs {
+		if ancestor == folderID {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *MetadataService) MoveFolderOwned(ctx context.Context, ownerID, folderID, parentID string) (repository.Folder, error) {
 	moving, err := s.GetFolderOwned(ctx, ownerID, folderID)
 	if err != nil {
 		return repository.Folder{}, err
 	}
-	destination, err := s.GetFolderOwned(ctx, ownerID, parentID)
+	destination, err := s.resolveDestinationFolder(ctx, ownerID, parentID)
 	if err != nil {
 		return repository.Folder{}, err
 	}
+	// Validate everything BEFORE any writes: a rejected move must never leave
+	// a half-applied recomputeDescendantAncestors behind.
 	if moving.FolderID == destination.FolderID {
 		return repository.Folder{}, ErrFolderCycle
 	}
 	if destination.IsDeleted {
 		return repository.Folder{}, errors.New("destination folder is deleted")
 	}
-	breadcrumbs, err := s.folderRepo.ListBreadcrumbs(ctx, ownerID, destination.FolderID)
+	if isInSubtree(moving.FolderID, destination) {
+		return repository.Folder{}, ErrFolderCycle
+	}
+	if len(destination.AncestorIDs) >= 20 { // maxFolderDepth — kept in sync with the repository constant
+		return repository.Folder{}, errors.New("maximum folder depth exceeded")
+	}
+	moved, err := s.folderRepo.MoveFolder(ctx, ownerID, folderID, destination.FolderID, destination.AncestorIDs)
 	if err != nil {
 		return repository.Folder{}, err
 	}
-	for _, folder := range breadcrumbs {
-		if folder.FolderID == moving.FolderID {
-			return repository.Folder{}, ErrFolderCycle
-		}
-	}
-	if len(breadcrumbs) >= 20 {
-		return repository.Folder{}, errors.New("maximum folder depth exceeded")
-	}
-	moved, err := s.folderRepo.MoveFolder(ctx, ownerID, folderID, parentID)
-	if err != nil {
+	// Rewrite ancestor_ids for every descendant of the moved folder. This is
+	// NOT atomic across partitions: a crash mid-walk leaves some descendants
+	// with stale ancestor_ids (wrong breadcrumbs) until a later repair. Same
+	// risk class as cascadeFolderDelete; accepted for moves, which are rare.
+	if err := s.recomputeDescendantAncestors(ctx, ownerID, moved); err != nil {
 		return repository.Folder{}, err
 	}
 	movedItem := folderItemFromFolder(moved)
 	previousItem := folderItemFromFolder(moving)
 	s.replaceIndexedItem(ctx, previousItem, movedItem)
 	return moved, nil
+}
+
+// recomputeDescendantAncestors walks the moved folder's subtree and rewrites
+// each descendant's ancestor_ids for its new position. Cost is proportional
+// to the descendant FOLDER count (not depth — a wide shallow subtree costs
+// the same as a deep narrow one), which is the right side to pay on since
+// moves are rare and breadcrumb reads are common.
+func (s *MetadataService) recomputeDescendantAncestors(ctx context.Context, ownerID string, moved repository.Folder) error {
+	return s.recomputeDescendantsFrom(ctx, ownerID, moved.FolderID, moved.AncestorIDs)
+}
+
+func (s *MetadataService) recomputeDescendantsFrom(ctx context.Context, ownerID, parentID string, ancestorChain []string) error {
+	children, _, err := s.folderRepo.ListChildren(ctx, ownerID, parentID, 1000, "")
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		chain := make([]string, 0, len(ancestorChain)+1)
+		chain = append(chain, ancestorChain...)
+		chain = append(chain, parentID)
+		if err := s.folderRepo.UpdateFolderAncestors(ctx, ownerID, child.FolderID, chain); err != nil {
+			return err
+		}
+		if err := s.recomputeDescendantsFrom(ctx, ownerID, child.FolderID, chain); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// resolveDestinationFolder maps an empty destination id (the UI's "My files"
+// root drop zone sends "") to the owner's deterministic root folder.
+func (s *MetadataService) resolveDestinationFolder(ctx context.Context, ownerID, folderID string) (repository.Folder, error) {
+	if folderID == "" {
+		return s.EnsureRootFolder(ctx, ownerID)
+	}
+	return s.folderRepo.GetFolder(ctx, ownerID, folderID)
 }
 
 func (s *MetadataService) DeleteFolderOwned(ctx context.Context, ownerID, folderID string) (repository.Folder, error) {

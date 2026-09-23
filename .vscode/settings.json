@@ -1,4 +1,7 @@
 {
+  "gopls": {
+    "buildFlags": ["-tags=integration"]
+  },
   "npm.scriptRunner": "vp",
   // "editor.defaultFormatter": "oxc.oxc-vscode",
   "[javascript]": {

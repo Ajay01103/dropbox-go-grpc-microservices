@@ -1,6 +1,5 @@
 "use client"
 
-
 const filterGroups = ["All Items", "Photos", "Videos", "Starred"]
 const dateFilters = ["Years", "Months", "Days"]
 
@@ -21,28 +20,33 @@ function FilterButton({ active, children }: { active?: boolean; children: React.
 
 export function FileFilters() {
   return (
-    <div className="border-b bg-background px-4 sm:px-6 lg:px-10">
+    <div className="bg-background border-b px-4 sm:px-6 lg:px-10">
       <div className="flex min-h-16 flex-wrap items-center gap-x-5 gap-y-2 py-3">
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex max-w-full [scrollbar-width:none] items-center gap-1 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
           {filterGroups.map((filter, index) => (
-            <FilterButton key={filter} active={index === 0}>
+            <FilterButton
+              key={filter}
+              active={index === 0}
+            >
               {filter}
             </FilterButton>
           ))}
         </div>
 
-        <div className="hidden h-8 w-px bg-border sm:block" />
+        <div className="bg-border hidden h-8 w-px sm:block" />
 
-        <div className="flex max-w-full items-center gap-1 overflow-x-auto pb-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="flex max-w-full [scrollbar-width:none] items-center gap-1 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden">
           {dateFilters.map((filter) => (
-            <FilterButton key={filter} active={filter === "Months"}>
+            <FilterButton
+              key={filter}
+              active={filter === "Months"}
+            >
               {filter}
             </FilterButton>
           ))}
         </div>
 
-        <div className="hidden h-8 w-px bg-border sm:block" />
-
+        <div className="bg-border hidden h-8 w-px sm:block" />
       </div>
     </div>
   )

@@ -103,23 +103,6 @@ services:
     networks:
       - scylladb-network
 
-   nats-console:
-    image: ghcr.io/klogichq/nats-console:latest
-    container_name: nats-console-dev
-    ports:
-      - "3000:3000" # Web UI
-      - "3001:3001" # Internal API
-    environment:
-      - JWT_SECRET=your-secure-dev-secret-key-change-me
-    volumes:
-      - nats-console-db:/var/lib/postgresql/data
-      - nats-console-redis:/var/lib/redis
-      - nats-console-clickhouse:/var/lib/clickhouse
-    depends_on:
-      - nats
-    networks:
-      - scylladb-network
-
 volumes:
   scylladb-data:
     driver: local
@@ -132,12 +115,6 @@ volumes:
   nats-data:
     driver: local
   upload-data:
-    driver: local
-  nats-console-db:
-    driver: local
-  nats-console-redis:
-    driver: local
-  nats-console-clickhouse:
     driver: local
 
 networks:

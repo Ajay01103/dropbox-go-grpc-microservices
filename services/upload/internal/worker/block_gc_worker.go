@@ -17,26 +17,21 @@ import (
 // block_gc_candidates. Safe to run on multiple instances — all operations are
 // idempotent.
 type BlockGCWorker struct {
-	repo       *repository.BlockRepo
-	gateway    storagegateway.BlockGateway
-	interval   time.Duration
-	batchSize  int
-	staleAfter time.Duration // mirrors the decrement worker's stale window
-	logger     *zap.Logger
+	repo      *repository.BlockRepo
+	gateway   storagegateway.BlockGateway
+	interval  time.Duration
+	batchSize int
+	logger    *zap.Logger
 }
 
 // NewBlockGCWorker creates a BlockGCWorker.
-//   - interval:   how often to scan for eligible candidates (default 5m)
-//   - batchSize:  max candidates processed per tick (default 100)
-//   - staleAfter: the same stale window used by BlockDecrementWorker; a CLAIMED
-//     decrement row is only considered in-flight when its updated_at is within
-//     this window (default 30s)
+//   - interval:  how often to scan for eligible candidates (default 5m)
+//   - batchSize: max candidates processed per tick (default 100)
 func NewBlockGCWorker(
 	repo *repository.BlockRepo,
 	gateway storagegateway.BlockGateway,
 	interval time.Duration,
 	batchSize int,
-	staleAfter time.Duration,
 	logger *zap.Logger,
 ) *BlockGCWorker {
 	if interval <= 0 {
@@ -45,16 +40,12 @@ func NewBlockGCWorker(
 	if batchSize <= 0 {
 		batchSize = 100
 	}
-	if staleAfter <= 0 {
-		staleAfter = 30 * time.Second
-	}
 	return &BlockGCWorker{
-		repo:       repo,
-		gateway:    gateway,
-		interval:   interval,
-		batchSize:  batchSize,
-		staleAfter: staleAfter,
-		logger:     logger,
+		repo:      repo,
+		gateway:   gateway,
+		interval:  interval,
+		batchSize: batchSize,
+		logger:    logger,
 	}
 }
 
@@ -117,21 +108,13 @@ func (w *BlockGCWorker) runOnce(ctx context.Context) {
 // processCandidate deletes one block from storage and the database.
 // Returns (true, nil) when deleted, (false, nil) when intentionally skipped,
 // and (false, err) on a transient failure.
+//
+// Safety is the FenceForDelete LWT, not the read pre-checks: a dedup upload
+// can only re-reference the block before the fence applies, and once fenced
+// (state='DELETING') IncrementRefCount refuses new references. A crash after
+// fencing resumes on the next sweep because the candidate row still exists.
 func (w *BlockGCWorker) processCandidate(ctx context.Context, hash string) (bool, error) {
-	// Only skip if there is an actively-claimed (non-stale) decrement in flight.
-	// Historical rows with COUNTER_APPLIED / COMPLETE / FAILED are not in-flight.
-	inFlight, err := w.repo.HasInFlightDecrement(ctx, hash, w.staleAfter)
-	if err != nil {
-		return false, err
-	}
-	if inFlight {
-		w.logger.Debug("block gc: skipping block with active in-flight decrement",
-			zap.String("blockHash", hash))
-		return false, nil
-	}
-
-	// Re-read ref_count — a concurrent upload may have dedup-referenced this
-	// block after its count was zeroed.
+	// Cheap pre-check to skip obviously re-referenced blocks without a CAS.
 	block, err := w.repo.GetBlock(ctx, hash)
 	if err != nil {
 		if repository.IsBlockNotFound(err) {
@@ -147,9 +130,20 @@ func (w *BlockGCWorker) processCandidate(ctx context.Context, hash string) (bool
 		return false, w.repo.RemoveGCCandidate(ctx, hash)
 	}
 
+	// Fence: atomically transition to DELETING. Failure means the block was
+	// re-referenced (or already fenced) between the read and now.
+	fenced, err := w.repo.FenceForDelete(ctx, hash)
+	if err != nil {
+		return false, fmt.Errorf("fence block: %w", err)
+	}
+	if !fenced {
+		w.logger.Info("block gc: fence lost (re-referenced or already deleting), skipping",
+			zap.String("blockHash", hash))
+		return false, nil
+	}
+
 	w.logger.Info("block gc: deleting block",
 		zap.String("blockHash", hash),
-		zap.String("storageKey", block.StorageKey),
 		zap.String("backend", block.StorageBackend))
 
 	if err := w.gateway.DeleteBlock(ctx, hash); err != nil {

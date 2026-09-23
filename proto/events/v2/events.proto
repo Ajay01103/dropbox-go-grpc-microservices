@@ -1,0 +1,72 @@
+// Reconstructed v2 events contract (matches pkg/gen/events/v2/events.pb.go).
+// Raw 32-byte block hashes everywhere — hex conversion happens only at the
+// edges (publisher hex-decodes its string hashes; consumers hex-encode).
+syntax = "proto3";
+
+package events.v2;
+
+option go_package = "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2;eventsv2";
+
+import "google/protobuf/timestamp.proto";
+
+// FileStored is published to files.v2.stored when a file version is
+// finalized. It replaces the v1 JSON ObjectStoredEvent: protobuf wire format,
+// raw 32-byte hashes (half the size of hex), and file_version so events can
+// be tied to a purge-keyed version.
+message FileStored {
+  string file_id = 1;
+  int64 file_version = 2;
+  string owner_id = 3;
+  string content_type = 4;
+  int64 size_bytes = 5;
+  // Ordered, raw 32-byte SHA-256 digests of the file's blocks.
+  repeated bytes block_hashes = 6;
+  google.protobuf.Timestamp stored_at = 7;
+}
+
+// DecrefRequested is published to blocks.v2.decref.requested per batch.
+message DecrefRequested {
+  // UUID (uuid.NewSHA1 of "<file_id>:<version>"); matches purge_jobs.job_id.
+  string job_id = 1;
+  // 0-based index of this batch within the job.
+  uint32 batch_index = 2;
+  // Total number of batches for the job.
+  uint32 batch_count = 3;
+  repeated DecrefOp ops = 4;
+  // e.g. "permanent_delete".
+  string reason = 5;
+  google.protobuf.Timestamp requested_at = 6;
+}
+
+message DecrefOp {
+  // GLOBAL index of this reference in the job's ordered block list — unique
+  // across batches, which makes each op independently idempotent in the
+  // ledger.
+  uint32 occurrence = 1;
+  // Raw 32-byte SHA-256 digest.
+  bytes block_hash = 2;
+}
+
+// DecrefCompleted is published to blocks.v2.decref.completed per batch.
+message DecrefCompleted {
+  string job_id = 1;
+  uint32 batch_index = 2;
+  uint32 batch_count = 3;
+  repeated DecrefResult results = 4;
+  google.protobuf.Timestamp processed_at = 5;
+}
+
+message DecrefResult {
+  enum Outcome {
+    OUTCOME_UNSPECIFIED = 0;
+    APPLIED = 1;
+    ALREADY_ABSENT = 2;
+    INVALID = 3;
+  }
+  uint32 occurrence = 1;
+  bytes block_hash = 2;
+  Outcome outcome = 3;
+  int64 new_ref_count = 4;
+  // True when this decrement made the block a GC candidate (ref hit 0).
+  bool became_gc_candidate = 5;
+}

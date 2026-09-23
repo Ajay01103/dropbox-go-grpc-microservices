@@ -2,16 +2,15 @@
 // @generated from file upload.proto (package upload, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2"
-import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2"
-import type { Message } from "@bufbuild/protobuf"
+import type { GenFile, GenMessage, GenService } from "@bufbuild/protobuf/codegenv2";
+import { fileDesc, messageDesc, serviceDesc } from "@bufbuild/protobuf/codegenv2";
+import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file upload.proto.
  */
-export const file_upload: GenFile /*@__PURE__*/ = fileDesc(
-  "Cgx1cGxvYWQucHJvdG8SBnVwbG9hZCJyChFJbml0VXBsb2FkUmVxdWVzdBIQCghmaWxlbmFtZRgBIAEoCRIYChB0b3RhbF9zaXplX2J5dGVzGAIgASgDEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIbChNzaGEyNTZfb2ZfZnVsbF9maWxlGAQgASgJIrgBChJJbml0VXBsb2FkUmVzcG9uc2USEQoJdXBsb2FkX2lkGAEgASgJEhgKEGNodW5rX3NpemVfYnl0ZXMYAiABKAMSIAoYYWxyZWFkeV9yZWNlaXZlZF9vZmZzZXRzGAMgAygDEhgKEGFscmVhZHlfY29tcGxldGUYBCABKAgSEQoJb2JqZWN0X2lkGAUgASgJEiYKHmFscmVhZHlfcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgGIAMoBSJzChJVcGxvYWRDaHVua1JlcXVlc3QSEQoJdXBsb2FkX2lkGAEgASgJEg4KBm9mZnNldBgCIAEoAxIMCgRkYXRhGAMgASgMEhcKD3NoYTI1Nl9vZl9jaHVuaxgEIAEoCRITCgtjaHVua19pbmRleBgFIAEoBSJlCg5VcGxvYWRDaHVua0FjaxIRCgl1cGxvYWRfaWQYASABKAkSGAoQb2Zmc2V0X3BlcnNpc3RlZBgCIAEoAxIQCghpc19maW5hbBgDIAEoCBIUCgxkZWR1cGxpY2F0ZWQYBCABKAgiKwoWR2V0VXBsb2FkU3RhdHVzUmVxdWVzdBIRCgl1cGxvYWRfaWQYASABKAkilQEKF0dldFVwbG9hZFN0YXR1c1Jlc3BvbnNlEhEKCXVwbG9hZF9pZBgBIAEoCRIdChVsYXN0X3BlcnNpc3RlZF9vZmZzZXQYAiABKAMSGAoQdG90YWxfc2l6ZV9ieXRlcxgDIAEoAxIOCgZzdGF0dXMYBCABKAkSHgoWcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgFIAMoBTKzAgoNVXBsb2FkU2VydmljZRJDCgpJbml0VXBsb2FkEhkudXBsb2FkLkluaXRVcGxvYWRSZXF1ZXN0GhoudXBsb2FkLkluaXRVcGxvYWRSZXNwb25zZRJBCgtVcGxvYWRDaHVuaxIaLnVwbG9hZC5VcGxvYWRDaHVua1JlcXVlc3QaFi51cGxvYWQuVXBsb2FkQ2h1bmtBY2sSRgoMVXBsb2FkQ2h1bmtzEhoudXBsb2FkLlVwbG9hZENodW5rUmVxdWVzdBoWLnVwbG9hZC5VcGxvYWRDaHVua0FjaygBMAESUgoPR2V0VXBsb2FkU3RhdHVzEh4udXBsb2FkLkdldFVwbG9hZFN0YXR1c1JlcXVlc3QaHy51cGxvYWQuR2V0VXBsb2FkU3RhdHVzUmVzcG9uc2VCMlowZ2l0aHViLmNvbS9BamF5MDExMDMvZ28tZHJvcGJveC91cGxvYWQvZ2VuL3BiO3BiYgZwcm90bzM",
-)
+export const file_upload: GenFile = /*@__PURE__*/
+  fileDesc("Cgx1cGxvYWQucHJvdG8SBnVwbG9hZCJyChFJbml0VXBsb2FkUmVxdWVzdBIQCghmaWxlbmFtZRgBIAEoCRIYChB0b3RhbF9zaXplX2J5dGVzGAIgASgDEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIbChNzaGEyNTZfb2ZfZnVsbF9maWxlGAQgASgJIrgBChJJbml0VXBsb2FkUmVzcG9uc2USEQoJdXBsb2FkX2lkGAEgASgJEhgKEGNodW5rX3NpemVfYnl0ZXMYAiABKAMSIAoYYWxyZWFkeV9yZWNlaXZlZF9vZmZzZXRzGAMgAygDEhgKEGFscmVhZHlfY29tcGxldGUYBCABKAgSEQoJb2JqZWN0X2lkGAUgASgJEiYKHmFscmVhZHlfcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgGIAMoBSJzChJVcGxvYWRDaHVua1JlcXVlc3QSEQoJdXBsb2FkX2lkGAEgASgJEg4KBm9mZnNldBgCIAEoAxIMCgRkYXRhGAMgASgMEhcKD3NoYTI1Nl9vZl9jaHVuaxgEIAEoCRITCgtjaHVua19pbmRleBgFIAEoBSJlCg5VcGxvYWRDaHVua0FjaxIRCgl1cGxvYWRfaWQYASABKAkSGAoQb2Zmc2V0X3BlcnNpc3RlZBgCIAEoAxIQCghpc19maW5hbBgDIAEoCBIUCgxkZWR1cGxpY2F0ZWQYBCABKAgiKwoWR2V0VXBsb2FkU3RhdHVzUmVxdWVzdBIRCgl1cGxvYWRfaWQYASABKAkilQEKF0dldFVwbG9hZFN0YXR1c1Jlc3BvbnNlEhEKCXVwbG9hZF9pZBgBIAEoCRIdChVsYXN0X3BlcnNpc3RlZF9vZmZzZXQYAiABKAMSGAoQdG90YWxfc2l6ZV9ieXRlcxgDIAEoAxIOCgZzdGF0dXMYBCABKAkSHgoWcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgFIAMoBTKzAgoNVXBsb2FkU2VydmljZRJDCgpJbml0VXBsb2FkEhkudXBsb2FkLkluaXRVcGxvYWRSZXF1ZXN0GhoudXBsb2FkLkluaXRVcGxvYWRSZXNwb25zZRJBCgtVcGxvYWRDaHVuaxIaLnVwbG9hZC5VcGxvYWRDaHVua1JlcXVlc3QaFi51cGxvYWQuVXBsb2FkQ2h1bmtBY2sSRgoMVXBsb2FkQ2h1bmtzEhoudXBsb2FkLlVwbG9hZENodW5rUmVxdWVzdBoWLnVwbG9hZC5VcGxvYWRDaHVua0FjaygBMAESUgoPR2V0VXBsb2FkU3RhdHVzEh4udXBsb2FkLkdldFVwbG9hZFN0YXR1c1JlcXVlc3QaHy51cGxvYWQuR2V0VXBsb2FkU3RhdHVzUmVzcG9uc2VCMlowZ2l0aHViLmNvbS9BamF5MDExMDMvZ28tZHJvcGJveC91cGxvYWQvZ2VuL3BiO3BiYgZwcm90bzM");
 
 /**
  * @generated from message upload.InitUploadRequest
@@ -20,34 +19,32 @@ export type InitUploadRequest = Message<"upload.InitUploadRequest"> & {
   /**
    * @generated from field: string filename = 1;
    */
-  filename: string
+  filename: string;
 
   /**
    * @generated from field: int64 total_size_bytes = 2;
    */
-  totalSizeBytes: bigint
+  totalSizeBytes: bigint;
 
   /**
    * @generated from field: string content_type = 3;
    */
-  contentType: string
+  contentType: string;
 
   /**
    * optional, enables pre-upload dedup check
    *
    * @generated from field: string sha256_of_full_file = 4;
    */
-  sha256OfFullFile: string
-}
+  sha256OfFullFile: string;
+};
 
 /**
  * Describes the message upload.InitUploadRequest.
  * Use `create(InitUploadRequestSchema)` to create a new message.
  */
-export const InitUploadRequestSchema: GenMessage<InitUploadRequest> /*@__PURE__*/ = messageDesc(
-  file_upload,
-  0,
-)
+export const InitUploadRequestSchema: GenMessage<InitUploadRequest> = /*@__PURE__*/
+  messageDesc(file_upload, 0);
 
 /**
  * @generated from message upload.InitUploadResponse
@@ -56,48 +53,46 @@ export type InitUploadResponse = Message<"upload.InitUploadResponse"> & {
   /**
    * @generated from field: string upload_id = 1;
    */
-  uploadId: string
+  uploadId: string;
 
   /**
    * @generated from field: int64 chunk_size_bytes = 2;
    */
-  chunkSizeBytes: bigint
+  chunkSizeBytes: bigint;
 
   /**
    * empty for a fresh upload
    *
    * @generated from field: repeated int64 already_received_offsets = 3;
    */
-  alreadyReceivedOffsets: bigint[]
+  alreadyReceivedOffsets: bigint[];
 
   /**
    * true if file already exists (dedup hit)
    *
    * @generated from field: bool already_complete = 4;
    */
-  alreadyComplete: boolean
+  alreadyComplete: boolean;
 
   /**
    * if dedup hit, reference to existing object
    *
    * @generated from field: string object_id = 5;
    */
-  objectId: string
+  objectId: string;
 
   /**
    * @generated from field: repeated int32 already_received_chunk_indices = 6;
    */
-  alreadyReceivedChunkIndices: number[]
-}
+  alreadyReceivedChunkIndices: number[];
+};
 
 /**
  * Describes the message upload.InitUploadResponse.
  * Use `create(InitUploadResponseSchema)` to create a new message.
  */
-export const InitUploadResponseSchema: GenMessage<InitUploadResponse> /*@__PURE__*/ = messageDesc(
-  file_upload,
-  1,
-)
+export const InitUploadResponseSchema: GenMessage<InitUploadResponse> = /*@__PURE__*/
+  messageDesc(file_upload, 1);
 
 /**
  * @generated from message upload.UploadChunkRequest
@@ -106,37 +101,35 @@ export type UploadChunkRequest = Message<"upload.UploadChunkRequest"> & {
   /**
    * @generated from field: string upload_id = 1;
    */
-  uploadId: string
+  uploadId: string;
 
   /**
    * @generated from field: int64 offset = 2;
    */
-  offset: bigint
+  offset: bigint;
 
   /**
    * @generated from field: bytes data = 3;
    */
-  data: Uint8Array
+  data: Uint8Array;
 
   /**
    * @generated from field: string sha256_of_chunk = 4;
    */
-  sha256OfChunk: string
+  sha256OfChunk: string;
 
   /**
    * @generated from field: int32 chunk_index = 5;
    */
-  chunkIndex: number
-}
+  chunkIndex: number;
+};
 
 /**
  * Describes the message upload.UploadChunkRequest.
  * Use `create(UploadChunkRequestSchema)` to create a new message.
  */
-export const UploadChunkRequestSchema: GenMessage<UploadChunkRequest> /*@__PURE__*/ = messageDesc(
-  file_upload,
-  2,
-)
+export const UploadChunkRequestSchema: GenMessage<UploadChunkRequest> = /*@__PURE__*/
+  messageDesc(file_upload, 2);
 
 /**
  * @generated from message upload.UploadChunkAck
@@ -145,32 +138,30 @@ export type UploadChunkAck = Message<"upload.UploadChunkAck"> & {
   /**
    * @generated from field: string upload_id = 1;
    */
-  uploadId: string
+  uploadId: string;
 
   /**
    * @generated from field: int64 offset_persisted = 2;
    */
-  offsetPersisted: bigint
+  offsetPersisted: bigint;
 
   /**
    * @generated from field: bool is_final = 3;
    */
-  isFinal: boolean
+  isFinal: boolean;
 
   /**
    * @generated from field: bool deduplicated = 4;
    */
-  deduplicated: boolean
-}
+  deduplicated: boolean;
+};
 
 /**
  * Describes the message upload.UploadChunkAck.
  * Use `create(UploadChunkAckSchema)` to create a new message.
  */
-export const UploadChunkAckSchema: GenMessage<UploadChunkAck> /*@__PURE__*/ = messageDesc(
-  file_upload,
-  3,
-)
+export const UploadChunkAckSchema: GenMessage<UploadChunkAck> = /*@__PURE__*/
+  messageDesc(file_upload, 3);
 
 /**
  * @generated from message upload.GetUploadStatusRequest
@@ -179,15 +170,15 @@ export type GetUploadStatusRequest = Message<"upload.GetUploadStatusRequest"> & 
   /**
    * @generated from field: string upload_id = 1;
    */
-  uploadId: string
-}
+  uploadId: string;
+};
 
 /**
  * Describes the message upload.GetUploadStatusRequest.
  * Use `create(GetUploadStatusRequestSchema)` to create a new message.
  */
-export const GetUploadStatusRequestSchema: GenMessage<GetUploadStatusRequest> /*@__PURE__*/ =
-  messageDesc(file_upload, 4)
+export const GetUploadStatusRequestSchema: GenMessage<GetUploadStatusRequest> = /*@__PURE__*/
+  messageDesc(file_upload, 4);
 
 /**
  * @generated from message upload.GetUploadStatusResponse
@@ -196,37 +187,37 @@ export type GetUploadStatusResponse = Message<"upload.GetUploadStatusResponse"> 
   /**
    * @generated from field: string upload_id = 1;
    */
-  uploadId: string
+  uploadId: string;
 
   /**
    * @generated from field: int64 last_persisted_offset = 2;
    */
-  lastPersistedOffset: bigint
+  lastPersistedOffset: bigint;
 
   /**
    * @generated from field: int64 total_size_bytes = 3;
    */
-  totalSizeBytes: bigint
+  totalSizeBytes: bigint;
 
   /**
    * pending | in_progress | completed | aborted
    *
    * @generated from field: string status = 4;
    */
-  status: string
+  status: string;
 
   /**
    * @generated from field: repeated int32 received_chunk_indices = 5;
    */
-  receivedChunkIndices: number[]
-}
+  receivedChunkIndices: number[];
+};
 
 /**
  * Describes the message upload.GetUploadStatusResponse.
  * Use `create(GetUploadStatusResponseSchema)` to create a new message.
  */
-export const GetUploadStatusResponseSchema: GenMessage<GetUploadStatusResponse> /*@__PURE__*/ =
-  messageDesc(file_upload, 5)
+export const GetUploadStatusResponseSchema: GenMessage<GetUploadStatusResponse> = /*@__PURE__*/
+  messageDesc(file_upload, 5);
 
 /**
  * @generated from service upload.UploadService
@@ -236,32 +227,34 @@ export const UploadService: GenService<{
    * @generated from rpc upload.UploadService.InitUpload
    */
   initUpload: {
-    methodKind: "unary"
-    input: typeof InitUploadRequestSchema
-    output: typeof InitUploadResponseSchema
-  }
+    methodKind: "unary";
+    input: typeof InitUploadRequestSchema;
+    output: typeof InitUploadResponseSchema;
+  },
   /**
    * @generated from rpc upload.UploadService.UploadChunk
    */
   uploadChunk: {
-    methodKind: "unary"
-    input: typeof UploadChunkRequestSchema
-    output: typeof UploadChunkAckSchema
-  }
+    methodKind: "unary";
+    input: typeof UploadChunkRequestSchema;
+    output: typeof UploadChunkAckSchema;
+  },
   /**
    * @generated from rpc upload.UploadService.UploadChunks
    */
   uploadChunks: {
-    methodKind: "bidi_streaming"
-    input: typeof UploadChunkRequestSchema
-    output: typeof UploadChunkAckSchema
-  }
+    methodKind: "bidi_streaming";
+    input: typeof UploadChunkRequestSchema;
+    output: typeof UploadChunkAckSchema;
+  },
   /**
    * @generated from rpc upload.UploadService.GetUploadStatus
    */
   getUploadStatus: {
-    methodKind: "unary"
-    input: typeof GetUploadStatusRequestSchema
-    output: typeof GetUploadStatusResponseSchema
-  }
-}> /*@__PURE__*/ = serviceDesc(file_upload, 0)
+    methodKind: "unary";
+    input: typeof GetUploadStatusRequestSchema;
+    output: typeof GetUploadStatusResponseSchema;
+  },
+}> = /*@__PURE__*/
+  serviceDesc(file_upload, 0);
+

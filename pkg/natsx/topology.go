@@ -65,11 +65,18 @@ func EnsureTopology(ctx context.Context, js jetstream.JetStream, replicas int) e
 // Consumer specs for the v2 topology (Part B.4). Each consumer is created by
 // the service that runs it via CreateOrUpdateConsumer. MaxDeliver must be
 // greater than len(BackOff); an explicit NakWithDelay overrides BackOff.
+//
+// Preview consumers come in one config per CONTENT FAMILY (image/video/pdf):
+// the resource envelopes differ (ffmpeg is heavy, image resize is cheap), so
+// they never share MaxAckPending/AckWait/BackOff. The concrete per-family
+// ConsumerConfig literals live in each family's consumer.go under
+// services/metadata/internal/preview/<family>/; these shared specs cover the
+// non-preview consumers and the default image envelope.
 var (
-	// ThumbnailConsumer runs in the metadata service on FILE_EVENTS.
-	ThumbnailConsumer = jetstream.ConsumerConfig{
-		Durable:       events.ConsumerThumbnailV2,
-		FilterSubject: events.SubjFileStored,
+	// ImageConsumer is the default envelope for the image preview worker.
+	ImageConsumer = jetstream.ConsumerConfig{
+		Durable:       events.ConsumerPreviewImageV2,
+		FilterSubject: events.SubjFileStoredImage,
 		AckPolicy:     jetstream.AckExplicitPolicy,
 		AckWait:       2 * time.Minute,
 		MaxDeliver:    6,

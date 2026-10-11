@@ -14,9 +14,9 @@ func TestFor(t *testing.T) {
 	}
 
 	invalid := map[string]string{
-		"":            "empty",
-		"abc":         "too short",
-		valid + "zz":  "too long",
+		"":           "empty",
+		"abc":        "too short",
+		valid + "zz": "too long",
 		"g3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855": "not hex",
 		"E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855": "uppercase",
 	}

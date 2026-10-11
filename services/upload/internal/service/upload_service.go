@@ -9,7 +9,8 @@ import (
 	"strconv"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/dgraph-io/ristretto"
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -39,6 +40,9 @@ type FileStoredEvent struct {
 	SizeBytes     int64
 	OwnerID       string
 	StoredAtUnix  int64
+	// Classified here from magic bytes (see classify.go) — the trust-boundary
+	// stamp every preview consumer trusts. Also selects the publish subject.
+	ContentFamily eventsv2.ContentFamily
 }
 
 // EventPublisher publishes upload lifecycle events to the async bus (the v2
@@ -120,13 +124,14 @@ func (p *NATSEventPublisher) PublishFileStored(ctx context.Context, evt *FileSto
 		hashes = append(hashes, b)
 	}
 	msg := &eventsv2.FileStored{
-		FileId:      evt.FileID,
-		FileVersion: 1, // creation is always version 1 today
-		OwnerId:     evt.OwnerID,
-		ContentType: evt.ContentType,
-		SizeBytes:   evt.SizeBytes,
-		BlockHashes: hashes,
-		StoredAt:    timestamppb.New(time.Unix(evt.StoredAtUnix, 0).UTC()),
+		FileId:        evt.FileID,
+		FileVersion:   1, // creation is always version 1 today
+		OwnerId:       evt.OwnerID,
+		ContentType:   evt.ContentType,
+		SizeBytes:     evt.SizeBytes,
+		BlockHashes:   hashes,
+		StoredAt:      timestamppb.New(time.Unix(evt.StoredAtUnix, 0).UTC()),
+		ContentFamily: evt.ContentFamily,
 	}
 	msgID := events.MsgIDFileStored(evt.FileID, 1)
 
@@ -143,7 +148,7 @@ func (p *NATSEventPublisher) PublishFileStored(ctx context.Context, evt *FileSto
 				return ctx.Err()
 			}
 		}
-		lastErr = natsx.PublishProto(ctx, p.jsv2, events.SubjFileStored, msgID, msg)
+		lastErr = natsx.PublishProto(ctx, p.jsv2, events.SubjFileStoredForFamily(evt.ContentFamily), msgID, msg)
 		if lastErr == nil {
 			return nil
 		}
@@ -216,7 +221,11 @@ func parseRedisOffset(raw string) (int64, error) {
 	return parsed, nil
 }
 
-func buildMetadataCreateRequest(session UploadSession, blockHashes []string) *metadataPB.CreateFileRequest {
+// buildMetadataCreateRequest builds the metadata-service CreateFile payload
+// for a completed upload session. blockRefs[i] pairs blockHashes[i] with its
+// exact byte size; the sizes feed the dense download manifest so range reads
+// never need a per-block size lookup. Nil for legacy paths.
+func buildMetadataCreateRequest(session UploadSession, blockHashes []string, blockRefs []*metadataPB.BlockRef, family eventsv2.ContentFamily) *metadataPB.CreateFileRequest {
 	return &metadataPB.CreateFileRequest{
 		FolderId:      session.UserID,
 		Filename:      session.Filename,
@@ -224,7 +233,31 @@ func buildMetadataCreateRequest(session UploadSession, blockHashes []string) *me
 		ContentType:   session.ContentType,
 		ContentHash:   session.ContentHash,
 		BlockHashList: blockHashes,
+		BlockRefs:     blockRefs,
+		ContentFamily: uint32(family),
 	}
+}
+
+// blockRefsForSession pairs each ordered block hash with its exact byte size
+// derived from the upload session: every non-final block is exactly
+// session.BlockSizeBytes (enforced by ReceiveChunk), the final block is
+// TotalSize minus the last full-chunk boundary. This is the dense manifest
+// the download path needs, computed without any per-block size lookup.
+func blockRefsForSession(session UploadSession, blockHashes []string) []*metadataPB.BlockRef {
+	if len(blockHashes) == 0 || session.BlockSizeBytes <= 0 || session.TotalSize <= 0 {
+		return nil
+	}
+	refs := make([]*metadataPB.BlockRef, len(blockHashes))
+	for i, hash := range blockHashes {
+		size := session.BlockSizeBytes
+		if i == len(blockHashes)-1 {
+			if lastFull := (session.TotalSize / session.BlockSizeBytes) * session.BlockSizeBytes; lastFull != session.TotalSize {
+				size = session.TotalSize - lastFull
+			}
+		}
+		refs[i] = &metadataPB.BlockRef{Hash: hash, SizeBytes: size}
+	}
+	return refs
 }
 
 // InitUpload creates a new upload session
@@ -341,8 +374,8 @@ func (s *UploadService) ReceiveChunk(ctx context.Context, uploadID string, offse
 						// The block is fenced for GC deletion. The fence will fail
 						// on GC's next look (we hold the data) or the row is
 						// gone; a short client retry re-uploads cleanly.
-						return nil, connect.NewError(connect.CodeUnavailable,
-							fmt.Errorf("block is being deleted, retry shortly: %s", actualSha256))
+						return nil, connect.Errorf(connect.CodeUnavailable,
+							"block is being deleted, retry shortly: %s", actualSha256)
 					}
 					return nil, fmt.Errorf("increment block reference: %w", err)
 				}
@@ -473,12 +506,16 @@ func (s *UploadService) finalizeUpload(ctx context.Context, uploadID string) err
 		return fmt.Errorf("load session: %w", err)
 	}
 	blockHashes := orderedBlockHashes(session)
-	fileID, err := s.createMetadataRecord(ctx, session, blockHashes)
+	// Classify ONCE at the trust boundary (magic bytes of the first block);
+	// the family both selects the FileStored subject and gates the preview
+	// pipeline in metadata (non-preview families never become 'pending').
+	family := sniffContentFamily(ctx, s.blockGateway, firstBlockHash(blockHashes))
+	fileID, err := s.createMetadataRecord(ctx, session, blockHashes, blockRefsForSession(session, blockHashes), family)
 	if err != nil {
 		return fmt.Errorf("create metadata record: %w", err)
 	}
 
-	if err := s.publishFileStoredEvent(ctx, fileID, session, blockHashes); err != nil {
+	if err := s.publishFileStoredEvent(ctx, fileID, session, blockHashes, family); err != nil {
 		s.logger.Warn("object stored event publish failed; reconciliation will repair",
 			zap.String("uploadID", uploadID),
 			zap.String("fileID", fileID),
@@ -507,7 +544,7 @@ func orderedBlockHashes(session UploadSession) []string {
 	return result
 }
 
-func (s *UploadService) createMetadataRecord(ctx context.Context, session UploadSession, blockHashes []string) (string, error) {
+func (s *UploadService) createMetadataRecord(ctx context.Context, session UploadSession, blockHashes []string, blockRefs []*metadataPB.BlockRef, family eventsv2.ContentFamily) (string, error) {
 	if s.cfg.MetadataURL == "" {
 		return "", nil
 	}
@@ -521,9 +558,10 @@ func (s *UploadService) createMetadataRecord(ctx context.Context, session Upload
 			zap.Error(err))
 		return "", fmt.Errorf("missing access token for metadata call: %w", err)
 	}
-	client := metadatapbconnect.NewMetadataServiceClient(httpclient.DefaultClient, s.cfg.MetadataURL)
-	req := connect.NewRequest(buildMetadataCreateRequest(session, blockHashes))
-	req.Header().Set("Authorization", "Bearer "+token)
+	client := metadatapbconnect.NewMetadataServiceClient(connect.NewClient(connecthttp.NewTransport(httpclient.DefaultClient, s.cfg.MetadataURL, connecthttp.WithReadMaxBytes(0))))
+	req := buildMetadataCreateRequest(session, blockHashes, blockRefs, family)
+	ctx, info := connect.NewClientContext(ctx)
+	info.RequestHeader().Set("Authorization", "Bearer "+token)
 	resp, err := client.CreateFile(ctx, req)
 	if err != nil {
 		s.logger.Error("metadata create file failed",
@@ -532,10 +570,10 @@ func (s *UploadService) createMetadataRecord(ctx context.Context, session Upload
 			zap.Error(err))
 		return "", err
 	}
-	return resp.Msg.GetFileId(), nil
+	return resp.GetFileId(), nil
 }
 
-func (s *UploadService) publishFileStoredEvent(ctx context.Context, fileID string, session UploadSession, blockHashes []string) error {
+func (s *UploadService) publishFileStoredEvent(ctx context.Context, fileID string, session UploadSession, blockHashes []string, family eventsv2.ContentFamily) error {
 	if s.eventPublisher == nil {
 		return nil
 	}
@@ -550,12 +588,22 @@ func (s *UploadService) publishFileStoredEvent(ctx context.Context, fileID strin
 		SizeBytes:     session.TotalSize,
 		OwnerID:       session.UserID,
 		StoredAtUnix:  time.Now().Unix(),
+		ContentFamily: family,
 	}
 
 	if err := s.eventPublisher.PublishFileStored(ctx, evt); err != nil {
 		return fmt.Errorf("publish file stored event: %w", err)
 	}
 	return nil
+}
+
+// firstBlockHash returns the hash of the file's first block (the sniffing
+// input), or "" for an empty list.
+func firstBlockHash(blockHashes []string) string {
+	if len(blockHashes) == 0 {
+		return ""
+	}
+	return blockHashes[0]
 }
 
 // AbortUpload cancels an upload and cleans up resources

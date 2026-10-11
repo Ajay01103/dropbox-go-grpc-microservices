@@ -6,6 +6,10 @@ export type ItemDragData = {
   itemType: "file" | "folder"
   itemId: string
   name: string
+  // Number of selected items represented by this drag. The move monitor
+  // resolves the actual selection at drop time; this keeps the native preview
+  // accurate without duplicating the full selection in every card payload.
+  dragCount: number
   // The folder the item currently lives in ("" = root).
   fromFolderId: string
 }
@@ -29,7 +33,9 @@ export function isItemDragData(data: unknown): data is ItemDragData {
     typeof data === "object" &&
     data !== null &&
     (data as ItemDragData).type === "file-view-item" &&
-    typeof (data as ItemDragData).itemId === "string"
+    typeof (data as ItemDragData).itemId === "string" &&
+    typeof (data as ItemDragData).dragCount === "number" &&
+    (data as ItemDragData).dragCount > 0
   )
 }
 

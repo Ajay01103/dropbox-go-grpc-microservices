@@ -103,6 +103,8 @@ func migrateFiltered(ctx context.Context, session *gocql.Session, keyspace strin
 				return dropColumnIfPresent(callbackCtx, callbackSession, keyspace, "purge_jobs", "has_reconciliation_errors")
 			case "ensure_folder_ancestor_ids":
 				return ensureFolderAncestorIDs(callbackCtx, callbackSession, keyspace)
+			case "ensure_content_family":
+				return ensureContentFamily(callbackCtx, callbackSession, keyspace)
 			}
 		}
 		return nil
@@ -188,6 +190,33 @@ func ensureFolderAncestorIDs(ctx context.Context, session gocqlx.Session, keyspa
 		}
 		if err := session.ContextQuery(ctx, fmt.Sprintf("ALTER TABLE %s ADD ancestor_ids list<uuid>", table), nil).ExecRelease(); err != nil {
 			return fmt.Errorf("add %s.ancestor_ids: %w", table, err)
+		}
+	}
+	return nil
+}
+
+// ensureContentFamily adds the content_family smallint column to the file
+// rows and the thumbnail pending work list. Same idempotency pattern as
+// ensureFolderAncestorIDs: check system_schema.columns first so a
+// partial-failure re-run is a no-op instead of a boot-wedging error.
+//
+// Value space matches proto events.v2.ContentFamily (0=unspecified,
+// 1=image, 2=video, 3=pdf, 4=other) — the upload service stamps it at
+// finalize time and the preview pipeline trusts it end-to-end.
+func ensureContentFamily(ctx context.Context, session gocqlx.Session, keyspace string) error {
+	for _, table := range []string{"files_by_folder", "files_by_id", "thumbnail_pending"} {
+		var existing string
+		err := session.ContextQuery(ctx,
+			`SELECT column_name FROM system_schema.columns WHERE keyspace_name = ? AND table_name = ? AND column_name = ?`, nil).
+			Bind(keyspace, table, "content_family").GetRelease(&existing)
+		if err == nil {
+			continue
+		}
+		if err != gocql.ErrNotFound {
+			return fmt.Errorf("check %s.content_family: %w", table, err)
+		}
+		if err := session.ContextQuery(ctx, fmt.Sprintf("ALTER TABLE %s ADD content_family smallint", table), nil).ExecRelease(); err != nil {
+			return fmt.Errorf("add %s.content_family: %w", table, err)
 		}
 	}
 	return nil

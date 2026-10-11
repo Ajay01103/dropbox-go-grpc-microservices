@@ -20,13 +20,16 @@ import (
 // ThumbnailBucket formats the UTC hour bucket key for thumbnail_pending.
 func ThumbnailBucket(t time.Time) string { return t.UTC().Format("2006010215") }
 
-// ThumbnailPendingRef is one row of the thumbnail work list.
+// ThumbnailPendingRef is one row of the preview work list. ContentFamily
+// mirrors events.v2.ContentFamily: the sweeper republishes on that family's
+// subject without re-deriving it from content_type.
 type ThumbnailPendingRef struct {
-	Bucket      string
-	FileID      string
-	OwnerID     string
-	FileVersion int64
-	CreatedAt   time.Time
+	Bucket        string
+	FileID        string
+	OwnerID       string
+	FileVersion   int64
+	CreatedAt     time.Time
+	ContentFamily int16
 }
 
 // InsertThumbnailPending records that a file awaits thumbnail generation.
@@ -43,8 +46,8 @@ func (r *MetadataRepo) InsertThumbnailPending(ctx context.Context, ref Thumbnail
 		return fmt.Errorf("parse owner id: %w", err)
 	}
 	return r.session.Query(
-		`INSERT INTO thumbnail_pending (bucket, file_id, owner_id, file_version, created_at) VALUES (?, ?, ?, ?, ?)`,
-		ThumbnailBucket(ref.CreatedAt), id, owner, ref.FileVersion, ref.CreatedAt,
+		`INSERT INTO thumbnail_pending (bucket, file_id, owner_id, file_version, created_at, content_family) VALUES (?, ?, ?, ?, ?, ?)`,
+		ThumbnailBucket(ref.CreatedAt), id, owner, ref.FileVersion, ref.CreatedAt, ref.ContentFamily,
 	).WithContext(ctx).Exec()
 }
 
@@ -68,16 +71,17 @@ func (r *MetadataRepo) ListThumbnailPending(ctx context.Context, buckets []strin
 	var out []ThumbnailPendingRef
 	for _, bucket := range buckets {
 		iter := r.session.Query(
-			`SELECT file_id, owner_id, file_version, created_at FROM thumbnail_pending WHERE bucket = ?`,
+			`SELECT file_id, owner_id, file_version, created_at, content_family FROM thumbnail_pending WHERE bucket = ?`,
 			bucket,
 		).WithContext(ctx).Iter()
 		var fileID, ownerID gocql.UUID
 		var version int64
 		var createdAt time.Time
-		for iter.Scan(&fileID, &ownerID, &version, &createdAt) {
+		var family int16
+		for iter.Scan(&fileID, &ownerID, &version, &createdAt, &family) {
 			out = append(out, ThumbnailPendingRef{
 				Bucket: bucket, FileID: fileID.String(), OwnerID: ownerID.String(),
-				FileVersion: version, CreatedAt: createdAt,
+				FileVersion: version, CreatedAt: createdAt, ContentFamily: family,
 			})
 		}
 		if err := iter.Close(); err != nil && err != gocql.ErrNotFound {

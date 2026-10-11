@@ -30,7 +30,10 @@ func TestFolderAncestorIDs(t *testing.T) {
 	defer cleanup()
 
 	// ── Phase 1: run migrations up to (excluding) z18, seed a pre-migration row ──
-	if _, err := migrateFiltered(ctx, session, keyspace, map[string]bool{"z18_folder_ancestor_ids.cql": true}); err != nil {
+	// Every migration added after z18 has to be hidden too: gocqlx's consistency
+	// check requires the visible file list to match the applied prefix exactly,
+	// so postMigrationSkip derives that set from the embedded files.
+	if _, err := migrateFiltered(ctx, session, keyspace, postMigrationSkip(t, "z18_folder_ancestor_ids.cql")); err != nil {
 		t.Fatalf("pre-z18 migrations: %v", err)
 	}
 

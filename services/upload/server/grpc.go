@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
@@ -36,118 +36,121 @@ func authenticatedUserID(ctx context.Context) (string, error) {
 }
 
 // InitUpload creates a new resumable upload session
-func (s *UploadServer) InitUpload(ctx context.Context, req *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error) {
+func (s *UploadServer) InitUpload(ctx context.Context, req *pb.InitUploadRequest) (*pb.InitUploadResponse, error) {
 	// Extract user ID from context (set by auth interceptor)
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
 
 	// Validate request
-	if req.Msg.GetFilename() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("filename is required"))
+	if req.GetFilename() == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("filename is required"))
 	}
-	if req.Msg.GetTotalSizeBytes() <= 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("total_size_bytes must be positive"))
+	if req.GetTotalSizeBytes() <= 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("total_size_bytes must be positive"))
 	}
 	s.logger.Info("upload initialization requested",
 		zap.String("userID", userID),
-		zap.String("filename", req.Msg.GetFilename()),
-		zap.Int64("totalSize", req.Msg.GetTotalSizeBytes()),
-		zap.String("contentType", req.Msg.GetContentType()))
+		zap.String("filename", req.GetFilename()),
+		zap.Int64("totalSize", req.GetTotalSizeBytes()),
+		zap.String("contentType", req.GetContentType()))
 
 	// Call service
 	result, err := s.svc.InitUpload(
 		ctx,
 		userID,
-		req.Msg.GetFilename(),
-		req.Msg.GetContentType(),
-		req.Msg.GetTotalSizeBytes(),
-		req.Msg.GetSha256OfFullFile(),
+		req.GetFilename(),
+		req.GetContentType(),
+		req.GetTotalSizeBytes(),
+		req.GetSha256OfFullFile(),
 	)
 	if err != nil {
 		s.logger.Error("InitUpload failed",
 			zap.String("userID", userID),
 			zap.Error(err))
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, newConnectError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&pb.InitUploadResponse{
+	return &pb.InitUploadResponse{
 		UploadId:               result.UploadID,
 		ChunkSizeBytes:         result.ChunkSizeBytes,
 		AlreadyReceivedOffsets: result.AlreadyReceivedOffsets,
 		AlreadyComplete:        result.AlreadyComplete,
 		ObjectId:               result.ObjectID,
-	}), nil
+	}, nil
 }
 
 // UploadChunk persists one chunk and is the browser-compatible counterpart to
 // the bidi UploadChunks RPC, which browsers cannot invoke with a streaming request body.
-func (s *UploadServer) UploadChunk(ctx context.Context, req *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error) {
+func (s *UploadServer) UploadChunk(ctx context.Context, req *pb.UploadChunkRequest) (*pb.UploadChunkAck, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
 
-	if req.Msg.GetUploadId() == "" || req.Msg.GetOffset() < 0 || len(req.Msg.GetData()) == 0 {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("upload_id, non-negative offset, and data are required"))
+	if req.GetUploadId() == "" || req.GetOffset() < 0 || len(req.GetData()) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("upload_id, non-negative offset, and data are required"))
 	}
 
 	s.logger.Info("upload chunk received",
-		zap.String("uploadID", req.Msg.GetUploadId()),
+		zap.String("uploadID", req.GetUploadId()),
 		zap.String("userID", userID),
-		zap.Int64("offset", req.Msg.GetOffset()),
-		zap.Int("bytes", len(req.Msg.GetData())))
+		zap.Int64("offset", req.GetOffset()),
+		zap.Int("bytes", len(req.GetData())))
 
 	result, err := s.svc.ReceiveChunk(
 		ctx,
-		req.Msg.GetUploadId(),
-		req.Msg.GetOffset(),
-		req.Msg.GetData(),
-		req.Msg.GetSha256OfChunk(),
+		req.GetUploadId(),
+		req.GetOffset(),
+		req.GetData(),
+		req.GetSha256OfChunk(),
 	)
 	if err != nil {
 		s.logger.Error("upload chunk failed",
-			zap.String("uploadID", req.Msg.GetUploadId()),
-			zap.Int64("offset", req.Msg.GetOffset()),
+			zap.String("uploadID", req.GetUploadId()),
+			zap.Int64("offset", req.GetOffset()),
 			zap.Error(err))
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
 	s.logger.Info("upload chunk persisted",
-		zap.String("uploadID", req.Msg.GetUploadId()),
+		zap.String("uploadID", req.GetUploadId()),
 		zap.Int64("offsetPersisted", result.OffsetPersisted),
 		zap.Bool("isFinal", result.IsFinal))
 
-	return connect.NewResponse(&pb.UploadChunkAck{
-		UploadId:        req.Msg.GetUploadId(),
+	return &pb.UploadChunkAck{
+		UploadId:        req.GetUploadId(),
 		OffsetPersisted: result.OffsetPersisted,
 		IsFinal:         result.IsFinal,
 		Deduplicated:    result.Deduplicated,
-	}), nil
+	}, nil
 }
 
 // UploadChunks handles bidirectional streaming of chunks
 // Client sends chunks, server acks each chunk as it's persisted
-func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStream[pb.UploadChunkRequest, pb.UploadChunkAck]) error {
+func (s *UploadServer) UploadChunks(
+	ctx context.Context,
+	stream pbconnect.UploadServiceUploadChunksServerStream,
+) error {
 	// Extract user ID from context
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return connect.NewError(connect.CodeUnauthenticated, err)
+		return newConnectError(connect.CodeUnauthenticated, err)
 	}
 
 	// Read the first chunk to get upload_id
 	firstReq, err := stream.Receive()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("stream ended prematurely"))
+			return newConnectError(connect.CodeInvalidArgument, errors.New("stream ended prematurely"))
 		}
-		return connect.NewError(connect.CodeInternal, fmt.Errorf("receive first chunk: %w", err))
+		return newConnectError(connect.CodeInternal, fmt.Errorf("receive first chunk: %w", err))
 	}
 
 	uploadID := firstReq.GetUploadId()
 	if uploadID == "" {
-		return connect.NewError(connect.CodeInvalidArgument, errors.New("upload_id is required in first message"))
+		return newConnectError(connect.CodeInvalidArgument, errors.New("upload_id is required in first message"))
 	}
 
 	s.logger.Info("UploadChunks stream started",
@@ -167,7 +170,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 			zap.String("uploadID", uploadID),
 			zap.Int64("offset", firstReq.GetOffset()),
 			zap.Error(err))
-		return connect.NewError(connect.CodeInvalidArgument, err)
+		return newConnectError(connect.CodeInvalidArgument, err)
 	}
 	s.logger.Debug("upload chunk persisted",
 		zap.String("uploadID", uploadID),
@@ -184,7 +187,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 		s.logger.Error("failed to send ack for first chunk",
 			zap.String("uploadID", uploadID),
 			zap.Error(err))
-		return connect.NewError(connect.CodeInternal, err)
+		return newConnectError(connect.CodeInternal, err)
 	}
 
 	if chunkResult.IsFinal {
@@ -206,7 +209,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 			s.logger.Error("error receiving chunk",
 				zap.String("uploadID", uploadID),
 				zap.Error(err))
-			return connect.NewError(connect.CodeInternal, fmt.Errorf("receive chunk: %w", err))
+			return newConnectError(connect.CodeInternal, fmt.Errorf("receive chunk: %w", err))
 		}
 
 		// Verify upload_id consistency
@@ -214,7 +217,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 			s.logger.Error("upload_id mismatch",
 				zap.String("expected", uploadID),
 				zap.String("got", req.GetUploadId()))
-			return connect.NewError(connect.CodeInvalidArgument, errors.New("upload_id mismatch in stream"))
+			return newConnectError(connect.CodeInvalidArgument, errors.New("upload_id mismatch in stream"))
 		}
 
 		// Process the chunk
@@ -230,7 +233,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 				zap.String("uploadID", uploadID),
 				zap.Int64("offset", req.GetOffset()),
 				zap.Error(err))
-			return connect.NewError(connect.CodeInvalidArgument, err)
+			return newConnectError(connect.CodeInvalidArgument, err)
 		}
 		s.logger.Debug("upload chunk persisted",
 			zap.String("uploadID", uploadID),
@@ -248,7 +251,7 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 				zap.String("uploadID", uploadID),
 				zap.Int64("offset", req.GetOffset()),
 				zap.Error(err))
-			return connect.NewError(connect.CodeInternal, err)
+			return newConnectError(connect.CodeInternal, err)
 		}
 
 		if chunkResult.IsFinal {
@@ -261,36 +264,36 @@ func (s *UploadServer) UploadChunks(ctx context.Context, stream *connect.BidiStr
 
 // GetUploadStatus returns the current status and last persisted offset
 // Used for resuming uploads after connection interruption
-func (s *UploadServer) GetUploadStatus(ctx context.Context, req *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error) {
+func (s *UploadServer) GetUploadStatus(ctx context.Context, req *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error) {
 	// Extract user ID from context
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
 
-	uploadID := req.Msg.GetUploadId()
+	uploadID := req.GetUploadId()
 	if uploadID == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("upload_id is required"))
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("upload_id is required"))
 	}
 
 	// Call service
 	result, err := s.svc.GetUploadStatus(ctx, uploadID)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
-			return nil, connect.NewError(connect.CodeCanceled, err)
+			return nil, newConnectError(connect.CodeCanceled, err)
 		}
 		s.logger.Error("GetUploadStatus failed",
 			zap.String("uploadID", uploadID),
 			zap.String("userID", userID),
 			zap.Error(err))
-		return nil, connect.NewError(connect.CodeInternal, err)
+		return nil, newConnectError(connect.CodeInternal, err)
 	}
 
-	return connect.NewResponse(&pb.GetUploadStatusResponse{
+	return &pb.GetUploadStatusResponse{
 		UploadId:             uploadID,
 		LastPersistedOffset:  result.LastPersistedOffset,
 		TotalSizeBytes:       result.TotalSizeBytes,
 		Status:               result.Status,
 		ReceivedChunkIndices: result.ReceivedChunkIndices,
-	}), nil
+	}, nil
 }

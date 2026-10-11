@@ -3,6 +3,8 @@ package service
 import (
 	"testing"
 	"time"
+
+	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 )
 
 func TestParseRedisOffset(t *testing.T) {
@@ -27,7 +29,7 @@ func TestBuildMetadataCreateRequest(t *testing.T) {
 		CreatedAt:   time.Now().UTC(),
 	}
 
-	req := buildMetadataCreateRequest(session, nil)
+	req := buildMetadataCreateRequest(session, nil, nil, eventsv2.ContentFamily_CONTENT_FAMILY_PDF)
 	if req.GetFolderId() != "user-456" {
 		t.Fatalf("FolderId = %q, want %q", req.GetFolderId(), "user-456")
 	}

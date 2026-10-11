@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
 	"github.com/dgraph-io/ristretto"
 )
@@ -57,20 +57,18 @@ func (rl *RateLimiter) allow(userID string) bool {
 	return true
 }
 
-func (rl *RateLimiter) Interceptor() connect.Interceptor {
-	return connect.UnaryInterceptorFunc(rl.WrapUnary)
-}
-
-func (rl *RateLimiter) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		userID, err := interceptor.UserIDFromContext(ctx)
-		if err != nil {
-			return nil, connect.NewError(connect.CodeUnauthenticated, err)
+func (rl *RateLimiter) Interceptor() connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+			userID, err := interceptor.UserIDFromContext(ctx)
+			if err != nil {
+				return newConnectError(connect.CodeUnauthenticated, err)
+			}
+			if !rl.allow(userID.String()) {
+				return newConnectError(connect.CodeResourceExhausted, errRateLimitExceeded)
+			}
+			return next(ctx, spec, stream)
 		}
-		if !rl.allow(userID.String()) {
-			return nil, connect.NewError(connect.CodeResourceExhausted, errRateLimitExceeded)
-		}
-		return next(ctx, req)
 	}
 }
 
@@ -80,15 +78,15 @@ type rateLimitError struct{}
 
 func (*rateLimitError) Error() string { return "rate limit exceeded, slow down" }
 
-func TimeoutInterceptor(timeout time.Duration) connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+func TimeoutInterceptor(timeout time.Duration) connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) <= timeout {
-				return next(ctx, req)
+				return next(ctx, spec, stream)
 			}
 			requestCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
-			return next(requestCtx, req)
+			return next(requestCtx, spec, stream)
 		}
 	}
 }

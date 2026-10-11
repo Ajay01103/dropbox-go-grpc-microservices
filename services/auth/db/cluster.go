@@ -114,6 +114,10 @@ func newSession(cfg Config, keyspace string) (*gocql.Session, error) {
 		gocql.RoundRobinHostPolicy(),
 	)
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 0}
+	// Single-node dev cluster: skip peer discovery entirely. There's no
+	// topology to learn, and it removes any dependence on what address
+	// Scylla broadcasts for peers.
+	cluster.DisableInitialHostLookup = true
 
 	return gocql.NewSession(*cluster)
 }

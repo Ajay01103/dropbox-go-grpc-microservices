@@ -10,7 +10,7 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"go.uber.org/zap"
 
 	"github.com/dgraph-io/ristretto"
@@ -235,14 +235,13 @@ func run() error {
 	// 12. Start HTTP server with h2c (HTTP/2 Cleartext) support for gRPC
 	addr := ":" + cfg.GRPCPort
 	mux := http.NewServeMux()
-	uploadPath, uploadHandlerHTTP := pbconnect.NewUploadServiceHandler(
-		uploadHandler,
-		connect.WithInterceptors(loggingInterceptor),
-		connect.WithInterceptors(authInterceptor),
-	)
-	mux.Handle(uploadPath, uploadHandlerHTTP)
+	connectSrv := connect.NewServer(loggingInterceptor, authInterceptor.Wrap)
+	pbconnect.RegisterUploadServiceHandler(connectSrv, uploadHandler)
+	// Mount with the inbound message cap sized off the block size the client is
+	// handed, so one full chunk plus its envelope stays legal.
+	server.Mount(mux, connectSrv, cfg.ChunkSizeBytes)
 
-	server := &http.Server{
+	httpServer := &http.Server{
 		Addr: addr,
 		Handler: h2c.NewHandler(
 			corsMiddleware(mux),
@@ -260,7 +259,7 @@ func run() error {
 	errChan := make(chan error, 1)
 	go func() {
 		logger.Info("upload service starting", zap.String("addr", addr))
-		errChan <- server.ListenAndServe()
+		errChan <- httpServer.ListenAndServe()
 	}()
 
 	select {
@@ -272,7 +271,7 @@ func run() error {
 	case sig := <-sigChan:
 		logger.Info("received signal, shutting down", zap.String("signal", sig.String()))
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		err := server.Shutdown(ctx)
+		err := httpServer.Shutdown(ctx)
 		cancel()
 		if err != nil {
 			logger.Error("shutdown error", zap.Error(err))

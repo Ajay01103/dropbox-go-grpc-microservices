@@ -128,3 +128,22 @@
     @apply font-mono;
   }
 }
+
+.upload-list {
+  scrollbar-color: color-mix(in oklab, white 25%, transparent) transparent;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+.upload-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.upload-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.upload-list::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 25%);
+  border-radius: 999px;
+}

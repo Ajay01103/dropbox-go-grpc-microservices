@@ -6,19 +6,19 @@ import (
 	"fmt"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"go.uber.org/zap"
 )
 
 // NewLoggingInterceptor creates a unary interceptor for structured logging
-func NewLoggingInterceptor(logger *zap.Logger) connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+func NewLoggingInterceptor(logger *zap.Logger) connect.ServerInterceptor {
+	return func(next connect.ServerFunc) connect.ServerFunc {
+		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
 			start := time.Now()
-			resp, err := next(ctx, req)
+			err := next(ctx, spec, stream)
 
 			duration := time.Since(start)
-			procedure := req.Spec().Procedure
+			procedure := spec.Procedure
 			ms := fmt.Sprintf("%dms", duration.Milliseconds())
 
 			if err != nil {
@@ -43,7 +43,7 @@ func NewLoggingInterceptor(logger *zap.Logger) connect.UnaryInterceptorFunc {
 					zap.String("duration", ms),
 				)
 			}
-			return resp, err
+			return err
 		}
 	}
 }

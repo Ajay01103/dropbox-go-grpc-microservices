@@ -5,192 +5,255 @@
 package pbconnect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	pb "github.com/Ajay01103/go-dropbox/upload/gen/pb"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// UploadServiceName is the fully-qualified name of the UploadService service.
 	UploadServiceName = "upload.UploadService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// UploadServiceInitUploadProcedure is the fully-qualified name of the UploadService's InitUpload
-	// RPC.
+	// UploadServiceInitUploadProcedure is the procedure name of the UploadService's InitUpload RPC.
 	UploadServiceInitUploadProcedure = "/upload.UploadService/InitUpload"
-	// UploadServiceUploadChunkProcedure is the fully-qualified name of the UploadService's UploadChunk
-	// RPC.
+	// UploadServiceUploadChunkProcedure is the procedure name of the UploadService's UploadChunk RPC.
 	UploadServiceUploadChunkProcedure = "/upload.UploadService/UploadChunk"
-	// UploadServiceUploadChunksProcedure is the fully-qualified name of the UploadService's
-	// UploadChunks RPC.
+	// UploadServiceUploadChunksProcedure is the procedure name of the UploadService's UploadChunks RPC.
 	UploadServiceUploadChunksProcedure = "/upload.UploadService/UploadChunks"
-	// UploadServiceGetUploadStatusProcedure is the fully-qualified name of the UploadService's
+	// UploadServiceGetUploadStatusProcedure is the procedure name of the UploadService's
 	// GetUploadStatus RPC.
 	UploadServiceGetUploadStatusProcedure = "/upload.UploadService/GetUploadStatus"
 )
 
+var (
+	uploadServiceInitUploadSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("InitUpload"),
+			Procedure:  UploadServiceInitUploadProcedure,
+		}
+	})
+	uploadServiceUploadChunkSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("UploadChunk"),
+			Procedure:  UploadServiceUploadChunkProcedure,
+		}
+	})
+	uploadServiceUploadChunksSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeBidi,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("UploadChunks"),
+			Procedure:  UploadServiceUploadChunksProcedure,
+		}
+	})
+	uploadServiceGetUploadStatusSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("GetUploadStatus"),
+			Procedure:  UploadServiceGetUploadStatusProcedure,
+		}
+	})
+)
+
 // UploadServiceClient is a client for the upload.UploadService service.
 type UploadServiceClient interface {
-	InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error)
-	UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error)
-	UploadChunks(context.Context) *connect.BidiStreamForClient[pb.UploadChunkRequest, pb.UploadChunkAck]
-	GetUploadStatus(context.Context, *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error)
+	InitUpload(context.Context, *pb.InitUploadRequest) (*pb.InitUploadResponse, error)
+	UploadChunk(context.Context, *pb.UploadChunkRequest) (*pb.UploadChunkAck, error)
+	UploadChunks(context.Context) (UploadServiceUploadChunksClientStream, error)
+	GetUploadStatus(context.Context, *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error)
 }
 
-// NewUploadServiceClient constructs a client for the upload.UploadService service. By default, it
-// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
-// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
-// connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewUploadServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) UploadServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	uploadServiceMethods := pb.File_upload_proto.Services().ByName("UploadService").Methods()
-	return &uploadServiceClient{
-		initUpload: connect.NewClient[pb.InitUploadRequest, pb.InitUploadResponse](
-			httpClient,
-			baseURL+UploadServiceInitUploadProcedure,
-			connect.WithSchema(uploadServiceMethods.ByName("InitUpload")),
-			connect.WithClientOptions(opts...),
-		),
-		uploadChunk: connect.NewClient[pb.UploadChunkRequest, pb.UploadChunkAck](
-			httpClient,
-			baseURL+UploadServiceUploadChunkProcedure,
-			connect.WithSchema(uploadServiceMethods.ByName("UploadChunk")),
-			connect.WithClientOptions(opts...),
-		),
-		uploadChunks: connect.NewClient[pb.UploadChunkRequest, pb.UploadChunkAck](
-			httpClient,
-			baseURL+UploadServiceUploadChunksProcedure,
-			connect.WithSchema(uploadServiceMethods.ByName("UploadChunks")),
-			connect.WithClientOptions(opts...),
-		),
-		getUploadStatus: connect.NewClient[pb.GetUploadStatusRequest, pb.GetUploadStatusResponse](
-			httpClient,
-			baseURL+UploadServiceGetUploadStatusProcedure,
-			connect.WithSchema(uploadServiceMethods.ByName("GetUploadStatus")),
-			connect.WithClientOptions(opts...),
-		),
+// NewUploadServiceClient constructs a client for the upload.UploadService service. Multiple service
+// clients may share a single connect.Client.
+func NewUploadServiceClient(client *connect.Client) UploadServiceClient {
+	return &uploadServiceClient{client: client}
+}
+
+// UploadServiceUploadChunksClientStream is the client stream for the UploadService's UploadChunks
+// RPC.
+type UploadServiceUploadChunksClientStream struct {
+	stream connect.ClientStream
+}
+
+// SendHeaders opens the stream and flushes the request headers without a message. The first Send or
+// Receive does this implicitly.
+func (s UploadServiceUploadChunksClientStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a request message to the server.
+func (s UploadServiceUploadChunksClientStream) Send(req *pb.UploadChunkRequest) error {
+	return s.stream.Send(req)
+}
+
+// CloseSend closes the request side of the stream.
+func (s UploadServiceUploadChunksClientStream) CloseSend() error {
+	return s.stream.CloseSend()
+}
+
+// Receive returns the next response message from the server.
+func (s UploadServiceUploadChunksClientStream) Receive() (*pb.UploadChunkAck, error) {
+	var res pb.UploadChunkAck
+	if err := s.stream.Receive(&res); err != nil {
+		return nil, err
 	}
+	return &res, nil
 }
 
-// uploadServiceClient implements UploadServiceClient.
-type uploadServiceClient struct {
-	initUpload      *connect.Client[pb.InitUploadRequest, pb.InitUploadResponse]
-	uploadChunk     *connect.Client[pb.UploadChunkRequest, pb.UploadChunkAck]
-	uploadChunks    *connect.Client[pb.UploadChunkRequest, pb.UploadChunkAck]
-	getUploadStatus *connect.Client[pb.GetUploadStatusRequest, pb.GetUploadStatusResponse]
-}
-
-// InitUpload calls upload.UploadService.InitUpload.
-func (c *uploadServiceClient) InitUpload(ctx context.Context, req *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error) {
-	return c.initUpload.CallUnary(ctx, req)
-}
-
-// UploadChunk calls upload.UploadService.UploadChunk.
-func (c *uploadServiceClient) UploadChunk(ctx context.Context, req *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error) {
-	return c.uploadChunk.CallUnary(ctx, req)
-}
-
-// UploadChunks calls upload.UploadService.UploadChunks.
-func (c *uploadServiceClient) UploadChunks(ctx context.Context) *connect.BidiStreamForClient[pb.UploadChunkRequest, pb.UploadChunkAck] {
-	return c.uploadChunks.CallBidiStream(ctx)
-}
-
-// GetUploadStatus calls upload.UploadService.GetUploadStatus.
-func (c *uploadServiceClient) GetUploadStatus(ctx context.Context, req *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error) {
-	return c.getUploadStatus.CallUnary(ctx, req)
+// Close releases the stream's resources. It is idempotent and is typically deferred to clean up a
+// stream abandoned before io.EOF.
+func (s UploadServiceUploadChunksClientStream) Close() error {
+	return s.stream.Close()
 }
 
 // UploadServiceHandler is an implementation of the upload.UploadService service.
 type UploadServiceHandler interface {
-	InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error)
-	UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error)
-	UploadChunks(context.Context, *connect.BidiStream[pb.UploadChunkRequest, pb.UploadChunkAck]) error
-	GetUploadStatus(context.Context, *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error)
+	InitUpload(context.Context, *pb.InitUploadRequest) (*pb.InitUploadResponse, error)
+	UploadChunk(context.Context, *pb.UploadChunkRequest) (*pb.UploadChunkAck, error)
+	UploadChunks(context.Context, UploadServiceUploadChunksServerStream) error
+	GetUploadStatus(context.Context, *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error)
 }
 
-// NewUploadServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewUploadServiceHandler(svc UploadServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	uploadServiceMethods := pb.File_upload_proto.Services().ByName("UploadService").Methods()
-	uploadServiceInitUploadHandler := connect.NewUnaryHandler(
-		UploadServiceInitUploadProcedure,
-		svc.InitUpload,
-		connect.WithSchema(uploadServiceMethods.ByName("InitUpload")),
-		connect.WithHandlerOptions(opts...),
+// RegisterUploadServiceHandler registers svc as the upload.UploadService implementation on server.
+func RegisterUploadServiceHandler(server *connect.Server, svc UploadServiceHandler) {
+	adapter := uploadServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: uploadServiceInitUploadSpec(), Handler: adapter.initUpload},
+		connect.Method{Spec: uploadServiceUploadChunkSpec(), Handler: adapter.uploadChunk},
+		connect.Method{Spec: uploadServiceUploadChunksSpec(), Handler: adapter.uploadChunks},
+		connect.Method{Spec: uploadServiceGetUploadStatusSpec(), Handler: adapter.getUploadStatus},
 	)
-	uploadServiceUploadChunkHandler := connect.NewUnaryHandler(
-		UploadServiceUploadChunkProcedure,
-		svc.UploadChunk,
-		connect.WithSchema(uploadServiceMethods.ByName("UploadChunk")),
-		connect.WithHandlerOptions(opts...),
-	)
-	uploadServiceUploadChunksHandler := connect.NewBidiStreamHandler(
-		UploadServiceUploadChunksProcedure,
-		svc.UploadChunks,
-		connect.WithSchema(uploadServiceMethods.ByName("UploadChunks")),
-		connect.WithHandlerOptions(opts...),
-	)
-	uploadServiceGetUploadStatusHandler := connect.NewUnaryHandler(
-		UploadServiceGetUploadStatusProcedure,
-		svc.GetUploadStatus,
-		connect.WithSchema(uploadServiceMethods.ByName("GetUploadStatus")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/upload.UploadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case UploadServiceInitUploadProcedure:
-			uploadServiceInitUploadHandler.ServeHTTP(w, r)
-		case UploadServiceUploadChunkProcedure:
-			uploadServiceUploadChunkHandler.ServeHTTP(w, r)
-		case UploadServiceUploadChunksProcedure:
-			uploadServiceUploadChunksHandler.ServeHTTP(w, r)
-		case UploadServiceGetUploadStatusProcedure:
-			uploadServiceGetUploadStatusHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
+}
+
+// UploadServiceUploadChunksServerStream is the server stream for the UploadService's UploadChunks
+// RPC.
+type UploadServiceUploadChunksServerStream struct {
+	stream connect.ServerStream
+}
+
+// Receive returns the next request message from the client.
+func (s UploadServiceUploadChunksServerStream) Receive() (*pb.UploadChunkRequest, error) {
+	var req pb.UploadChunkRequest
+	if err := s.stream.Receive(&req); err != nil {
+		return nil, err
+	}
+	return &req, nil
+}
+
+// SendHeaders flushes the response headers without a message. The first Send does this implicitly.
+func (s UploadServiceUploadChunksServerStream) SendHeaders() error {
+	return s.stream.SendHeaders()
+}
+
+// Send sends a response message to the client.
+func (s UploadServiceUploadChunksServerStream) Send(res *pb.UploadChunkAck) error {
+	return s.stream.Send(res)
 }
 
 // UnimplementedUploadServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedUploadServiceHandler struct{}
 
-func (UnimplementedUploadServiceHandler) InitUpload(context.Context, *connect.Request[pb.InitUploadRequest]) (*connect.Response[pb.InitUploadResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.InitUpload is not implemented"))
+func (UnimplementedUploadServiceHandler) InitUpload(context.Context, *pb.InitUploadRequest) (*pb.InitUploadResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.InitUpload is not implemented")
 }
 
-func (UnimplementedUploadServiceHandler) UploadChunk(context.Context, *connect.Request[pb.UploadChunkRequest]) (*connect.Response[pb.UploadChunkAck], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.UploadChunk is not implemented"))
+func (UnimplementedUploadServiceHandler) UploadChunk(context.Context, *pb.UploadChunkRequest) (*pb.UploadChunkAck, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.UploadChunk is not implemented")
 }
 
-func (UnimplementedUploadServiceHandler) UploadChunks(context.Context, *connect.BidiStream[pb.UploadChunkRequest, pb.UploadChunkAck]) error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.UploadChunks is not implemented"))
+func (UnimplementedUploadServiceHandler) UploadChunks(context.Context, UploadServiceUploadChunksServerStream) error {
+	return connect.NewError(connect.CodeUnimplemented, "upload.UploadService.UploadChunks is not implemented")
 }
 
-func (UnimplementedUploadServiceHandler) GetUploadStatus(context.Context, *connect.Request[pb.GetUploadStatusRequest]) (*connect.Response[pb.GetUploadStatusResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("upload.UploadService.GetUploadStatus is not implemented"))
+func (UnimplementedUploadServiceHandler) GetUploadStatus(context.Context, *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.GetUploadStatus is not implemented")
+}
+
+type uploadServiceClient struct {
+	client *connect.Client
+}
+
+func (c *uploadServiceClient) InitUpload(ctx context.Context, req *pb.InitUploadRequest) (*pb.InitUploadResponse, error) {
+	var res pb.InitUploadResponse
+	if err := c.client.CallUnary(ctx, uploadServiceInitUploadSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *uploadServiceClient) UploadChunk(ctx context.Context, req *pb.UploadChunkRequest) (*pb.UploadChunkAck, error) {
+	var res pb.UploadChunkAck
+	if err := c.client.CallUnary(ctx, uploadServiceUploadChunkSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *uploadServiceClient) UploadChunks(ctx context.Context) (UploadServiceUploadChunksClientStream, error) {
+	stream, err := c.client.CallClientStream(ctx, uploadServiceUploadChunksSpec())
+	if err != nil {
+		return UploadServiceUploadChunksClientStream{}, err
+	}
+	return UploadServiceUploadChunksClientStream{stream: stream}, nil
+}
+
+func (c *uploadServiceClient) GetUploadStatus(ctx context.Context, req *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error) {
+	var res pb.GetUploadStatusResponse
+	if err := c.client.CallUnary(ctx, uploadServiceGetUploadStatusSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type uploadServiceHandler struct{ svc UploadServiceHandler }
+
+func (h uploadServiceHandler) initUpload(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.InitUploadRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.InitUpload(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h uploadServiceHandler) uploadChunk(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.UploadChunkRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.UploadChunk(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h uploadServiceHandler) uploadChunks(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	return h.svc.UploadChunks(ctx, UploadServiceUploadChunksServerStream{stream: stream})
+}
+
+func (h uploadServiceHandler) getUploadStatus(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.GetUploadStatusRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetUploadStatus(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

@@ -47,7 +47,7 @@ type BlockDecrementWorker struct {
 	gcGracePeriod time.Duration
 	logger        *zap.Logger
 	conn          *nats.Conn
-	js          jetstream.JetStream
+	js            jetstream.JetStream
 	cc            jetstream.ConsumeContext
 }
 

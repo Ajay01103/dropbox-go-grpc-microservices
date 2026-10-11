@@ -25,13 +25,14 @@ const (
 	b4MetaSkipByVersion = "z13_purge_drop_jobs_by_file_version.cql"
 	b4MetaSkipByState   = "z14_purge_drop_jobs_by_state.cql"
 	b4MetaSkipHasErrors = "z15_purge_jobs_drop_has_reconciliation_errors.cql"
-	// b4MetaSkipPostB4 lists every migration file added AFTER the B4 drops.
-	// The pre-B4 phase must hide these too: gocqlx's consistency check
-	// compares the recorded migration names (sorted) position-by-position
-	// against the file list, so any gap between the applied set and the
-	// visible files trips "inconsistent migrations" during the recovery boot.
-	b4MetaSkipPostB4 = "z17_drop_folders_by_user.cql"
-	b4MetaSkipZ18    = "z18_folder_ancestor_ids.cql"
+	// b4MetaFirstPostB4 is the oldest migration file added AFTER the B4 drops.
+	// The pre-B4 phase must hide it and everything that sorts after it:
+	// gocqlx's consistency check compares the recorded migration names
+	// (sorted) position-by-position against the file list, so any gap between
+	// the applied set and the visible files trips "inconsistent migrations"
+	// during the recovery boot. postMigrationSkip derives that whole set from
+	// the embedded files, so adding a migration cannot break this test.
+	b4MetaFirstPostB4 = "z17_drop_folders_by_user.cql"
 )
 
 func TestB4MetadataMigrationsUpgradePathAndPartialFailure(t *testing.T) {
@@ -45,7 +46,10 @@ func TestB4MetadataMigrationsUpgradePathAndPartialFailure(t *testing.T) {
 	defer cleanup()
 
 	// ── Phase 1: build the pre-B4 keyspace ───────────────────────────────
-	skip := map[string]bool{b4MetaSkipByVersion: true, b4MetaSkipByState: true, b4MetaSkipHasErrors: true, b4MetaSkipPostB4: true, b4MetaSkipZ18: true}
+	skip := skipUnion(
+		map[string]bool{b4MetaSkipByVersion: true, b4MetaSkipByState: true, b4MetaSkipHasErrors: true},
+		postMigrationSkip(t, b4MetaFirstPostB4),
+	)
 	applied, err := migrateFiltered(ctx, session, keyspace, skip)
 	if err != nil {
 		t.Fatalf("pre-B4 migrations: %v", err)

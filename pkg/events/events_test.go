@@ -14,7 +14,10 @@ import (
 // definitions come from StreamFilters — the single source of truth shared
 // with natsx.EnsureTopology (which since B4 is the sole topology owner).
 var (
-	v2Subjects = []string{SubjFileStored, SubjDecrefRequested, SubjDecrefCompleted}
+	v2Subjects = []string{
+		SubjFileStoredImage, SubjFileStoredVideo, SubjFileStoredPDF, SubjFileStoredOther,
+		SubjDecrefRequested, SubjDecrefCompleted,
+	}
 
 	v2StreamNames = []string{StreamFiles, StreamCmd, StreamEvt, StreamDLQ}
 )
@@ -71,7 +74,10 @@ func TestEveryStreamFilterIsValid(t *testing.T) {
 
 func TestSubjectsAreValidNATSSubjects(t *testing.T) {
 	all := map[string]string{
-		SubjFileStored:      "SubjFileStored",
+		SubjFileStoredImage: "SubjFileStoredImage",
+		SubjFileStoredVideo: "SubjFileStoredVideo",
+		SubjFileStoredPDF:   "SubjFileStoredPDF",
+		SubjFileStoredOther: "SubjFileStoredOther",
 		SubjDecrefRequested: "SubjDecrefRequested",
 		SubjDecrefCompleted: "SubjDecrefCompleted",
 	}
@@ -94,7 +100,8 @@ func TestSubjectsAreValidNATSSubjects(t *testing.T) {
 func TestStreamAndConsumerNamesNonEmpty(t *testing.T) {
 	nonEmpty := []string{
 		StreamFiles, StreamCmd, StreamEvt, StreamDLQ,
-		ConsumerThumbnailV2, ConsumerDecrefV2, ConsumerPurgeCompletionV2,
+		ConsumerPreviewImageV2, ConsumerPreviewVideoV2, ConsumerPreviewPDFV2,
+		ConsumerDecrefV2, ConsumerPurgeCompletionV2,
 	}
 	for _, s := range nonEmpty {
 		if s == "" {

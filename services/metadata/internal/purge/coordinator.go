@@ -36,9 +36,9 @@ type Coordinator struct {
 	metadataRepo     *repository.MetadataRepo
 	thumbnailDeleter ThumbnailDeleter
 	conn             *nats.Conn
-	js             jetstream.JetStream
+	js               jetstream.JetStream
 	logger           *zap.Logger
-	cc             jetstream.ConsumeContext
+	cc               jetstream.ConsumeContext
 }
 
 func NewCoordinator(url string, repo *repository.PurgeRepo, metadataRepo *repository.MetadataRepo, logger *zap.Logger) (*Coordinator, error) {
@@ -490,7 +490,7 @@ func (c *Coordinator) RemoveMetadataAndComplete(ctx context.Context, job reposit
 	} else if file.Filename != "" {
 		// Delete the thumbnail from storage before removing DB projections
 		// so that a crash here causes a retry that re-attempts both steps.			// DeleteThumbnail enforces the thumbnails/<file_id>/ prefix rule, so
-			// a malformed row can never cause a cross-file deletion.
+		// a malformed row can never cause a cross-file deletion.
 		if file.ThumbnailKey != "" && c.thumbnailDeleter != nil {
 			if err := c.thumbnailDeleter.DeleteThumbnail(ctx, job.FileID, file.ThumbnailKey); err != nil {
 				// Log but don't fail the purge — a stale thumbnail is not

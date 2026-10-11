@@ -183,7 +183,7 @@ function UploadDrawerContent({ userId }: { userId: string }) {
                 ))}
               </div>
 
-              <div className="max-h-64 overflow-y-auto">
+              <div className="upload-list max-h-[min(24rem,calc(100vh-12rem))] overflow-y-auto overscroll-contain">
                 {filteredFiles.length > 0 ? (
                   filteredFiles.map((file) => (
                     <FileRow

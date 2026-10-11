@@ -1,5 +1,8 @@
 {
   "$schema": "https://ui.shadcn.com/schema.json",
+  "registries": {
+    "@extend": "https://www.extend.ai/ui/r/styles/{style}/{name}.json"
+  },
   "style": "base-lyra",
   "rsc": true,
   "tsx": true,
@@ -20,6 +23,5 @@
     "hooks": "@/hooks"
   },
   "menuColor": "default",
-  "menuAccent": "subtle",
-  "registries": {}
+  "menuAccent": "subtle"
 }

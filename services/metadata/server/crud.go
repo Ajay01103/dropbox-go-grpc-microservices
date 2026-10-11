@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/metadata/gen/pb"
@@ -33,7 +33,7 @@ func mapError(err error) error {
 	case strings.Contains(err.Error(), "owner"):
 		code = connect.CodePermissionDenied
 	}
-	return connect.NewError(code, err)
+	return newConnectError(code, err)
 }
 
 func purgeJobMessage(job repository.PurgeJob) *pb.PurgeJob {
@@ -102,12 +102,12 @@ func itemMessage(item service.ItemResult) *pb.Item {
 	return result
 }
 
-func (s *MetadataServer) ListRecentItems(ctx context.Context, req *connect.Request[pb.ListRecentItemsRequest]) (*connect.Response[pb.ListRecentItemsResponse], error) {
+func (s *MetadataServer) ListRecentItems(ctx context.Context, req *pb.ListRecentItemsRequest) (*pb.ListRecentItemsResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	items, next, err := s.svc.ListRecentItemsOwned(ctx, userID, int(req.Msg.GetPageSize()), req.Msg.GetPageToken())
+	items, next, err := s.svc.ListRecentItemsOwned(ctx, userID, int(req.GetPageSize()), req.GetPageToken())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -115,39 +115,39 @@ func (s *MetadataServer) ListRecentItems(ctx context.Context, req *connect.Reque
 	for _, item := range items {
 		response.Items = append(response.Items, itemMessage(item))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
-func (s *MetadataServer) RecordFileAccess(ctx context.Context, req *connect.Request[pb.RecordFileAccessRequest]) (*connect.Response[pb.RecordFileAccessResponse], error) {
+func (s *MetadataServer) RecordFileAccess(ctx context.Context, req *pb.RecordFileAccessRequest) (*pb.RecordFileAccessResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if req.Msg.GetFileId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
+	if req.GetFileId() == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("file_id is required"))
 	}
-	if err := s.svc.RecordFileAccess(ctx, userID, req.Msg.GetFileId()); err != nil {
+	if err := s.svc.RecordFileAccess(ctx, userID, req.GetFileId()); err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&pb.RecordFileAccessResponse{Success: true}), nil
+	return &pb.RecordFileAccessResponse{Success: true}, nil
 }
 
-func (s *MetadataServer) ListFiles(ctx context.Context, req *connect.Request[pb.ListFilesRequest]) (*connect.Response[pb.ListFilesResponse], error) {
+func (s *MetadataServer) ListFiles(ctx context.Context, req *pb.ListFilesRequest) (*pb.ListFilesResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if req.Msg.GetFolderId() == "" {
+	if req.GetFolderId() == "" {
 		root, rootErr := s.svc.EnsureRootFolder(ctx, userID)
 		if rootErr != nil {
 			return nil, mapError(rootErr)
 		}
-		req.Msg.FolderId = root.FolderID
+		req.FolderId = root.FolderID
 	}
-	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	if err := servicePageSize(req.GetPageSize()); err != nil {
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
-	files, next, err := s.svc.ListFilesOwned(ctx, userID, req.Msg.GetFolderId(), int(req.Msg.GetPageSize()), req.Msg.GetPageToken(), false)
+	files, next, err := s.svc.ListFilesOwned(ctx, userID, req.GetFolderId(), int(req.GetPageSize()), req.GetPageToken(), false)
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -155,85 +155,85 @@ func (s *MetadataServer) ListFiles(ctx context.Context, req *connect.Request[pb.
 	for _, file := range files {
 		response.Files = append(response.Files, fileMessage(file))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
-func (s *MetadataServer) RenameFile(ctx context.Context, req *connect.Request[pb.RenameFileRequest]) (*connect.Response[pb.File], error) {
+func (s *MetadataServer) RenameFile(ctx context.Context, req *pb.RenameFileRequest) (*pb.File, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	file, err := s.svc.RenameFileOwned(ctx, userID, req.Msg.GetFileId(), req.Msg.GetNewName())
+	file, err := s.svc.RenameFileOwned(ctx, userID, req.GetFileId(), req.GetNewName())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(fileMessage(file)), nil
+	return fileMessage(file), nil
 }
 
-func (s *MetadataServer) MoveFile(ctx context.Context, req *connect.Request[pb.MoveFileRequest]) (*connect.Response[pb.File], error) {
+func (s *MetadataServer) MoveFile(ctx context.Context, req *pb.MoveFileRequest) (*pb.File, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	file, err := s.svc.MoveFileOwned(ctx, userID, req.Msg.GetFileId(), req.Msg.GetNewFolderId())
+	file, err := s.svc.MoveFileOwned(ctx, userID, req.GetFileId(), req.GetNewFolderId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(fileMessage(file)), nil
+	return fileMessage(file), nil
 }
 
-func (s *MetadataServer) RestoreFile(ctx context.Context, req *connect.Request[pb.RestoreFileRequest]) (*connect.Response[pb.File], error) {
+func (s *MetadataServer) RestoreFile(ctx context.Context, req *pb.RestoreFileRequest) (*pb.File, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	file, err := s.svc.RestoreFileOwned(ctx, userID, req.Msg.GetFileId())
+	file, err := s.svc.RestoreFileOwned(ctx, userID, req.GetFileId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(fileMessage(file)), nil
+	return fileMessage(file), nil
 }
 
-func (s *MetadataServer) PermanentlyDeleteFile(ctx context.Context, req *connect.Request[pb.PermanentlyDeleteFileRequest]) (*connect.Response[pb.PurgeJob], error) {
+func (s *MetadataServer) PermanentlyDeleteFile(ctx context.Context, req *pb.PermanentlyDeleteFileRequest) (*pb.PurgeJob, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if req.Msg.GetFileId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("file_id is required"))
+	if req.GetFileId() == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("file_id is required"))
 	}
-	job, err := s.svc.RequestPermanentDelete(ctx, userID, req.Msg.GetFileId())
+	job, err := s.svc.RequestPermanentDelete(ctx, userID, req.GetFileId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(purgeJobMessage(job)), nil
+	return purgeJobMessage(job), nil
 }
 
-func (s *MetadataServer) GetPurgeJobStatus(ctx context.Context, req *connect.Request[pb.GetPurgeJobStatusRequest]) (*connect.Response[pb.PurgeJob], error) {
+func (s *MetadataServer) GetPurgeJobStatus(ctx context.Context, req *pb.GetPurgeJobStatusRequest) (*pb.PurgeJob, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if req.Msg.GetJobId() == "" {
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("job_id is required"))
+	if req.GetJobId() == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("job_id is required"))
 	}
-	job, err := s.svc.GetPurgeJobStatus(ctx, userID, req.Msg.GetJobId())
+	job, err := s.svc.GetPurgeJobStatus(ctx, userID, req.GetJobId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(purgeJobMessage(job)), nil
+	return purgeJobMessage(job), nil
 }
 
-func (s *MetadataServer) ListTrash(ctx context.Context, req *connect.Request[pb.ListTrashRequest]) (*connect.Response[pb.ListTrashResponse], error) {
+func (s *MetadataServer) ListTrash(ctx context.Context, req *pb.ListTrashRequest) (*pb.ListTrashResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	if err := servicePageSize(req.GetPageSize()); err != nil {
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 
-	trash, err := s.svc.ListTrashOwned(ctx, userID, int(req.Msg.GetPageSize()))
+	trash, err := s.svc.ListTrashOwned(ctx, userID, int(req.GetPageSize()))
 	if err != nil {
 		s.logger.Error("ListTrash failed", zap.String("userID", userID), zap.Error(err))
 		return nil, mapError(err)
@@ -249,7 +249,7 @@ func (s *MetadataServer) ListTrash(ctx context.Context, req *connect.Request[pb.
 	for _, folder := range trash.Folders {
 		response.Folders = append(response.Folders, folderMessage(folder))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
 func servicePageSize(size int32) error {
@@ -259,36 +259,36 @@ func servicePageSize(size int32) error {
 	return nil
 }
 
-func (s *MetadataServer) CreateFolder(ctx context.Context, req *connect.Request[pb.CreateFolderRequest]) (*connect.Response[pb.Folder], error) {
+func (s *MetadataServer) CreateFolder(ctx context.Context, req *pb.CreateFolderRequest) (*pb.Folder, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folder, err := s.svc.CreateChildFolder(ctx, userID, req.Msg.GetParentId(), req.Msg.GetName())
+	folder, err := s.svc.CreateChildFolder(ctx, userID, req.GetParentId(), req.GetName())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(folderMessage(folder)), nil
+	return folderMessage(folder), nil
 }
 
-func (s *MetadataServer) GetFolder(ctx context.Context, req *connect.Request[pb.GetFolderRequest]) (*connect.Response[pb.Folder], error) {
+func (s *MetadataServer) GetFolder(ctx context.Context, req *pb.GetFolderRequest) (*pb.Folder, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folder, err := s.svc.GetFolderOwned(ctx, userID, req.Msg.GetFolderId())
+	folder, err := s.svc.GetFolderOwned(ctx, userID, req.GetFolderId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(folderMessage(folder)), nil
+	return folderMessage(folder), nil
 }
 
-func (s *MetadataServer) ListFolderItems(ctx context.Context, req *connect.Request[pb.ListFolderItemsRequest]) (*connect.Response[pb.ListFolderItemsResponse], error) {
+func (s *MetadataServer) ListFolderItems(ctx context.Context, req *pb.ListFolderItemsRequest) (*pb.ListFolderItemsResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folderID := req.Msg.GetFolderId()
+	folderID := req.GetFolderId()
 	if folderID == "" {
 		root, rootErr := s.svc.EnsureRootFolder(ctx, userID)
 		if rootErr != nil {
@@ -296,11 +296,11 @@ func (s *MetadataServer) ListFolderItems(ctx context.Context, req *connect.Reque
 		}
 		folderID = root.FolderID
 	}
-	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	if err := servicePageSize(req.GetPageSize()); err != nil {
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
 	sortBy := "updated"
-	switch req.Msg.GetSort() {
+	switch req.GetSort() {
 	case pb.FileSort_FILE_SORT_NAME:
 		sortBy = "name"
 	case pb.FileSort_FILE_SORT_SIZE:
@@ -308,9 +308,9 @@ func (s *MetadataServer) ListFolderItems(ctx context.Context, req *connect.Reque
 	case pb.FileSort_FILE_SORT_UPDATED_AT:
 		sortBy = "updated"
 	default:
-		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("invalid sort"))
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("invalid sort"))
 	}
-	items, next, err := s.svc.ListFolderItemsOwned(ctx, userID, folderID, sortBy, int(req.Msg.GetPageSize()), req.Msg.GetPageToken())
+	items, next, err := s.svc.ListFolderItemsOwned(ctx, userID, folderID, sortBy, int(req.GetPageSize()), req.GetPageToken())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -318,15 +318,15 @@ func (s *MetadataServer) ListFolderItems(ctx context.Context, req *connect.Reque
 	for _, item := range items {
 		response.Items = append(response.Items, itemMessage(item))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
-func (s *MetadataServer) ListFolderContents(ctx context.Context, req *connect.Request[pb.ListFolderContentsRequest]) (*connect.Response[pb.ListFolderContentsResponse], error) {
+func (s *MetadataServer) ListFolderContents(ctx context.Context, req *pb.ListFolderContentsRequest) (*pb.ListFolderContentsResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folderID := req.Msg.GetFolderId()
+	folderID := req.GetFolderId()
 	if folderID == "" {
 		root, rootErr := s.svc.EnsureRootFolder(ctx, userID)
 		if rootErr != nil {
@@ -334,10 +334,10 @@ func (s *MetadataServer) ListFolderContents(ctx context.Context, req *connect.Re
 		}
 		folderID = root.FolderID
 	}
-	if err := servicePageSize(req.Msg.GetPageSize()); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	if err := servicePageSize(req.GetPageSize()); err != nil {
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
 	}
-	folders, files, next, err := s.svc.ListFolderContentsOwned(ctx, userID, folderID, int(req.Msg.GetPageSize()), req.Msg.GetPageToken())
+	folders, files, next, err := s.svc.ListFolderContentsOwned(ctx, userID, folderID, int(req.GetPageSize()), req.GetPageToken())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -348,62 +348,62 @@ func (s *MetadataServer) ListFolderContents(ctx context.Context, req *connect.Re
 	for _, file := range files {
 		response.Files = append(response.Files, fileMessage(file))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
-func (s *MetadataServer) RenameFolder(ctx context.Context, req *connect.Request[pb.RenameFolderRequest]) (*connect.Response[pb.Folder], error) {
+func (s *MetadataServer) RenameFolder(ctx context.Context, req *pb.RenameFolderRequest) (*pb.Folder, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folder, err := s.svc.RenameFolderOwned(ctx, userID, req.Msg.GetFolderId(), req.Msg.GetNewName())
+	folder, err := s.svc.RenameFolderOwned(ctx, userID, req.GetFolderId(), req.GetNewName())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(folderMessage(folder)), nil
+	return folderMessage(folder), nil
 }
 
-func (s *MetadataServer) MoveFolder(ctx context.Context, req *connect.Request[pb.MoveFolderRequest]) (*connect.Response[pb.Folder], error) {
+func (s *MetadataServer) MoveFolder(ctx context.Context, req *pb.MoveFolderRequest) (*pb.Folder, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folder, err := s.svc.MoveFolderOwned(ctx, userID, req.Msg.GetFolderId(), req.Msg.GetNewParentId())
+	folder, err := s.svc.MoveFolderOwned(ctx, userID, req.GetFolderId(), req.GetNewParentId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(folderMessage(folder)), nil
+	return folderMessage(folder), nil
 }
 
-func (s *MetadataServer) DeleteFolder(ctx context.Context, req *connect.Request[pb.DeleteFolderRequest]) (*connect.Response[pb.DeleteFolderResponse], error) {
+func (s *MetadataServer) DeleteFolder(ctx context.Context, req *pb.DeleteFolderRequest) (*pb.DeleteFolderResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	if _, err := s.svc.DeleteFolderOwned(ctx, userID, req.Msg.GetFolderId()); err != nil {
+	if _, err := s.svc.DeleteFolderOwned(ctx, userID, req.GetFolderId()); err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&pb.DeleteFolderResponse{Success: true}), nil
+	return &pb.DeleteFolderResponse{Success: true}, nil
 }
 
-func (s *MetadataServer) RestoreFolder(ctx context.Context, req *connect.Request[pb.RestoreFolderRequest]) (*connect.Response[pb.Folder], error) {
+func (s *MetadataServer) RestoreFolder(ctx context.Context, req *pb.RestoreFolderRequest) (*pb.Folder, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folder, err := s.svc.RestoreFolderOwned(ctx, userID, req.Msg.GetFolderId())
+	folder, err := s.svc.RestoreFolderOwned(ctx, userID, req.GetFolderId())
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(folderMessage(folder)), nil
+	return folderMessage(folder), nil
 }
 
-func (s *MetadataServer) GetBreadcrumbs(ctx context.Context, req *connect.Request[pb.GetBreadcrumbsRequest]) (*connect.Response[pb.GetBreadcrumbsResponse], error) {
+func (s *MetadataServer) GetBreadcrumbs(ctx context.Context, req *pb.GetBreadcrumbsRequest) (*pb.GetBreadcrumbsResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
-	folders, err := s.svc.Breadcrumbs(ctx, userID, req.Msg.GetFolderId())
+	folders, err := s.svc.Breadcrumbs(ctx, userID, req.GetFolderId())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -411,17 +411,17 @@ func (s *MetadataServer) GetBreadcrumbs(ctx context.Context, req *connect.Reques
 	for _, folder := range folders {
 		response.Folders = append(response.Folders, folderMessage(folder))
 	}
-	return connect.NewResponse(response), nil
+	return response, nil
 }
 
-func (s *MetadataServer) GetOrCreateRootFolder(ctx context.Context, req *connect.Request[pb.GetOrCreateRootFolderRequest]) (*connect.Response[pb.GetOrCreateRootFolderResponse], error) {
+func (s *MetadataServer) GetOrCreateRootFolder(ctx context.Context, req *pb.GetOrCreateRootFolderRequest) (*pb.GetOrCreateRootFolderResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, err)
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
 	}
 	root, err := s.svc.EnsureRootFolder(ctx, userID)
 	if err != nil {
 		return nil, mapError(err)
 	}
-	return connect.NewResponse(&pb.GetOrCreateRootFolderResponse{Folder: folderMessage(root)}), nil
+	return &pb.GetOrCreateRootFolderResponse{Folder: folderMessage(root)}, nil
 }

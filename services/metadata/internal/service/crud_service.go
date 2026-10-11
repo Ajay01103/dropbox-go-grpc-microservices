@@ -137,6 +137,13 @@ func (s *MetadataService) MoveFileOwned(ctx context.Context, ownerID, fileID, fo
 	if err != nil {
 		return repository.File{}, err
 	}
+	// Same-folder no-op guard: MoveFile implements a move as INSERT-then-DELETE
+	// keyed on folder_id, so old == new would DELETE the row it just inserted
+	// (the file would vanish from its folder listing). A drop onto the current
+	// folder's backdrop resolves to exactly this case.
+	if previous.FolderID == destination.FolderID {
+		return previous, nil
+	}
 	if err := s.metadataRepo.MoveFile(ctx, ownerID, fileID, folderID); err != nil {
 		return repository.File{}, err
 	}

@@ -28,7 +28,11 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { useContentUrl } from "@/modules/files/api/use-content-url";
+import { useDownloadFile } from "@/modules/files/api/use-download";
 import { useThumbnailUrl } from "@/modules/files/api/use-files";
+import { DocxPreviewPanel } from "@/modules/files/components/docx-preview-panel";
+import { PdfPreviewPanel } from "@/modules/files/components/pdf-preview-panel";
 import { cn, formatBytes, formatRelativeTime } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
@@ -59,13 +63,26 @@ function fileExtension(filename: string): string {
   return dot > 0 && dot < filename.length - 1 ? filename.slice(dot + 1).toUpperCase() : "FILE";
 }
 
-type PreviewKind = "image" | "video" | "audio" | "doc" | "other";
+type PreviewKind = "image" | "video" | "audio" | "pdf" | "docx" | "doc" | "other";
 
-function previewKind(contentType: string | undefined): PreviewKind {
+const DOCX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+function previewKind(
+  contentType: string | undefined,
+  filename: string | undefined,
+): PreviewKind {
+  // A DOCX is a zip container whose stored content type is client-supplied (the
+  // upload service trusts what the browser sent), so the extension is the more
+  // reliable of the two signals. Legacy .doc stays "other": the viewer marks it
+  // limited and experimental, and a download is the honest fallback.
+  if (filename?.toLowerCase().endsWith(".docx")) return "docx";
+  if (contentType === DOCX_CONTENT_TYPE) return "docx";
   if (contentType?.startsWith("image/")) return "image";
   if (contentType?.startsWith("video/")) return "video";
   if (contentType?.startsWith("audio/")) return "audio";
-  if (contentType === "application/pdf" || contentType?.startsWith("text/")) return "doc";
+  if (contentType === "application/pdf") return "pdf";
+  if (contentType?.startsWith("text/")) return "doc";
   return "other";
 }
 
@@ -84,8 +101,11 @@ function KindIcon({ kind, className }: { kind: PreviewKind; className: string })
 
 /* ------------------------------------------------------------------ */
 /*  Preview surface — the actual content area inside the drawer        */
-/*  Images load the presigned S3 URL from GetThumbnailURL; every       */
-/*  other kind renders an honest "not previewable" state.              */
+/*  The preview pipeline generates a JPEG for image and video families */
+/*  (server-side), so those two render the presigned URL. PDFs and     */
+/*  DOCX files are rendered by the real document viewers instead (no   */
+/*  server rendition exists for either), and audio/doc/other keep the  */
+/*  honest "not previewable" state.                                    */
 /* ------------------------------------------------------------------ */
 function PreviewSurface({
   item,
@@ -104,7 +124,9 @@ function PreviewSurface({
 }) {
   const name = item.details.case === "file" ? item.details.value.filename : item.itemId;
 
-  if (kind === "image") {
+  // image | video get a server-generated preview JPEG; the remaining kinds
+  // have no preview yet.
+  if (kind === "image" || kind === "video") {
     if (urlLoading) {
       return (
         <div className="flex h-full w-full items-center justify-center">
@@ -115,7 +137,7 @@ function PreviewSurface({
     if (urlError || !url) {
       return (
         <div className="text-muted-foreground flex h-full w-full flex-col items-center justify-center gap-3 p-8">
-          <ImageIcon className="size-14" strokeWidth={1.5} />
+          <KindIcon className="size-14" kind={kind} />
           <p className="text-sm">Thumbnail is not available yet.</p>
         </div>
       );
@@ -143,17 +165,21 @@ function PreviewSurface({
 
 /* ------------------------------------------------------------------ */
 /*  Action bar: horizontally scrollable so it survives narrow screens  */
-/*  Open/Download work for images (presigned URL); the rest stay       */
-/*  visibly inert until their features ship.                           */
+/*  Open uses the preview URL; Download mints a download ticket and    */
+/*  hands the content URL to the browser's native download manager.    */
 /* ------------------------------------------------------------------ */
 function ActionBar({
   canOpenUrl,
   url,
   onUnavailable,
+  onDownload,
+  downloadPending = false,
 }: {
   canOpenUrl: boolean;
   url: string | undefined;
   onUnavailable: (action: string) => void;
+  onDownload: () => void;
+  downloadPending?: boolean;
 }) {
   const openInTab = () => {
     if (canOpenUrl && url) window.open(url, "_blank", "noopener,noreferrer");
@@ -164,13 +190,14 @@ function ActionBar({
     { label: "Open in", icon: ExternalLink, onClick: openInTab },
     { label: "Edit", icon: Pencil, onClick: () => onUnavailable("Edit") },
     { label: "Enhance", icon: Sparkles, onClick: () => onUnavailable("Enhance") },
-    { label: "Download", icon: Download, onClick: openInTab },
+    { label: "Download", icon: Download, onClick: onDownload, disabled: downloadPending },
   ];
   return (
     <div className="flex items-center gap-1 overflow-x-auto border-b px-3 py-2 sm:px-5">
-      {actions.map(({ label, icon: Icon, onClick }) => (
+      {actions.map(({ label, icon: Icon, onClick, disabled }) => (
         <Button
           className="shrink-0 gap-1.5"
+          disabled={disabled}
           key={label}
           onClick={onClick}
           size="sm"
@@ -241,9 +268,10 @@ export function FilePreviewDrawer({
 }) {
   const isMobile = useIsMobile();
   const [zoom, setZoom] = useState(100);
+  const { downloadFile, isPending: isDownloadPending } = useDownloadFile();
 
   const file = item?.details.case === "file" ? item.details.value : undefined;
-  const kind = previewKind(file?.contentType);
+  const kind = previewKind(file?.contentType, file?.filename);
   const name = file?.filename ?? item?.itemId ?? "File preview";
   const ext = file ? fileExtension(file.filename) : "";
   const size = file ? formatBytes(file.sizeBytes) : "";
@@ -254,11 +282,21 @@ export function FilePreviewDrawer({
     file?.thumbnailStatus ?? "",
     file?.thumbnailKey ?? "",
   );
-  const showUrl = open && kind === "image";
+  // Documents render the real file rather than a server-generated preview JPEG:
+  // the viewer streams bytes with range requests from a short-lived ticket URL
+  // (see useContentUrl). Image/video keep the JPEG preview. The ticket is only
+  // minted while a document preview is actually open.
+  const isPdf = kind === "pdf";
+  const isDocx = kind === "docx";
+  const isDocument = isPdf || isDocx;
+  const content = useContentUrl(item?.itemId ?? "", { enabled: open && isDocument });
+  const showUrl = open && (kind === "image" || kind === "video");
 
   useEffect(() => {
     if (open) setZoom(100);
-  }, [open, item?.itemId]);  // Right side-panel on desktop/tablet, bottom sheet on mobile. The base
+  }, [open, item?.itemId]);
+
+  // Right side-panel on desktop/tablet, bottom sheet on mobile. The base
   // Drawer positions itself from swipeDirection — never pass manual inset
   // classes on DrawerContent or the panel lands in the wrong corner.
   const swipeDirection = isMobile ? "down" : "right"
@@ -273,7 +311,14 @@ export function FilePreviewDrawer({
         className={cn(
           isMobile
             ? "h-[92vh]"
-            : "h-full w-full rounded-none border-l sm:max-w-2xl",
+            : // Documents get a wider panel: a fitted page, the viewer toolbar
+              // and the DOCX thumbnail sidebar need more room than the
+              // image-width panel, and squeezing them only produces a
+              // horizontally scrolling page.
+              [
+                "h-full w-full rounded-none border-l",
+                isDocument ? "sm:max-w-4xl" : "sm:max-w-2xl",
+              ],
         )}
       >
         {/* Visually-hidden semantics for screen readers / a11y tree */}
@@ -335,22 +380,52 @@ export function FilePreviewDrawer({
             </div>
 
             <ActionBar
-              canOpenUrl={showUrl && Boolean(thumbnail.data)}
+              canOpenUrl={showUrl ? Boolean(thumbnail.data) : Boolean(content.data?.url)}
+              downloadPending={isDownloadPending(item.itemId)}
+              onDownload={() => void downloadFile(item.itemId, name)}
               onUnavailable={(action) => window.alert(`${action} is not available yet.`)}
-              url={showUrl ? thumbnail.data : undefined}
+              url={showUrl ? thumbnail.data : content.data?.url}
             />
 
-            {/* Preview area */}
-            <div className="bg-muted/30 relative flex-1 overflow-auto">
-              <PreviewSurface
-                item={item}
-                kind={kind}
-                url={showUrl ? thumbnail.data : undefined}
-                urlError={showUrl ? thumbnail.error : undefined}
-                urlLoading={showUrl ? thumbnail.isLoading : false}
-                zoom={zoom}
-              />
-              {kind === "image" && showUrl && !thumbnail.isLoading && thumbnail.data && (
+            {/* Preview area — the document viewers own their own scroll/zoom,
+                every other kind is panned/zoomed by the drawer's zoom pill. */}
+            <div
+              className={cn(
+                "bg-muted/30 relative flex-1",
+                isDocument ? "overflow-hidden" : "overflow-auto",
+              )}
+            >
+              {isPdf ? (
+                <PdfPreviewPanel
+                  documentKey={item.itemId}
+                  filename={name}
+                  isError={content.isError}
+                  isLoading={content.isFetching}
+                  key={item.itemId}
+                  onRetry={() => void content.refetch()}
+                  url={content.data?.url}
+                />
+              ) : isDocx ? (
+                <DocxPreviewPanel
+                  documentKey={item.itemId}
+                  filename={name}
+                  isError={content.isError}
+                  isLoading={content.isFetching}
+                  key={item.itemId}
+                  onRetry={() => void content.refetch()}
+                  url={content.data?.url}
+                />
+              ) : (
+                <PreviewSurface
+                  item={item}
+                  kind={kind}
+                  url={showUrl ? thumbnail.data : undefined}
+                  urlError={showUrl ? thumbnail.error : undefined}
+                  urlLoading={showUrl ? thumbnail.isLoading : false}
+                  zoom={zoom}
+                />
+              )}
+              {showUrl && !thumbnail.isLoading && thumbnail.data && (
                 <ZoomControl setZoom={setZoom} zoom={zoom} />
               )}
             </div>

@@ -10,7 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
 	"go.uber.org/zap"
@@ -115,11 +116,9 @@ func run() error {
 
 	loggingInterceptor := interceptor.NewLoggingInterceptor(logger)
 	mux := http.NewServeMux()
-	path, handler := pbconnect.NewSharingServiceHandler(
-		sharingHandler,
-		connect.WithInterceptors(loggingInterceptor),
-	)
-	mux.Handle(path, corsMiddleware(handler))
+	connectSrv := connect.NewServer(loggingInterceptor)
+	pbconnect.RegisterSharingServiceHandler(connectSrv, sharingHandler)
+	connecthttp.Mount(mux, connectSrv)
 
 	addr := ":" + cfg.GRPCPort
 	h2cServer := &http.Server{

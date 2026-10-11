@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import {
   Clock3,
@@ -53,7 +54,10 @@ const RecentFileCard = ({ item }: { item: Item }) => {
         </div>
       </div>
       <div className="mt-3 min-w-0">
-        <p className="truncate text-sm font-medium" title={name}>
+        <p
+          className="truncate text-sm font-medium"
+          title={name}
+        >
           {name}
         </p>
         <p className="text-muted-foreground mt-0.5 truncate text-xs">
@@ -72,12 +76,15 @@ const RecentFolderCard = ({ item }: { item: Item }) => {
   return (
     <article className="group min-w-0">
       <div className="bg-muted/60 relative flex aspect-square items-center justify-center overflow-hidden rounded-xl border p-5 shadow-sm transition-all group-hover:shadow-md group-hover:ring-2 group-hover:ring-blue-400/60">
-        <FolderIcon className="size-28 fill-blue-300 text-blue-400 stroke-[1.25] transition-transform duration-300 group-hover:scale-[1.05] sm:size-32" />
+        <FolderIcon className="size-28 fill-blue-300 stroke-[1.25] text-blue-400 transition-transform duration-300 group-hover:scale-[1.05] sm:size-32" />
       </div>
       <div className="mt-3 flex items-start gap-2.5">
-        <FolderIcon className="mt-0.5 size-5 shrink-0 fill-blue-300 text-blue-400 stroke-[1.25]" />
+        <FolderIcon className="mt-0.5 size-5 shrink-0 fill-blue-300 stroke-[1.25] text-blue-400" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium" title={name}>
+          <p
+            className="truncate text-sm font-medium"
+            title={name}
+          >
             {name}
           </p>
           <p className="text-muted-foreground mt-0.5 truncate text-xs">
@@ -93,9 +100,15 @@ const RecentGrid = ({ items }: { items: Item[] }) => (
   <div className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
     {items.map((item) =>
       item.details.case === "folder" ? (
-        <RecentFolderCard item={item} key={`${item.itemType}-${item.itemId}`} />
+        <RecentFolderCard
+          item={item}
+          key={`${item.itemType}-${item.itemId}`}
+        />
       ) : (
-        <RecentFileCard item={item} key={`${item.itemType}-${item.itemId}`} />
+        <RecentFileCard
+          item={item}
+          key={`${item.itemType}-${item.itemId}`}
+        />
       ),
     )}
   </div>
@@ -113,7 +126,15 @@ const RecentSkeletons = () => (
   </div>
 )
 
-const EmptyState = ({ icon: Icon, title, hint }: { icon: typeof Clock3; title: string; hint: string }) => (
+const EmptyState = ({
+  icon: Icon,
+  title,
+  hint,
+}: {
+  icon: typeof Clock3
+  title: string
+  hint: string
+}) => (
   <div className="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-20">
     <div className="bg-muted flex size-14 items-center justify-center rounded-full">
       <Icon className="size-6" />
@@ -125,16 +146,19 @@ const EmptyState = ({ icon: Icon, title, hint }: { icon: typeof Clock3; title: s
 
 const HomeView = () => {
   const queryClient = useQueryClient()
-  const {
-    data,
-    isError,
-    isFetchingNextPage,
-    isLoading,
-    fetchNextPage,
-    hasNextPage,
-    refetch,
-  } = useRecentItems()
-  const items = data?.pages.flatMap((page) => page.items) ?? []
+  const { data, isError, isFetchingNextPage, isLoading, fetchNextPage, hasNextPage, refetch } =
+    useRecentItems()
+  const items = useMemo(() => {
+    const seen = new Set<string>()
+    const deduped: Item[] = []
+    for (const item of data?.pages.flatMap((page) => page.items) ?? []) {
+      const key = `${item.itemType}-${item.itemId}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      deduped.push(item)
+    }
+    return deduped
+  }, [data])
 
   // useCreateFolder already invalidates the recent-items query; this keeps
   // the header's callback contract without duplicating state in the view.
@@ -146,24 +170,40 @@ const HomeView = () => {
     <div className="bg-background flex min-h-screen flex-col">
       <HomeMainHeader onFolderCreated={handleFolderCreated} />
       <main className="flex flex-1 flex-col px-4 py-4 sm:px-8 sm:py-6">
-        <Tabs defaultValue="recents" className="flex min-h-0 flex-1">
+        <Tabs
+          defaultValue="recents"
+          className="flex min-h-0 flex-1"
+        >
           <TabsList className="bg-muted h-10 rounded-full p-1">
-            <TabsTrigger value="recents" className="h-8 rounded-full px-4 text-sm">
+            <TabsTrigger
+              value="recents"
+              className="h-8 rounded-full px-4 text-sm"
+            >
               <Clock3 />
               Recents
             </TabsTrigger>
-            <TabsTrigger value="starred" className="h-8 rounded-full px-4 text-sm">
+            <TabsTrigger
+              value="starred"
+              className="h-8 rounded-full px-4 text-sm"
+            >
               <Star />
               Starred
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="recents" className="mt-5 flex min-h-0 flex-1 flex-col">
+          <TabsContent
+            value="recents"
+            className="mt-5 flex min-h-0 flex-1 flex-col"
+          >
             {isLoading ? (
               <RecentSkeletons />
             ) : isError ? (
               <div className="text-destructive flex flex-1 flex-col items-center justify-center gap-3 rounded-2xl border border-dashed py-20">
                 <p className="text-sm font-medium">Unable to load recent items</p>
-                <Button className="h-8 rounded-lg px-3 text-xs" onClick={() => void refetch()} variant="outline">
+                <Button
+                  className="h-8 rounded-lg px-3 text-xs"
+                  onClick={() => void refetch()}
+                  variant="outline"
+                >
                   <RefreshCw />
                   Try again
                 </Button>
@@ -194,7 +234,10 @@ const HomeView = () => {
               />
             )}
           </TabsContent>
-          <TabsContent value="starred" className="mt-5 flex min-h-0 flex-1 flex-col">
+          <TabsContent
+            value="starred"
+            className="mt-5 flex min-h-0 flex-1 flex-col"
+          >
             <EmptyState
               hint="Star files and folders to pin them here for quick access."
               icon={Star}

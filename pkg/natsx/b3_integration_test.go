@@ -87,7 +87,7 @@ func TestProbeBatchedSlowMessagesPrefetchTwoHeartbeat(t *testing.T) {
 			mu.Unlock()
 			return Ack()
 		},
-		WithPullMaxMessages(2),        // production prefetch for slow batches
+		WithPullMaxMessages(2),              // production prefetch for slow batches
 		WithHeartbeat(500*time.Millisecond), // scaled heartbeat
 	)
 	if err != nil {

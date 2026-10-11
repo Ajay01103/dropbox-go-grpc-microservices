@@ -36,6 +36,16 @@ type Config struct {
 	S3Endpoint                  string        `mapstructure:"S3_ENDPOINT"`
 	S3AccessKey                 string        `mapstructure:"AWS_ACCESS_KEY_ID"`
 	S3SecretKey                 string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
+	// Download-ticket and content-serving settings. DownloadTicketKey must
+	// be shared with the content server (it verifies statelessly).
+	DownloadTicketKey string `mapstructure:"DOWNLOAD_TICKET_KEY"`
+	ContentBaseURL    string `mapstructure:"CONTENT_BASE_URL"`
+	// Tier B: async stitcher that consolidates per-block objects into one
+	// object per file via UploadPartCopy (server-side copy, zero egress).
+	StitchEnabled    bool          `mapstructure:"STITCH_ENABLED"`
+	StitchInterval   time.Duration `mapstructure:"STITCH_INTERVAL"`
+	StitchBatchSize  int           `mapstructure:"STITCH_BATCH_SIZE"`
+	StitchMinAgeSecs int           `mapstructure:"STITCH_MIN_AGE_SECONDS"`
 }
 
 // Load reads configuration from environment variables (and optionally a .env file)
@@ -73,6 +83,14 @@ func Load() (Config, error) {
 	viper.SetDefault("SCYLLA_REPLICATION_FACTOR", 1)
 	viper.SetDefault("SCYLLA_USERNAME", "cassandra")
 	viper.SetDefault("SCYLLA_PASSWORD", "cassandra")
+	viper.SetDefault("DOWNLOAD_TICKET_KEY", "dev-ticket-key-change-me")
+	// The /content route is mounted on this service's own HTTP port, so the
+	// default base URL is the metadata port.
+	viper.SetDefault("CONTENT_BASE_URL", "http://localhost:50053")
+	viper.SetDefault("STITCH_ENABLED", false)
+	viper.SetDefault("STITCH_INTERVAL", time.Minute)
+	viper.SetDefault("STITCH_BATCH_SIZE", 5)
+	viper.SetDefault("STITCH_MIN_AGE_SECONDS", 30)
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {

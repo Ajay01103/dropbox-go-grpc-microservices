@@ -31,11 +31,11 @@ func startJetStreamServer(t *testing.T) (nc *nats.Conn, js jetstream.JetStream, 
 	t.Helper()
 
 	srv, err := server.NewServer(&server.Options{
-		Host:   "127.0.0.1",
-		Port:   -1,
+		Host:      "127.0.0.1",
+		Port:      -1,
 		JetStream: true,
-		StoreDir: t.TempDir(),
-		NoLog:    true,
+		StoreDir:  t.TempDir(),
+		NoLog:     true,
 	})
 	if err != nil {
 		t.Fatalf("start embedded nats-server: %v", err)

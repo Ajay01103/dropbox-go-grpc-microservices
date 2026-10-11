@@ -3,6 +3,7 @@ package db
 import (
 	"context"
 	"fmt"
+	"net"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -97,6 +98,21 @@ func bootstrapKeyspace(ctx context.Context, cfg Config) error {
 	return nil
 }
 
+type localAddressTranslator struct {
+	hosts []string
+}
+
+func (t localAddressTranslator) Translate(addr net.IP, port int) (net.IP, int) {
+	for _, host := range t.hosts {
+		if host == "127.0.0.1" || host == "localhost" {
+			if !addr.IsLoopback() {
+				return net.ParseIP(host), port
+			}
+		}
+	}
+	return addr, port
+}
+
 func newSession(cfg Config, keyspace string) (*gocql.Session, error) {
 	cluster := gocql.NewCluster(cfg.Hosts...)
 	cluster.Port = cfg.Port
@@ -114,6 +130,7 @@ func newSession(cfg Config, keyspace string) (*gocql.Session, error) {
 		gocql.RoundRobinHostPolicy(),
 	)
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 0}
+	cluster.AddressTranslator = localAddressTranslator{hosts: cfg.Hosts}
 
 	return gocql.NewSession(*cluster)
 }

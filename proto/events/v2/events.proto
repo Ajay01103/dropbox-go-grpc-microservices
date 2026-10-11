@@ -9,6 +9,14 @@ option go_package = "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2;eventsv2"
 
 import "google/protobuf/timestamp.proto";
 
+enum ContentFamily {
+  CONTENT_FAMILY_UNSPECIFIED = 0;
+  CONTENT_FAMILY_IMAGE = 1;
+  CONTENT_FAMILY_VIDEO = 2;
+  CONTENT_FAMILY_PDF = 3;
+  CONTENT_FAMILY_OTHER = 4;
+}
+
 // FileStored is published to files.v2.stored when a file version is
 // finalized. It replaces the v1 JSON ObjectStoredEvent: protobuf wire format,
 // raw 32-byte hashes (half the size of hex), and file_version so events can
@@ -22,6 +30,7 @@ message FileStored {
   // Ordered, raw 32-byte SHA-256 digests of the file's blocks.
   repeated bytes block_hashes = 6;
   google.protobuf.Timestamp stored_at = 7;
+  ContentFamily content_family = 8;
 }
 
 // DecrefRequested is published to blocks.v2.decref.requested per batch.

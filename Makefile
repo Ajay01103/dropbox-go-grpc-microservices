@@ -7,7 +7,7 @@ SHARING_SVC   := services/sharing
 # Do not globally export per-service .env values here; Goose variables can
 # collide across services and cause migrations to run against the wrong DB.
 
-.PHONY: help proto build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy check-events scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
+.PHONY: help proto make-proto build build-auth build-upload build-metadata run-auth run-upload run-metadata tidy check-events scylla-up scylla-init-schema scylla-ui scylla-all scylla-shell rustfs-up rustfs-shell rustfs-logs dev-start docker-up docker-down docker-logs
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -15,16 +15,18 @@ help: ## Show this help
 # ─── Code Generation ──────────────────────────────────────────────────────────
 
 proto: ## Generate proto code for all services and the v2 events contract
-	cd $(PROTO_DIR)/auth && npx @bufbuild/buf generate
+	cd $(PROTO_DIR)/auth && buf generate
 	@echo "✓ Auth proto generated"
-	cd $(PROTO_DIR)/upload && npx @bufbuild/buf generate
+	cd $(PROTO_DIR)/upload && buf generate
 	@echo "✓ Upload proto generated"
-	cd $(PROTO_DIR)/metadata && npx @bufbuild/buf generate
+	cd $(PROTO_DIR)/metadata && buf generate
 	@echo "✓ Metadata proto generated"
-	cd $(PROTO_DIR)/sharing && npx @bufbuild/buf generate
+	cd $(PROTO_DIR)/sharing && buf generate
 	@echo "✓ Sharing proto generated"
-	cd $(PROTO_DIR)/events && npx @bufbuild/buf generate
+	cd $(PROTO_DIR)/events && buf generate
 	@echo "✓ Events v2 proto generated"
+
+make-proto: proto ## Alias for proto generation
 
 # ─── Build ────────────────────────────────────────────────────────────────────
 

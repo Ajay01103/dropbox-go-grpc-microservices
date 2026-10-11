@@ -26,6 +26,61 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ContentFamily int32
+
+const (
+	ContentFamily_CONTENT_FAMILY_UNSPECIFIED ContentFamily = 0
+	ContentFamily_CONTENT_FAMILY_IMAGE       ContentFamily = 1
+	ContentFamily_CONTENT_FAMILY_VIDEO       ContentFamily = 2
+	ContentFamily_CONTENT_FAMILY_PDF         ContentFamily = 3
+	ContentFamily_CONTENT_FAMILY_OTHER       ContentFamily = 4
+)
+
+// Enum value maps for ContentFamily.
+var (
+	ContentFamily_name = map[int32]string{
+		0: "CONTENT_FAMILY_UNSPECIFIED",
+		1: "CONTENT_FAMILY_IMAGE",
+		2: "CONTENT_FAMILY_VIDEO",
+		3: "CONTENT_FAMILY_PDF",
+		4: "CONTENT_FAMILY_OTHER",
+	}
+	ContentFamily_value = map[string]int32{
+		"CONTENT_FAMILY_UNSPECIFIED": 0,
+		"CONTENT_FAMILY_IMAGE":       1,
+		"CONTENT_FAMILY_VIDEO":       2,
+		"CONTENT_FAMILY_PDF":         3,
+		"CONTENT_FAMILY_OTHER":       4,
+	}
+)
+
+func (x ContentFamily) Enum() *ContentFamily {
+	p := new(ContentFamily)
+	*p = x
+	return p
+}
+
+func (x ContentFamily) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ContentFamily) Descriptor() protoreflect.EnumDescriptor {
+	return file_v2_events_proto_enumTypes[0].Descriptor()
+}
+
+func (ContentFamily) Type() protoreflect.EnumType {
+	return &file_v2_events_proto_enumTypes[0]
+}
+
+func (x ContentFamily) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ContentFamily.Descriptor instead.
+func (ContentFamily) EnumDescriptor() ([]byte, []int) {
+	return file_v2_events_proto_rawDescGZIP(), []int{0}
+}
+
 type DecrefResult_Outcome int32
 
 const (
@@ -62,11 +117,11 @@ func (x DecrefResult_Outcome) String() string {
 }
 
 func (DecrefResult_Outcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_v2_events_proto_enumTypes[0].Descriptor()
+	return file_v2_events_proto_enumTypes[1].Descriptor()
 }
 
 func (DecrefResult_Outcome) Type() protoreflect.EnumType {
-	return &file_v2_events_proto_enumTypes[0]
+	return &file_v2_events_proto_enumTypes[1]
 }
 
 func (x DecrefResult_Outcome) Number() protoreflect.EnumNumber {
@@ -92,6 +147,7 @@ type FileStored struct {
 	// Ordered, raw 32-byte SHA-256 digests of the file's blocks.
 	BlockHashes   [][]byte               `protobuf:"bytes,6,rep,name=block_hashes,json=blockHashes,proto3" json:"block_hashes,omitempty"`
 	StoredAt      *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=stored_at,json=storedAt,proto3" json:"stored_at,omitempty"`
+	ContentFamily ContentFamily          `protobuf:"varint,8,opt,name=content_family,json=contentFamily,proto3,enum=events.v2.ContentFamily" json:"content_family,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -173,6 +229,13 @@ func (x *FileStored) GetStoredAt() *timestamppb.Timestamp {
 		return x.StoredAt
 	}
 	return nil
+}
+
+func (x *FileStored) GetContentFamily() ContentFamily {
+	if x != nil {
+		return x.ContentFamily
+	}
+	return ContentFamily_CONTENT_FAMILY_UNSPECIFIED
 }
 
 // DecrefRequested is published to blocks.v2.decref.requested per batch.
@@ -478,7 +541,7 @@ var File_v2_events_proto protoreflect.FileDescriptor
 
 const file_v2_events_proto_rawDesc = "" +
 	"\n" +
-	"\x0fv2/events.proto\x12\tevents.v2\x1a\x1fgoogle/protobuf/timestamp.proto\"\x81\x02\n" +
+	"\x0fv2/events.proto\x12\tevents.v2\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc2\x02\n" +
 	"\n" +
 	"FileStored\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12!\n" +
@@ -488,7 +551,8 @@ const file_v2_events_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x05 \x01(\x03R\tsizeBytes\x12!\n" +
 	"\fblock_hashes\x18\x06 \x03(\fR\vblockHashes\x127\n" +
-	"\tstored_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bstoredAt\"\xe8\x01\n" +
+	"\tstored_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\bstoredAt\x12?\n" +
+	"\x0econtent_family\x18\b \x01(\x0e2\x18.events.v2.ContentFamilyR\rcontentFamily\"\xe8\x01\n" +
 	"\x0fDecrefRequested\x12\x15\n" +
 	"\x06job_id\x18\x01 \x01(\tR\x05jobId\x12\x1f\n" +
 	"\vbatch_index\x18\x02 \x01(\rR\n" +
@@ -525,7 +589,13 @@ const file_v2_events_proto_rawDesc = "" +
 	"\x13OUTCOME_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aAPPLIED\x10\x01\x12\x12\n" +
 	"\x0eALREADY_ABSENT\x10\x02\x12\v\n" +
-	"\aINVALID\x10\x03B<Z:github.com/Ajay01103/go-dropbox/pkg/gen/events/v2;eventsv2b\x06proto3"
+	"\aINVALID\x10\x03*\x95\x01\n" +
+	"\rContentFamily\x12\x1e\n" +
+	"\x1aCONTENT_FAMILY_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14CONTENT_FAMILY_IMAGE\x10\x01\x12\x18\n" +
+	"\x14CONTENT_FAMILY_VIDEO\x10\x02\x12\x16\n" +
+	"\x12CONTENT_FAMILY_PDF\x10\x03\x12\x18\n" +
+	"\x14CONTENT_FAMILY_OTHER\x10\x04B<Z:github.com/Ajay01103/go-dropbox/pkg/gen/events/v2;eventsv2b\x06proto3"
 
 var (
 	file_v2_events_proto_rawDescOnce sync.Once
@@ -539,29 +609,31 @@ func file_v2_events_proto_rawDescGZIP() []byte {
 	return file_v2_events_proto_rawDescData
 }
 
-var file_v2_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_v2_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_v2_events_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_v2_events_proto_goTypes = []any{
-	(DecrefResult_Outcome)(0),     // 0: events.v2.DecrefResult.Outcome
-	(*FileStored)(nil),            // 1: events.v2.FileStored
-	(*DecrefRequested)(nil),       // 2: events.v2.DecrefRequested
-	(*DecrefOp)(nil),              // 3: events.v2.DecrefOp
-	(*DecrefCompleted)(nil),       // 4: events.v2.DecrefCompleted
-	(*DecrefResult)(nil),          // 5: events.v2.DecrefResult
-	(*timestamppb.Timestamp)(nil), // 6: google.protobuf.Timestamp
+	(ContentFamily)(0),            // 0: events.v2.ContentFamily
+	(DecrefResult_Outcome)(0),     // 1: events.v2.DecrefResult.Outcome
+	(*FileStored)(nil),            // 2: events.v2.FileStored
+	(*DecrefRequested)(nil),       // 3: events.v2.DecrefRequested
+	(*DecrefOp)(nil),              // 4: events.v2.DecrefOp
+	(*DecrefCompleted)(nil),       // 5: events.v2.DecrefCompleted
+	(*DecrefResult)(nil),          // 6: events.v2.DecrefResult
+	(*timestamppb.Timestamp)(nil), // 7: google.protobuf.Timestamp
 }
 var file_v2_events_proto_depIdxs = []int32{
-	6, // 0: events.v2.FileStored.stored_at:type_name -> google.protobuf.Timestamp
-	3, // 1: events.v2.DecrefRequested.ops:type_name -> events.v2.DecrefOp
-	6, // 2: events.v2.DecrefRequested.requested_at:type_name -> google.protobuf.Timestamp
-	5, // 3: events.v2.DecrefCompleted.results:type_name -> events.v2.DecrefResult
-	6, // 4: events.v2.DecrefCompleted.processed_at:type_name -> google.protobuf.Timestamp
-	0, // 5: events.v2.DecrefResult.outcome:type_name -> events.v2.DecrefResult.Outcome
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	7, // 0: events.v2.FileStored.stored_at:type_name -> google.protobuf.Timestamp
+	0, // 1: events.v2.FileStored.content_family:type_name -> events.v2.ContentFamily
+	4, // 2: events.v2.DecrefRequested.ops:type_name -> events.v2.DecrefOp
+	7, // 3: events.v2.DecrefRequested.requested_at:type_name -> google.protobuf.Timestamp
+	6, // 4: events.v2.DecrefCompleted.results:type_name -> events.v2.DecrefResult
+	7, // 5: events.v2.DecrefCompleted.processed_at:type_name -> google.protobuf.Timestamp
+	1, // 6: events.v2.DecrefResult.outcome:type_name -> events.v2.DecrefResult.Outcome
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_v2_events_proto_init() }
@@ -574,7 +646,7 @@ func file_v2_events_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_v2_events_proto_rawDesc), len(file_v2_events_proto_rawDesc)),
-			NumEnums:      1,
+			NumEnums:      2,
 			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,

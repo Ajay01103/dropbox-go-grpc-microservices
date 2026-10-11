@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strings"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
 	"github.com/Ajay01103/go-dropbox/pkg/jwks"
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -40,8 +40,6 @@ type authInterceptor struct {
 	revocationChecker TokenRevocationChecker
 }
 
-var _ connect.Interceptor = (*authInterceptor)(nil)
-
 // NewAuthInterceptor creates an interceptor for JWT authentication.
 func NewAuthInterceptor(validator TokenVerifier) *authInterceptor {
 	return NewAuthInterceptorWithRevocation(validator, nil)
@@ -51,61 +49,51 @@ func NewAuthInterceptorWithRevocation(validator TokenVerifier, revocationChecker
 	return &authInterceptor{validator: validator, revocationChecker: revocationChecker}
 }
 
-func (a *authInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-		newCtx, err := a.authenticate(ctx, req.Header().Get("Authorization"))
-		if err != nil {
-			return nil, err
+func (a *authInterceptor) Wrap(next connect.ServerFunc) connect.ServerFunc {
+	return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
+		var authHeader string
+		if info, ok := connect.CallInfoForServerContext(ctx); ok {
+			authHeader = info.RequestHeader().Get("Authorization")
 		}
-		return next(newCtx, req)
-	}
-}
-
-func (a *authInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	return next
-}
-
-func (a *authInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
-	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
-		newCtx, err := a.authenticate(ctx, conn.RequestHeader().Get("Authorization"))
+		newCtx, err := a.authenticate(ctx, authHeader)
 		if err != nil {
 			return err
 		}
-		return next(newCtx, conn)
+		return next(newCtx, spec, stream)
 	}
 }
 
 func (a *authInterceptor) authenticate(ctx context.Context, authHeader string) (context.Context, error) {
 	if authHeader == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authorization token is not provided"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("authorization token is not provided"))
 	}
 
 	const bearerPrefix = "Bearer "
 	if !strings.HasPrefix(authHeader, bearerPrefix) {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("invalid authorization token format"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("invalid authorization token format"))
 	}
 
 	tokenStr := authHeader[len(bearerPrefix):]
 	if tokenStr == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("authorization token is empty"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("authorization token is empty"))
 	}
 
 	claims, err := a.validator.Verify(ctx, tokenStr)
 	if err != nil {
-		return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("token validation failed: %w", err))
+		return nil, newConnectError(connect.CodeUnauthenticated, fmt.Errorf("token validation failed: %w", err))
 	}
 	if claims == nil || claims.Subject == "" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("token subject is missing"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("token subject is missing"))
 	}
 	if claims.TokenType != "access" {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("token is not an access token"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("token is not an access token"))
 	}
 	if claims.SessionID == "" || claims.Generation <= 0 {
-		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("token session claims are missing"))
+		return nil, newConnectError(connect.CodeUnauthenticated, errors.New("token session claims are missing"))
 	}
 	if a.revocationChecker != nil {
 		if err := a.revocationChecker.ValidateAccessToken(ctx, tokenStr); err != nil {
-			return nil, connect.NewError(connect.CodeUnauthenticated, fmt.Errorf("token revocation check failed: %w", err))
+			return nil, newConnectError(connect.CodeUnauthenticated, fmt.Errorf("token revocation check failed: %w", err))
 		}
 	}
 

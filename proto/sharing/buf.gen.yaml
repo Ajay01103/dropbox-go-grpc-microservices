@@ -6,10 +6,10 @@ plugins:
   - remote: buf.build/protocolbuffers/go
     out: ../../services/sharing/gen/pb
     opt: paths=source_relative
-  - remote: buf.build/connectrpc/go
+  - remote: buf.build/connectrpc/go:v2.0.0
     out: ../../services/sharing/gen/pb
     opt: paths=source_relative
-  - remote: buf.build/bufbuild/es:v2.12.0
+  - remote: buf.build/bufbuild/es
     out: ../../web/src/gen/pb/sharing
     opt:
       - target=ts

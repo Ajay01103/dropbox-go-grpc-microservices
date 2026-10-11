@@ -47,6 +47,9 @@ func (r *MetadataRepo) RemoveFileProjections(ctx context.Context, file File) err
 		{`DELETE FROM folder_items_by_name WHERE folder_id = ? AND name = ? AND item_type = ? AND item_id = ?`, []any{folderID, file.Filename, "file", fileID}},
 		// PRIMARY KEY ((folder_id), size_bytes, item_type, item_id)
 		{`DELETE FROM folder_items_by_size WHERE folder_id = ? AND size_bytes = ? AND item_type = ? AND item_id = ?`, []any{folderID, file.SizeBytes, "file", fileID}},
+
+		// Dense download manifest (z20) — one partition per file.
+		{`DELETE FROM file_manifest WHERE file_id = ?`, []any{fileID}},
 	}
 	for _, q := range queries {
 		if err := r.session.Query(q.statement, q.args...).WithContext(ctx).Exec(); err != nil {
@@ -54,15 +57,29 @@ func (r *MetadataRepo) RemoveFileProjections(ctx context.Context, file File) err
 		}
 	}
 
+	// Tier B state (z21 registry + z22 work index). They go together: dropping
+	// the registry row stops a presigned consolidated object from serving a
+	// purged file, and dropping the work-index entry keeps the stitcher from
+	// spending claims on a file that no longer exists. The consolidated object
+	// itself is left for the block GC sweep to reap.
+	if err := NewStitchRepo(r.session).Delete(ctx, file.FileID); err != nil {
+		return fmt.Errorf("remove stitch record: %w", err)
+	}
+
 	// Residual sweep for the updated_at-keyed sort indexes: scan the file's
 	// rows within the folder partition (one partition per folder, so this is
 	// cheap) and delete every one, regardless of which timestamp is stored.
 	// Timestamp-independent by construction — no drift can leave a ghost.
-	if err := r.deleteAllByFile(ctx, `folder_id`, `files_by_folder_updated`, folderID, fileID, `updated_at`); err != nil {
-		return err
-	}
-	if err := r.deleteAllByFile(ctx, `folder_id`, `folder_items_by_updated`, folderID, fileID, `updated_at`); err != nil {
-		return err
+	for _, index := range []updatedAtIndex{
+		// PK ((folder_id), updated_at, file_id) — the file-side sort index.
+		{table: "files_by_folder_updated", idCol: "file_id"},
+		// PK ((folder_id), updated_at, item_type, item_id) — a mixed
+		// file + folder index, so it needs the item_type narrowing.
+		{table: "folder_items_by_updated", idCol: "item_id", filterItemType: true},
+	} {
+		if err := r.deleteAllByFile(ctx, `folder_id`, index, folderID, fileID, `updated_at`); err != nil {
+			return err
+		}
 	}
 
 	// Delete every recent-activity event for this file. The table clusters by
@@ -95,13 +112,30 @@ func (r *MetadataRepo) RemoveFileProjections(ctx context.Context, file File) err
 	return nil
 }
 
+// updatedAtIndex describes one updated_at-keyed sort index for the residual
+// sweep. Every column the sweep touches has to be named exactly as the table
+// declares it: the files_by_folder_* indexes cluster by file_id and carry no
+// item_type column, while folder_items_by_* cluster by item_id and mix files
+// with folders. Addressing the wrong column fails the whole purge ("Unrecognized
+// name item_id"), which is why the column lives in this struct instead of
+// being hardcoded in the query builder.
+type updatedAtIndex struct {
+	table          string
+	idCol          string
+	filterItemType bool
+}
+
 // deleteAllByFile removes every row for one file within a partition of an
 // updated_at-keyed sort index. It scans the file's clustering rows with
 // ALLOW FILTERING (one partition) and deletes each, so the removal works no
 // matter which updated_at value the row was written under.
-func (r *MetadataRepo) deleteAllByFile(ctx context.Context, partitionCol, table string, folderID, fileID gocql.UUID, tsCol string) error {
+func (r *MetadataRepo) deleteAllByFile(ctx context.Context, partitionCol string, index updatedAtIndex, folderID, fileID gocql.UUID, tsCol string) error {
+	typeFilter := ""
+	if index.filterItemType {
+		typeFilter = " AND item_type = 'file'"
+	}
 	iter := r.session.Query(
-		fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ? AND item_type = 'file' AND item_id = ? ALLOW FILTERING`, tsCol, table, partitionCol),
+		fmt.Sprintf(`SELECT %s FROM %s WHERE %s = ?%s AND %s = ? ALLOW FILTERING`, tsCol, index.table, partitionCol, typeFilter, index.idCol),
 		folderID, fileID,
 	).WithContext(ctx).Iter()
 	var ts time.Time
@@ -110,14 +144,14 @@ func (r *MetadataRepo) deleteAllByFile(ctx context.Context, partitionCol, table 
 		stamps = append(stamps, ts)
 	}
 	if err := iter.Close(); err != nil {
-		return fmt.Errorf("scan %s for purge: %w", table, err)
+		return fmt.Errorf("scan %s for purge: %w", index.table, err)
 	}
 	for _, t := range stamps {
 		if err := r.session.Query(
-			fmt.Sprintf(`DELETE FROM %s WHERE %s = ? AND %s = ? AND item_type = 'file' AND item_id = ?`, table, partitionCol, tsCol),
+			fmt.Sprintf(`DELETE FROM %s WHERE %s = ? AND %s = ?%s AND %s = ?`, index.table, partitionCol, tsCol, typeFilter, index.idCol),
 			folderID, t, fileID,
 		).WithContext(ctx).Exec(); err != nil {
-			return fmt.Errorf("delete %s row for purge: %w", table, err)
+			return fmt.Errorf("delete %s row for purge: %w", index.table, err)
 		}
 	}
 	return nil

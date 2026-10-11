@@ -10,7 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"go.uber.org/zap"
 
 	"github.com/dgraph-io/ristretto"
@@ -21,12 +22,12 @@ import (
 	"github.com/Ajay01103/go-dropbox/metadata/config"
 	"github.com/Ajay01103/go-dropbox/metadata/db"
 	"github.com/Ajay01103/go-dropbox/metadata/gen/pb/pbconnect"
+	"github.com/Ajay01103/go-dropbox/metadata/internal/content"
+	"github.com/Ajay01103/go-dropbox/metadata/internal/preview"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/purge"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/service"
-	"github.com/Ajay01103/go-dropbox/metadata/internal/thumbnail"
 	"github.com/Ajay01103/go-dropbox/metadata/server"
-	"github.com/Ajay01103/go-dropbox/pkg/events"
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
 	"github.com/Ajay01103/go-dropbox/pkg/jwks"
 	pkglogger "github.com/Ajay01103/go-dropbox/pkg/logger"
@@ -36,10 +37,20 @@ import (
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
-		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Connect-Protocol-Version, Authorization")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, HEAD, POST, OPTIONS")
+		// Range/If-* are preflight-triggering headers only in exotic forms
+		// (multi-range); allowing them keeps a viewer that sends them working
+		// instead of failing on a preflight it did not expect to need.
+		w.Header().Set("Access-Control-Allow-Headers",
+			"Content-Type, Connect-Protocol-Version, Authorization, Range, If-Range, If-None-Match")
+		// Response headers a fetch-based viewer reads off a /content response.
+		// Without this the browser hides Content-Range/Content-Length from JS,
+		// so a PDF/DOCX viewer cannot size or seek the resource it is loading
+		// (plain <img>/<video> tags still work, which is why this went unnoticed).
+		w.Header().Set("Access-Control-Expose-Headers",
+			"Accept-Ranges, Content-Range, Content-Length, Content-Disposition, Content-Type, ETag, X-Download-Tier")
 		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusOK)
+			w.WriteHeader(http.StatusNoContent)
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -153,53 +164,27 @@ func run() error {
 		logger,
 	)
 
-	// Build the thumbnail worker first so it can be passed to the purge
-	// coordinator as a ThumbnailDeleter.
-	thumbnailWorker, err := thumbnail.New(cfg.ThumbnailStoragePath, thumbnail.S3Config{
+	// Preview pipeline: one worker + sweeper per content family
+	// (image/video/pdf), sharing S3 storage plumbing. Individual families
+	// degrade gracefully (missing ffmpeg/pdftoppm, NATS hiccup) without
+	// blocking metadata boot. The storage client also serves presigned
+	// thumbnail URLs (GetThumbnailURL) and the purge coordinator's deletions.
+	previewStorage, err := preview.NewStorage(preview.S3Config{
 		Bucket:    cfg.S3Bucket,
 		Region:    cfg.S3Region,
 		Endpoint:  cfg.S3Endpoint,
 		AccessKey: cfg.S3AccessKey,
 		SecretKey: cfg.S3SecretKey,
-	}, metadataRepo, logger)
+	})
 	if err != nil {
-		logger.Warn("thumbnail worker unavailable; continuing without thumbnail generation", zap.Error(err))
-		thumbnailWorker = nil
+		logger.Warn("preview storage unavailable; continuing without thumbnail URLs", zap.Error(err))
 	} else {
-		metadataSvc.SetThumbnailURLer(thumbnailWorker)
-		defer thumbnailWorker.Close()
-		logger.Info("thumbnail storage plumbing initialized")
-
-		// Thumbnail consumer — consumes files.v2.stored with per-file
-		// thumbnail keys.
-		thumbnailConsumer, err := thumbnail.NewThumbnailWorker(cfg.NATSURL, thumbnailWorker)
+		metadataSvc.SetThumbnailURLer(previewStorage)
+		previewCloser, err := preview.StartAll(context.Background(), cfg, metadataRepo, logger)
 		if err != nil {
-			logger.Warn("thumbnail worker unavailable", zap.Error(err))
-		} else if err := thumbnailConsumer.Start(context.Background()); err != nil {
-			thumbnailConsumer.Close()
-			logger.Warn("thumbnail worker failed to start", zap.Error(err))
+			logger.Warn("preview pipeline failed to start", zap.Error(err))
 		} else {
-			defer thumbnailConsumer.Close()
-			logger.Info("thumbnail worker started", zap.String("subject", events.SubjFileStored))
-		}
-
-		// Thumbnail sweeper: re-publishes FileStored (original MsgId — dedup
-		// makes a republish a no-op if the original secretly succeeded) for
-		// files still pending past the stale threshold.
-		if sweeper, err := thumbnail.NewThumbnailSweeper(cfg.NATSURL, metadataRepo, thumbnail.ThumbnailSweeperConfig{
-			Interval:   cfg.ThumbnailSweepInterval,
-			StaleAfter: cfg.ThumbnailSweepStaleAfter,
-		}, logger); err != nil {
-			logger.Warn("thumbnail sweeper unavailable", zap.Error(err))
-		} else if sweeper != nil {
-			if err := sweeper.Start(context.Background()); err != nil {
-				logger.Warn("thumbnail sweeper failed to start", zap.Error(err))
-			} else {
-				defer sweeper.Stop()
-				logger.Info("thumbnail sweeper started",
-					zap.Duration("interval", cfg.ThumbnailSweepInterval),
-					zap.Duration("staleAfter", cfg.ThumbnailSweepStaleAfter))
-			}
+			defer previewCloser.Close()
 		}
 	}
 
@@ -207,10 +192,10 @@ func run() error {
 	if err != nil {
 		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
 	} else {
-		// Wire in thumbnail deletion so thumbnails are removed when a file is
+		// Wire in preview deletion so thumbnails are removed when a file is
 		// permanently deleted.
-		if thumbnailWorker != nil {
-			purgeCoordinator.SetThumbnailDeleter(thumbnailWorker)
+		if previewStorage != nil {
+			purgeCoordinator.SetThumbnailDeleter(previewStorage)
 		}
 		if err := purgeCoordinator.Start(context.Background()); err != nil {
 			purgeCoordinator.Close()
@@ -245,21 +230,91 @@ func run() error {
 	// 7. Setup Connect RPC server
 	metadataHandler := server.New(metadataSvc, logger)
 
+	// 7b. Content server (Tier A: ticket-verified range-aware block streaming)
+	// and Tier B stitcher (server-side UploadPartCopy consolidation).
+	// Both live here so they reuse this process's S3 client and Scylla
+	// session; the /content route speaks plain HTTP — the browser's native
+	// <a download>/<img>/<video> path that can't attach an Authorization
+	// header — while /content's auth is the short-lived HMAC download
+	// ticket minted by GetDownloadTicket (ownership checked THERE).
+	var stitchRepo *repository.StitchRepo
+	var contentStorage *content.S3Storage
+	var contentServer *content.Server
+	if cfg.S3Endpoint != "" {
+		storage, storageErr := content.NewS3Storage(content.S3Config{
+			Bucket:    cfg.S3Bucket,
+			Region:    cfg.S3Region,
+			Endpoint:  cfg.S3Endpoint,
+			AccessKey: cfg.S3AccessKey,
+			SecretKey: cfg.S3SecretKey,
+		})
+		if storageErr != nil {
+			logger.Warn("content storage unavailable; download tickets disabled", zap.Error(storageErr))
+		} else {
+			contentStorage = storage
+			stitchRepo = repository.NewStitchRepo(session)
+			metadataSvc.SetStitchLookup(stitchRepo)
+			metadataSvc.SetConsolidatedPresigner(contentStorage)
+		}
+	}
+
+	if contentStorage != nil {
+		contentServer = content.NewServer(metadataRepo, contentStorage, cfg.DownloadTicketKey, logger, content.WithStreamWorkers(12))
+		if cfg.StitchEnabled && cfg.S3Endpoint != "" {
+			stitcher, stitcherErr := content.NewStitcher(content.S3Config{
+				Bucket:    cfg.S3Bucket,
+				Region:    cfg.S3Region,
+				Endpoint:  cfg.S3Endpoint,
+				AccessKey: cfg.S3AccessKey,
+				SecretKey: cfg.S3SecretKey,
+			})
+			if stitcherErr != nil {
+				logger.Warn("stitcher unavailable; Tier B disabled", zap.Error(stitcherErr))
+			} else {
+				// Downloads redirect to the consolidated object; inline previews
+				// stream it here so HEAD/Accept-Ranges/Range all answer on the
+				// content origin the viewers are embedded from.
+				content.WithStitcher(stitchRepo, contentStorage)(contentServer)
+				content.WithObjectFetcher(contentStorage)(contentServer)
+				stitchWorker := content.NewStitchWorker(stitcher, stitchRepo, metadataRepo, content.StitcherConfig{
+					Enabled:         true,
+					Interval:        cfg.StitchInterval,
+					BatchSize:       cfg.StitchBatchSize,
+					MinAge:          time.Duration(cfg.StitchMinAgeSecs) * time.Second,
+					StaleClaimAfter: 10 * time.Minute,
+					MaxAttempts:     content.DefaultStitcherConfig().MaxAttempts,
+				}, logger)
+				stitchCtx, stitchCancel := context.WithCancel(context.Background())
+				defer stitchCancel()
+				stitchWorker.Start(stitchCtx)
+				logger.Info("Tier B stitcher enabled",
+					zap.Duration("interval", cfg.StitchInterval),
+					zap.Int("batchSize", cfg.StitchBatchSize))
+			}
+		}
+	}
+
 	// 8. Start HTTP server with h2c (HTTP/2 Cleartext) support for gRPC
 	addr := ":" + cfg.GRPCPort
 	mux := http.NewServeMux()
-	mux.Handle(pbconnect.NewMetadataServiceHandler(
-		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
-	))
-	mux.Handle(pbconnect.NewFileServiceHandler(
-		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
-	))
-	mux.Handle(pbconnect.NewFolderServiceHandler(
-		metadataHandler,
-		connect.WithInterceptors(loggingInterceptor, authInterceptor, rateLimiter.Interceptor(), server.TimeoutInterceptor(3*time.Second)),
-	))
+	srv := connect.NewServer(
+		loggingInterceptor,
+		authInterceptor.Wrap,
+		rateLimiter.Interceptor(),
+		server.TimeoutInterceptor(3*time.Second),
+	)
+	pbconnect.RegisterMetadataServiceHandler(srv, metadataHandler)
+
+	pbconnect.RegisterFileServiceHandler(srv, metadataHandler)
+
+	pbconnect.RegisterFolderServiceHandler(srv, metadataHandler)
+	connecthttp.Mount(mux, srv, connecthttp.WithReadMaxBytes(0))
+
+	if contentServer != nil {
+		contentServer.Handler(mux)
+		logger.Info("content server mounted", zap.String("route", "/content/{file_id}"),
+			zap.String("baseURL", cfg.ContentBaseURL))
+	}
 
 	httpServer := &http.Server{
 		Addr: addr,

@@ -114,6 +114,7 @@ func newSession(cfg Config, keyspace string) (*gocql.Session, error) {
 		gocql.RoundRobinHostPolicy(),
 	)
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 0}
+	cluster.DisableInitialHostLookup = true
 
 	return gocql.NewSession(*cluster)
 }

@@ -20,6 +20,14 @@ type Config struct {
 	ReplicationFactor int
 }
 
+// OpenSession opens a session on an already-existing keyspace using the same
+// cluster settings as Connect. Cross-service tooling uses it (for example the
+// download-manifest backfill, which reads block sizes from upload_ks).
+// It does NOT bootstrap or migrate the keyspace.
+func OpenSession(cfg Config, keyspace string) (*gocql.Session, error) {
+	return newSession(cfg, keyspace)
+}
+
 func Connect(ctx context.Context, cfg Config) (*gocql.Session, error) {
 	if err := waitForReady(ctx, cfg); err != nil {
 		return nil, fmt.Errorf("wait for scylladb: %w", err)
@@ -114,6 +122,7 @@ func newSession(cfg Config, keyspace string) (*gocql.Session, error) {
 		gocql.RoundRobinHostPolicy(),
 	)
 	cluster.RetryPolicy = &gocql.SimpleRetryPolicy{NumRetries: 0}
+	cluster.DisableInitialHostLookup = true
 
 	return gocql.NewSession(*cluster)
 }

@@ -15,6 +15,34 @@ message CreateFileRequest {
   string content_hash = 5; // SHA256 of full file
   reserved 6;
   repeated string block_hash_list = 8; // ordered content-addressed blocks
+  // Content family classified at upload time from magic bytes (trust
+  // boundary). Matches events.v2.ContentFamily values: 0=unspecified,
+  // 1=image, 2=video, 3=pdf, 4=other. Only image/video/pdf ever get a
+  // preview job (thumbnail_status='pending'); everything else starts ''.
+  uint32 content_family = 9;
+  // Dense download manifest (hash + size per block), written to the
+  // file_manifest table at CreateFile time so byte-range reconstruction
+  // needs ONE row read instead of N GetBlock size lookups.
+  repeated BlockRef block_refs = 10;
+}
+
+// BlockRef is one content-addressed block in a file's download manifest.
+message BlockRef {
+  string hash = 1;
+  int64 size_bytes = 2;
+}
+
+// FileManifest is the ordered, fully-sized block manifest of a single file
+// version. Content-addressed and immutable per version. Served (with an
+// ownership check) via FileService.GetFileManifest; the plain-HTTP content
+// server trusts a scoped download ticket instead of re-checking ACLs.
+message FileManifest {
+  string file_id = 1;
+  string filename = 2;
+  int64 total_size = 3;
+  string content_type = 4;
+  string content_hash = 5;
+  repeated BlockRef blocks = 6;
 }
 
 message CreateFileResponse {
@@ -58,6 +86,27 @@ message GetThumbnailURLResponse {
 
 message GetFileRequest {
   string file_id = 1;
+}
+
+message GetFileManifestRequest {
+  string file_id = 1;
+}
+
+message GetDownloadTicketRequest {
+  string file_id = 1;
+  // "inline" for browser preview surfaces (<video>, <img>, <iframe>),
+  // "attachment" (default) when the browser should download.
+  string disposition = 2;
+}
+
+message GetDownloadTicketResponse {
+  string ticket = 1;
+  // Full content-server URL with the ticket query param already appended.
+  string url = 2;
+  int64 expires_in_seconds = 3;
+  string filename = 4;
+  string content_type = 5;
+  int64 size_bytes = 6;
 }
 
 message File {
@@ -283,6 +332,10 @@ service MetadataService {
   rpc SetThumbnail(SetThumbnailRequest) returns (SetThumbnailResponse);
   rpc GetThumbnailStatus(GetThumbnailStatusRequest) returns (GetThumbnailStatusResponse);
   rpc GetThumbnailURL(GetThumbnailURLRequest) returns (GetThumbnailURLResponse);
+  // Mints a single-file, short-lived download ticket after an ownership
+  // check. The plain-HTTP content server verifies this ticket statelessly;
+  // it never re-checks ACLs.
+  rpc GetDownloadTicket(GetDownloadTicketRequest) returns (GetDownloadTicketResponse);
   rpc GetFile(GetFileRequest) returns (File);
   rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
@@ -291,6 +344,10 @@ service MetadataService {
 service FileService {
   rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
   rpc GetFile(GetFileRequest) returns (File);
+  // Returns the ordered dense block manifest of the file. The only place an
+  // ownership/ACL check happens for content access; downstream content
+  // serving trusts a ticket, not a re-check.
+  rpc GetFileManifest(GetFileManifestRequest) returns (FileManifest);
   rpc ListFiles(ListFilesRequest) returns (ListFilesResponse);
   rpc RenameFile(RenameFileRequest) returns (File);
   rpc MoveFile(MoveFileRequest) returns (File);

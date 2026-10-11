@@ -8,35 +8,35 @@ import (
 
 // Config holds all configuration values for the upload service.
 type Config struct {
-	ScyllaHosts                    []string      `mapstructure:"SCYLLA_HOSTS"`
-	ScyllaPort                     int           `mapstructure:"SCYLLA_PORT"`
-	ScyllaDatacenter               string        `mapstructure:"SCYLLA_DATACENTER"`
-	ScyllaReplicationFactor        int           `mapstructure:"SCYLLA_REPLICATION_FACTOR"`
-	ScyllaUsername                 string        `mapstructure:"SCYLLA_USERNAME"`
-	ScyllaPassword                 string        `mapstructure:"SCYLLA_PASSWORD"`
-	GRPCPort                       string        `mapstructure:"UPLOAD_GRPC_PORT"`
-	JWKSURL                        string        `mapstructure:"JWKS_URL"`
-	JWKSIssuer                     string        `mapstructure:"JWKS_ISSUER"`
-	JWKSAudience                   []string      `mapstructure:"JWKS_AUDIENCE"`
-	RedisURL                       string        `mapstructure:"REDIS_URL"`
-	MetadataURL                    string        `mapstructure:"METADATA_URL"`
-	NATSURL string `mapstructure:"NATS_URL"`
+	ScyllaHosts             []string `mapstructure:"SCYLLA_HOSTS"`
+	ScyllaPort              int      `mapstructure:"SCYLLA_PORT"`
+	ScyllaDatacenter        string   `mapstructure:"SCYLLA_DATACENTER"`
+	ScyllaReplicationFactor int      `mapstructure:"SCYLLA_REPLICATION_FACTOR"`
+	ScyllaUsername          string   `mapstructure:"SCYLLA_USERNAME"`
+	ScyllaPassword          string   `mapstructure:"SCYLLA_PASSWORD"`
+	GRPCPort                string   `mapstructure:"UPLOAD_GRPC_PORT"`
+	JWKSURL                 string   `mapstructure:"JWKS_URL"`
+	JWKSIssuer              string   `mapstructure:"JWKS_ISSUER"`
+	JWKSAudience            []string `mapstructure:"JWKS_AUDIENCE"`
+	RedisURL                string   `mapstructure:"REDIS_URL"`
+	MetadataURL             string   `mapstructure:"METADATA_URL"`
+	NATSURL                 string   `mapstructure:"NATS_URL"`
 	// NATS_REQUIRED fails boot when no event publisher could be built.
 	NATSRequired bool `mapstructure:"NATS_REQUIRED"`
 	// Stale-claim threshold for the batched decrement ledger: how long an op
 	// stays CLAIMED before a redelivery may take it over (must be below
 	// the consumer's BackOff[0], which is staleAfter + 5s).
-	BlockLedgerStale   time.Duration `mapstructure:"BLOCK_LEDGER_STALE"`
-	ChunkSizeBytes     int64         `mapstructure:"CHUNK_SIZE_BYTES"`
-	UploadStoragePath  string        `mapstructure:"UPLOAD_STORAGE_PATH"`
-	BlockSizeBytes     int64         `mapstructure:"BLOCK_SIZE_BYTES"`
-	S3Bucket           string        `mapstructure:"S3_BUCKET"`
-	S3Region           string        `mapstructure:"S3_REGION"`
-	S3Endpoint         string        `mapstructure:"S3_ENDPOINT"`
-	S3AccessKey        string        `mapstructure:"AWS_ACCESS_KEY_ID"`
-	S3SecretKey        string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
-	S3StorageBackend   string        `mapstructure:"S3_STORAGE_BACKEND"`
-	SessionTTLSeconds  int64         `mapstructure:"SESSION_TTL_SECONDS"`
+	BlockLedgerStale  time.Duration `mapstructure:"BLOCK_LEDGER_STALE"`
+	ChunkSizeBytes    int64         `mapstructure:"CHUNK_SIZE_BYTES"`
+	UploadStoragePath string        `mapstructure:"UPLOAD_STORAGE_PATH"`
+	BlockSizeBytes    int64         `mapstructure:"BLOCK_SIZE_BYTES"`
+	S3Bucket          string        `mapstructure:"S3_BUCKET"`
+	S3Region          string        `mapstructure:"S3_REGION"`
+	S3Endpoint        string        `mapstructure:"S3_ENDPOINT"`
+	S3AccessKey       string        `mapstructure:"AWS_ACCESS_KEY_ID"`
+	S3SecretKey       string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
+	S3StorageBackend  string        `mapstructure:"S3_STORAGE_BACKEND"`
+	SessionTTLSeconds int64         `mapstructure:"SESSION_TTL_SECONDS"`
 	// Block GC worker settings
 	BlockGCInterval    time.Duration `mapstructure:"BLOCK_GC_INTERVAL"`
 	BlockGCBatchSize   int           `mapstructure:"BLOCK_GC_BATCH_SIZE"`
@@ -69,8 +69,12 @@ func Load() (Config, error) {
 	viper.SetDefault("NATS_URL", "nats://localhost:4222")
 	viper.SetDefault("BLOCK_LEDGER_STALE", 90*time.Second)
 	viper.SetDefault("NATS_REQUIRED", false)
-	viper.SetDefault("CHUNK_SIZE_BYTES", 4194304) // 4 MiB content-addressed blocks
-	viper.SetDefault("BLOCK_SIZE_BYTES", 4194304) // 4 MiB
+	// 8 MiB blocks — deliberately ≥ the 5 MiB S3 multipart part minimum, so
+	// every non-final block is eligible for the Tier B zero-copy stitch
+	// (UploadPartCopy rejects sub-5 MiB parts, which would otherwise force
+	// multi-block files onto the live-reconstruction download path forever).
+	viper.SetDefault("CHUNK_SIZE_BYTES", 8388608)
+	viper.SetDefault("BLOCK_SIZE_BYTES", 8388608)
 	viper.SetDefault("S3_BUCKET", "uploads")
 	viper.SetDefault("S3_REGION", "us-east-1")
 	viper.SetDefault("S3_ENDPOINT", "")

@@ -20,13 +20,14 @@ func TestFileStoredGoldenBytes(t *testing.T) {
 	hash1 := bytes.Repeat([]byte{0xAB}, 32)
 	hash2 := bytes.Repeat([]byte{0xCD}, 32)
 	msg := &eventsv2.FileStored{
-		FileId:      "file-1",
-		FileVersion: 2,
-		OwnerId:     "owner-1",
-		ContentType: "image/png",
-		SizeBytes:   1234,
-		BlockHashes: [][]byte{hash1, hash2},
-		StoredAt:    timestamppb.New(timeUTC(1700000000)),
+		FileId:        "file-1",
+		FileVersion:   2,
+		OwnerId:       "owner-1",
+		ContentType:   "image/png",
+		SizeBytes:     1234,
+		BlockHashes:   [][]byte{hash1, hash2},
+		StoredAt:      timestamppb.New(timeUTC(1700000000)),
+		ContentFamily: eventsv2.ContentFamily_CONTENT_FAMILY_IMAGE,
 	}
 	data, err := proto.Marshal(msg)
 	if err != nil {
@@ -41,6 +42,7 @@ func TestFileStoredGoldenBytes(t *testing.T) {
 	}
 	if back.FileId != "file-1" || back.FileVersion != 2 || back.OwnerId != "owner-1" ||
 		back.ContentType != "image/png" || back.SizeBytes != 1234 ||
+		back.ContentFamily != eventsv2.ContentFamily_CONTENT_FAMILY_IMAGE ||
 		len(back.BlockHashes) != 2 ||
 		!bytes.Equal(back.BlockHashes[0], hash1) || !bytes.Equal(back.BlockHashes[1], hash2) {
 		t.Fatalf("round trip mismatch: %+v", &back)
@@ -117,11 +119,46 @@ func TestDecrefMessagesGoldenBytes(t *testing.T) {
 
 // TestMsgIDFileStored pins the v2 stored MsgId shape and its republish
 // semantics: same ID for the same (file, version), distinct across versions.
+// TestContentFamilyRoundTrip pins the family enum: values must stay stable
+// (they are persisted as smallint on file rows and the pending work list).
+func TestContentFamilyRoundTrip(t *testing.T) {
+	for _, tc := range []struct {
+		f    eventsv2.ContentFamily
+		name string
+	}{
+		{eventsv2.ContentFamily_CONTENT_FAMILY_UNSPECIFIED, "CONTENT_FAMILY_UNSPECIFIED"},
+		{eventsv2.ContentFamily_CONTENT_FAMILY_IMAGE, "CONTENT_FAMILY_IMAGE"},
+		{eventsv2.ContentFamily_CONTENT_FAMILY_VIDEO, "CONTENT_FAMILY_VIDEO"},
+		{eventsv2.ContentFamily_CONTENT_FAMILY_PDF, "CONTENT_FAMILY_PDF"},
+		{eventsv2.ContentFamily_CONTENT_FAMILY_OTHER, "CONTENT_FAMILY_OTHER"},
+	} {
+		if tc.f.String() != tc.name {
+			t.Errorf("ContentFamily %d = %q, want %q", int32(tc.f), tc.f.String(), tc.name)
+		}
+	}
+
+	// Wire stability: family field survives a marshal round trip on a
+	// FileStored that carries nothing else unusual.
+	evt := &eventsv2.FileStored{FileId: "f", ContentFamily: eventsv2.ContentFamily_CONTENT_FAMILY_VIDEO}
+	data, err := proto.Marshal(evt)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var back eventsv2.FileStored
+	if err := proto.Unmarshal(data, &back); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if back.ContentFamily != eventsv2.ContentFamily_CONTENT_FAMILY_VIDEO {
+		t.Fatalf("content_family round trip = %v, want VIDEO", back.ContentFamily)
+	}
+}
+
 func TestMsgIDFileStored(t *testing.T) {
 	if got, want := MsgIDFileStored("abc", 3), "stored:abc:3"; got != want {
 		t.Fatalf("MsgIDFileStored = %q, want %q", got, want)
 	}
-	if MsgIDFileStored("abc", 3) != MsgIDFileStored("abc", 3) {
+	msgID := MsgIDFileStored("abc", 3)
+	if msgID != MsgIDFileStored("abc", 3) {
 		t.Fatal("same (file, version) must produce the same MsgId (republish = dedup no-op)")
 	}
 	if MsgIDFileStored("abc", 3) == MsgIDFileStored("abc", 4) {

@@ -34,12 +34,12 @@ import {
   useDeleteFile,
   useDeleteFolder,
   useFolderItems,
-  useMoveFile,
-  useMoveFolder,
+  useMoveItems,
   useRenameFolder,
   useThumbnailUrl,
   fileQueryKeys,
 } from "@/modules/files/api/use-files"
+import { useDownloadFile } from "@/modules/files/api/use-download"
 import { metadataBrowserRpcClient } from "@/lib/rpc"
 import { useDraggableItem } from "@/modules/files/dnd/use-draggable-item"
 import { useDropTargetFromCurrent } from "@/modules/files/dnd/use-drop-target"
@@ -51,12 +51,14 @@ function ActionMenu({
   name,
   onRename,
   onDelete,
+  onDownload,
   isPending = false,
 }: {
   itemId: string
   name: string
   onRename?: () => void
   onDelete?: () => void
+  onDownload?: () => void
   isPending?: boolean
 }) {
   const [isOpen, setIsOpen] = useState(false)
@@ -94,7 +96,16 @@ function ActionMenu({
         >
           <p className="truncate px-2.5 py-1.5 font-semibold" title={name}>{name}</p>
           <div className="my-1 border-t" />
-          <ActionMenuItem icon={Download} onClick={() => unavailable("Download")}>Download</ActionMenuItem>
+          <ActionMenuItem
+            disabled={isPending || !onDownload}
+            icon={Download}
+            onClick={() => {
+              close()
+              onDownload?.()
+            }}
+          >
+            Download
+          </ActionMenuItem>
           <ActionMenuItem icon={ExternalLink} onClick={() => unavailable("Open in")}>Open in</ActionMenuItem>
           <div className="my-1 border-t" />
           <ActionMenuItem icon={LinkIcon} onClick={() => void navigator.clipboard?.writeText(itemId).then(close)}>
@@ -287,28 +298,31 @@ function FolderCard({
   onSelect,
   currentFolderId,
   prefetchFolder,
+  dragCount,
 }: {
   item: Item
   isSelected: boolean
   onSelect: (selected: boolean) => void
   currentFolderId: string
   prefetchFolder: (folderId: string) => void
+  dragCount: number
 }) {
   void currentFolderId
   const folder = item.details.case === "folder" ? item.details.value : undefined
   const name = folder?.name ?? "Unnamed folder"
   const router = useRouter()
 
-  const { ref: dragRef, isDragging } = useDraggableItem(
+  const { ref: dragRef } = useDraggableItem(
     useMemo<ItemDragData>(
       () => ({
         type: "file-view-item",
         itemType: "folder",
         itemId: item.itemId,
         name,
+        dragCount,
         fromFolderId: currentFolderId,
       }),
-      [item.itemId, name, currentFolderId],
+      [item.itemId, name, currentFolderId, dragCount],
     ),
   )
 
@@ -318,10 +332,7 @@ function FolderCard({
 
   return (
     <article
-      className={cn(
-        "group min-w-0 rounded-xl transition-opacity",
-        isDragging && "opacity-40",
-      )}
+      className="group min-w-0 rounded-xl"
       ref={(el) => {
         dragRef.current = el
         dropRef.current = el
@@ -392,16 +403,18 @@ function FileCard({
   isSelected,
   onSelect,
   currentFolderId,
+  dragCount,
 }: {
   item: Item
   isSelected: boolean
   onSelect: (selected: boolean) => void
   currentFolderId: string
+  dragCount: number
 }) {
   const file = item.details.case === "file" ? item.details.value : undefined
   const name = file?.filename ?? "Unnamed file"
   const thumbnail = useThumbnailUrl(item.itemId, file?.thumbnailStatus ?? "", file?.thumbnailKey ?? "")
-  const isImage = Boolean(file?.contentType?.startsWith("image/"))
+  const { downloadFile } = useDownloadFile()
   const router = useRouter()
 
   // Preview is URL-driven: the intercepted @modal route opens the drawer over
@@ -416,18 +429,16 @@ function FileCard({
       itemType: "file",
       itemId: item.itemId,
       name,
+      dragCount,
       fromFolderId: currentFolderId,
     }),
-    [item.itemId, name, currentFolderId],
+    [item.itemId, name, currentFolderId, dragCount],
   )
-  const { ref: dragRef, isDragging } = useDraggableItem(dragData)
+  const { ref: dragRef } = useDraggableItem(dragData)
 
   return (
     <article
-      className={cn(
-        "group min-w-0 transition-opacity",
-        isDragging && "opacity-40",
-      )}
+      className="group min-w-0"
       ref={dragRef}
     >
       <div
@@ -445,7 +456,10 @@ function FileCard({
       >
         <div className="bg-muted/40 absolute inset-0 overflow-hidden rounded-xl">
           <ItemCheckbox checked={isSelected} name={name} onCheckedChange={onSelect} />
-          {isImage && thumbnail.data ? (
+          {/* Thumbnails are family-agnostic: the preview pipeline stores a
+              JPEG for image, video-frame, and pdf-first-page files alike,
+              so render whenever the worker has marked one ready. */}
+          {thumbnail.data ? (
             <img alt={name} className="h-full w-full object-cover" src={thumbnail.data} />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -454,7 +468,11 @@ function FileCard({
           )}
           <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/10" />
         </div>
-        <ActionMenu itemId={item.itemId} name={name} />
+        <ActionMenu
+          itemId={item.itemId}
+          name={name}
+          onDownload={() => void downloadFile(item.itemId, name)}
+        />
       </div>
       <div className="mt-3 flex items-center gap-2">
         <FileText className="text-muted-foreground size-5 shrink-0" />
@@ -478,13 +496,12 @@ export const FileView = ({ folderId }: { folderId: string }) => {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const deleteFile = useDeleteFile()
   const deleteFolder = useDeleteFolder()
-  const moveFile = useMoveFile()
-  const moveFolder = useMoveFolder()
+  const moveItems = useMoveItems()
   const prefetchFolder = useFolderPrefetch()
+  const { downloadFile, isAnyPending: downloadPending } = useDownloadFile()
   const selectedItems = items.filter((item) => selectedIds.has(item.itemId))
   const allSelected = items.length > 0 && selectedItems.length === items.length
-  const isBusy =
-    deleteFile.isPending || deleteFolder.isPending || moveFile.isPending || moveFolder.isPending
+  const isBusy = deleteFile.isPending || deleteFolder.isPending || moveItems.isPending
 
   const setItemSelected = (itemId: string, selected: boolean) => {
     setSelectedIds((current) => {
@@ -499,8 +516,30 @@ export const FileView = ({ folderId }: { folderId: string }) => {
     setSelectedIds(selected ? new Set(items.map((item) => item.itemId)) : new Set())
   }
 
-  const downloadSelected = () => {
-    window.alert("Download is not available yet.")
+  // Bulk download: one ticket per file, handed to the browser natively. The
+  // POST for each ticket is a cookie-authenticated connect-rpc call; the
+  // bytes then flow straight from object storage (Tier B) or the content
+  // server (Tier A), never through this page. Folders are skipped — a folder
+  // has no single byte stream (zip download is a separate feature).
+  const downloadSelected = async () => {
+    const files = selectedItems.filter((item) => item.details.case === "file")
+    if (files.length === 0) {
+      window.alert("Select at least one file to download.")
+      return
+    }
+    for (const item of files) {
+      const file = item.details.case === "file" ? item.details.value : undefined
+      try {
+        await downloadFile(item.itemId, file?.filename ?? "download")
+      } catch (error) {
+        window.alert(
+          `Could not start the download for “${file?.filename ?? item.itemId}”: ${
+            error instanceof Error ? error.message : "unknown error"
+          }`,
+        )
+        return
+      }
+    }
   }
 
   const deleteSelected = async () => {
@@ -518,21 +557,66 @@ export const FileView = ({ folderId }: { folderId: string }) => {
     setSelectedIds(new Set())
   }
 
-  const moveItem = useCallback(
-    ({ itemId, itemType, targetFolderId }: { itemId: string; itemType: "file" | "folder"; targetFolderId: string }) => {
-      if (itemType === "folder") {
-        void moveFolder.mutateAsync({ itemId, targetFolderId }).catch(() => {
-          window.alert("Unable to move the folder — it may create a cycle or the folder may have been deleted.")
-        })
-        return
-      }
-      void moveFile.mutateAsync({ itemId, targetFolderId }).catch(() => {
-        window.alert("Unable to move the file — it may have been deleted.")
+  // moveSelection executes a drag-and-drop batch. Per-item guards (dropping
+  // a folder into itself is checked by the monitor; "already in destination"
+  // is filtered here from the current items snapshot) run BEFORE the batch so
+  // a multi-drag doesn't hammer the backend with no-op moves. Results are
+  // all-or-report: successes invalidate once (inside the mutation), failures
+  // surface in one alert naming the files that didn't move.
+  const moveSelection = useCallback(
+    (moves: { itemId: string; itemType: "file" | "folder" }[], targetFolderId: string) => {
+      const byId = new Map(items.map((item) => [item.itemId, item]))
+      const skipped = moves.filter((m) => {
+        const item = byId.get(m.itemId)
+        if (!item) return true // vanished between drag start and drop
+        return item.folderId === targetFolderId
       })
+      const actionable = moves.filter((m) => !skipped.includes(m))
+      if (actionable.length === 0) return
+      const nameOf = (itemId: string): string | undefined => {
+        const item = byId.get(itemId)
+        if (!item?.details.value) return undefined
+        return item.details.case === "file" ? item.details.value.filename : item.details.value.name
+      }
+      void moveItems
+        .mutateAsync({
+          items: actionable.map((m) => ({
+            itemId: m.itemId,
+            itemType: m.itemType,
+            name: nameOf(m.itemId),
+          })),
+          targetFolderId,
+        })
+        .then((results) => {
+          const failed = results.filter((r) => !r.ok)
+          if (failed.length > 0) {
+            const names = failed
+              .map((f) => f.name ?? f.itemId)
+              .slice(0, 5)
+              .join(", ")
+            window.alert(
+              failed.length === 1
+                ? `Unable to move "${names}" — it may have been deleted or the move would create a cycle.`
+                : `Unable to move ${failed.length} item(s): ${names}${failed.length > 5 ? "…" : ""}`,
+            )
+          }
+        })
     },
-    [moveFile, moveFolder],
+    [items, moveItems],
   )
-  useItemMoveMonitor({ onMoveItem: moveItem })
+  useItemMoveMonitor({
+    getSelectedItems: useCallback(
+      () =>
+        items
+          .filter((item) => selectedIds.has(item.itemId))
+          .map((item) => ({
+            itemId: item.itemId,
+            itemType: item.details.case === "folder" ? ("folder" as const) : ("file" as const),
+          })),
+      [items, selectedIds],
+    ),
+    onMoveItems: moveSelection,
+  })
 
   const { ref: rootDropRef, isDragOver: isRootDragOver } = useDropTargetFromCurrent(
     useCallback(() => ({ type: "file-view-root" as const }), []),
@@ -563,7 +647,12 @@ export const FileView = ({ folderId }: { folderId: string }) => {
           </div>
           {selectedItems.length > 0 && (
             <div className="flex shrink-0 items-center gap-2">
-              <Button className="h-8 rounded-md px-2.5 text-xs" onClick={downloadSelected} variant="outline">
+              <Button
+                className="h-8 rounded-md px-2.5 text-xs"
+                disabled={downloadPending}
+                onClick={() => void downloadSelected()}
+                variant="outline"
+              >
                 <Download className="size-3.5" />
                 Download
               </Button>
@@ -599,6 +688,7 @@ export const FileView = ({ folderId }: { folderId: string }) => {
                   key={`${item.itemType}-${item.itemId}`}
                   onSelect={(selected) => setItemSelected(item.itemId, selected)}
                   prefetchFolder={prefetchFolder}
+                  dragCount={selectedIds.has(item.itemId) ? selectedItems.length : 1}
                 />
               ) : (
                 <FileCard
@@ -607,6 +697,7 @@ export const FileView = ({ folderId }: { folderId: string }) => {
                   item={item}
                   key={`${item.itemType}-${item.itemId}`}
                   onSelect={(selected) => setItemSelected(item.itemId, selected)}
+                  dragCount={selectedIds.has(item.itemId) ? selectedItems.length : 1}
                 />
               ),
             )}

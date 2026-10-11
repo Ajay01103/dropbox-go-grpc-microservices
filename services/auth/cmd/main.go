@@ -12,7 +12,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"connectrpc.com/connect"
+	"connectrpc.com/connect/v2"
+	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
 	"golang.org/x/net/http2"
@@ -184,11 +185,9 @@ func run() error {
 		_, _ = w.Write(jwksData)
 	})
 
-	path, handler := pbconnect.NewAuthServiceHandler(
-		authServer,
-		connect.WithInterceptors(loggingInterceptor),
-	)
-	mux.Handle(path, corsMiddleware(handler))
+	connectSrv := connect.NewServer(loggingInterceptor)
+	pbconnect.RegisterAuthServiceHandler(connectSrv, authServer)
+	connecthttp.Mount(mux, connectSrv)
 
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)
 	srv := &http.Server{

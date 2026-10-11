@@ -13,6 +13,7 @@ import (
 
 	"github.com/Ajay01103/go-dropbox/metadata/config"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
+	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 )
 
 // MetadataService orchestrates file metadata operations
@@ -25,6 +26,39 @@ type ThumbnailURLer interface {
 	PresignThumbnail(context.Context, string, time.Duration) (string, error)
 }
 
+// StitchLookup reports whether a file has a consolidated (Tier B) object and
+// its key. Nil disables the Tier B fast path.
+type StitchLookup interface {
+	GetStitchedObjectKey(ctx context.Context, fileID string) (string, error)
+}
+
+// PresignRequest is the response metadata a presigned object GET must carry.
+//
+// Object storage cannot infer any of it. The consolidated object is a
+// server-side copy of the file's blocks, so it has no filename and no real
+// content type, and whether the caller wants a saved file or an inline
+// preview is decided by the ticket that minted this URL. Browsers obey those
+// response headers and nothing else once the URL is cross-origin: the
+// <a download> attribute is ignored for another origin, so without
+// Content-Disposition a "download" would open the file in a tab instead.
+type PresignRequest struct {
+	// Disposition is "attachment" (download) or "inline" (preview).
+	Disposition string
+	// Filename is the name the browser saves the file under.
+	Filename string
+	// ContentType is the file's real type, not the object's.
+	ContentType string
+	// Expiry bounds the URL's validity.
+	Expiry time.Duration
+}
+
+// ConsolidatedPresigner presigns a GET for the consolidated object key.
+// Separate from ThumbnailURLer because the two features fail/roll out
+// independently.
+type ConsolidatedPresigner interface {
+	PresignFileGET(ctx context.Context, key string, request PresignRequest) (string, error)
+}
+
 type MetadataService struct {
 	metadataRepo      *repository.MetadataRepo
 	folderRepo        *repository.FolderRepo
@@ -35,6 +69,8 @@ type MetadataService struct {
 	logger            *zap.Logger
 	purgeCoordinator  PurgeCoordinator
 	thumbnailURLer    ThumbnailURLer
+	stitchRepo        StitchLookup
+	presigner         ConsolidatedPresigner
 	accessQueue       chan repository.RecentItem
 	dualWriteFailures atomic.Uint64
 	accessWriteErrors atomic.Uint64
@@ -77,6 +113,18 @@ func (s *MetadataService) SetThumbnailURLer(urler ThumbnailURLer) {
 	s.thumbnailURLer = urler
 }
 
+// SetStitchLookup wires the Tier B registry. Nil disables the presigned-
+// consolidated-object fast path (every download rides Tier A).
+func (s *MetadataService) SetStitchLookup(lookup StitchLookup) {
+	s.stitchRepo = lookup
+}
+
+// SetConsolidatedPresigner wires the Tier B presigner. Used only for
+// 'ready' consolidated objects.
+func (s *MetadataService) SetConsolidatedPresigner(presigner ConsolidatedPresigner) {
+	s.presigner = presigner
+}
+
 func (s *MetadataService) RequestPermanentDelete(ctx context.Context, ownerID, fileID string) (repository.PurgeJob, error) {
 	if s.purgeCoordinator == nil {
 		return repository.PurgeJob{}, errors.New("purge coordinator is unavailable")
@@ -100,6 +148,13 @@ type CreateFileRequest struct {
 	ContentHash   string // SHA256 hash for dedup
 	OwnerID       string
 	BlockHashList []string
+	// BlockSizes[i] is the exact byte size of BlockHashList[i]; when present
+	// it feeds the dense download manifest and saves a per-block size lookup
+	// on every read. Nil for legacy callers.
+	BlockSizes []int64
+	// ContentFamily is classified at upload time (magic bytes) and trusted
+	// here. It gates preview work: only IMAGE/VIDEO/PDF start as pending.
+	ContentFamily eventsv2.ContentFamily
 }
 
 // CreateFileResult is the result of successful file creation
@@ -128,7 +183,7 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		}
 	}
 
-	file, err := s.metadataRepo.CreateFile(
+	file, err := s.metadataRepo.CreateFileWithBlockSizes(
 		ctx,
 		req.FolderID,
 		req.OwnerID,
@@ -136,7 +191,9 @@ func (s *MetadataService) CreateFile(ctx context.Context, req CreateFileRequest)
 		req.ContentType,
 		req.ContentHash,
 		req.BlockHashList,
+		req.BlockSizes,
 		req.SizeBytes,
+		req.ContentFamily,
 	)
 	if err != nil {
 		s.logger.Error("failed to create file record",

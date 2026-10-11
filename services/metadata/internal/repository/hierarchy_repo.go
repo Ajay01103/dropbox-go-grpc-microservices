@@ -259,8 +259,8 @@ func (r *MetadataRepo) GetFileByID(ctx context.Context, ownerID, fileID string) 
 	}
 	var result File
 	var resultFileID, resultFolderID, resultOwnerID, resultDeletedBatchID []byte
-	err = r.session.Query(`SELECT file_id, folder_id, owner_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, thumbnail_key, thumbnail_status, is_deleted, deleted_at, deleted_batch_id, current FROM files_by_id WHERE file_id = ?`, file).
-		WithContext(ctx).Scan(&resultFileID, &resultFolderID, &resultOwnerID, &result.Filename, &result.SizeBytes, &result.ContentType, &result.ContentHash, &result.BlockHashList, &result.Version, &result.CreatedAt, &result.UpdatedAt, &result.ThumbnailKey, &result.ThumbnailStatus, &result.IsDeleted, &result.DeletedAt, &resultDeletedBatchID, &result.Current)
+	err = r.session.Query(`SELECT file_id, folder_id, owner_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, thumbnail_key, thumbnail_status, content_family, is_deleted, deleted_at, deleted_batch_id, current FROM files_by_id WHERE file_id = ?`, file).
+		WithContext(ctx).Scan(&resultFileID, &resultFolderID, &resultOwnerID, &result.Filename, &result.SizeBytes, &result.ContentType, &result.ContentHash, &result.BlockHashList, &result.Version, &result.CreatedAt, &result.UpdatedAt, &result.ThumbnailKey, &result.ThumbnailStatus, &result.ContentFamily, &result.IsDeleted, &result.DeletedAt, &resultDeletedBatchID, &result.Current)
 	result.FileID = uuidBytesString(resultFileID)
 	result.FolderID = uuidBytesString(resultFolderID)
 	result.OwnerID = uuidBytesString(resultOwnerID)
@@ -316,7 +316,7 @@ func (r *MetadataRepo) MoveFile(ctx context.Context, ownerID, fileID, folderID s
 	if file.DeletedBatchID != "" {
 		deletedBatchID = file.DeletedBatchID
 	}
-	if err := r.session.Query(`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, is_deleted, deleted_at, deleted_batch_id, current) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, newFolder, id, file.Filename, file.SizeBytes, file.ContentType, file.ContentHash, file.BlockHashList, file.Version, file.CreatedAt, now, ownerID, newFolder, file.ThumbnailKey, file.ThumbnailStatus, file.IsDeleted, deletedAt, deletedBatchID, file.Current).WithContext(ctx).Exec(); err != nil {
+	if err := r.session.Query(`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, content_family, is_deleted, deleted_at, deleted_batch_id, current) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`, newFolder, id, file.Filename, file.SizeBytes, file.ContentType, file.ContentHash, file.BlockHashList, file.Version, file.CreatedAt, now, ownerID, newFolder, file.ThumbnailKey, file.ThumbnailStatus, file.ContentFamily, file.IsDeleted, deletedAt, deletedBatchID, file.Current).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("move file insert: %w", err)
 	}
 	if err := r.session.Query(`DELETE FROM files_by_folder WHERE folder_id = ? AND file_id = ?`, oldFolder, id).WithContext(ctx).Exec(); err != nil {

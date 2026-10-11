@@ -8,6 +8,8 @@ import (
 
 	"github.com/gocql/gocql"
 	"github.com/google/uuid"
+
+	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 )
 
 // File represents a file metadata record
@@ -26,10 +28,14 @@ type File struct {
 	ThumbnailKey    string    `db:"thumbnail_key"`
 	ThumbnailStatus string    `db:"thumbnail_status"`
 	BlockHashList   []string  `db:"block_hash_list"`
-	IsDeleted       bool      `db:"is_deleted"`
-	DeletedAt       time.Time `db:"deleted_at"`
-	DeletedBatchID  string    `db:"deleted_batch_id"`
-	Current         bool      `db:"current"`
+	// ContentFamily mirrors events.v2.ContentFamily (smallint on the row):
+	// classified at upload time from magic bytes, trusted by the preview
+	// pipeline. 0 = unspecified (pre-z19 rows).
+	ContentFamily  eventsv2.ContentFamily `db:"content_family"`
+	IsDeleted      bool                   `db:"is_deleted"`
+	DeletedAt      time.Time              `db:"deleted_at"`
+	DeletedBatchID string                 `db:"deleted_batch_id"`
+	Current        bool                   `db:"current"`
 }
 
 // MetadataRepo provides data access for file metadata using ScyllaDB
@@ -42,37 +48,73 @@ func NewMetadataRepo(session *gocql.Session) *MetadataRepo {
 	return &MetadataRepo{session: session}
 }
 
-// CreateFile inserts a new file record
-func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filename, contentType, contentHash string, blockHashList []string, sizeBytes int64) (File, error) {
+// Preview families — the set that ever gets a preview job. Everything else
+// (text, zip, audio, office docs...) starts with an EMPTY thumbnail_status
+// and no pending row: the preview workers are never triggered for them.
+//
+// This is the source-of-truth gate of the multi-format preview pipeline; the
+// per-family consumers are a second, defensive layer on top of it.
+func isPreviewFamily(f eventsv2.ContentFamily) bool {
+	switch f {
+	case eventsv2.ContentFamily_CONTENT_FAMILY_IMAGE,
+		eventsv2.ContentFamily_CONTENT_FAMILY_VIDEO,
+		eventsv2.ContentFamily_CONTENT_FAMILY_PDF:
+		return true
+	default:
+		return false
+	}
+}
+
+// CreateFile inserts a new file record. The contentFamily comes from the
+// upload service's magic-byte classification (trust boundary); it decides
+// whether the file enters the preview pipeline at all.
+func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filename, contentType, contentHash string, blockHashList []string, sizeBytes int64, contentFamily eventsv2.ContentFamily) (File, error) {
+	return r.CreateFileWithBlockSizes(ctx, folderID, ownerID, filename, contentType, contentHash, blockHashList, nil, sizeBytes, contentFamily)
+}
+
+// CreateFileWithBlockSizes is CreateFile plus the dense manifest sizes. The
+// upload service computes each chunk's exact size at finalize time; passing
+// them here replaces the N+1 GetBlock size lookups the sparse hash list
+// would otherwise force on every download.
+func (r *MetadataRepo) CreateFileWithBlockSizes(ctx context.Context, folderID, ownerID, filename, contentType, contentHash string, blockHashList []string, blockSizes []int64, sizeBytes int64, contentFamily eventsv2.ContentFamily) (File, error) {
 	fileID := uuid.New().String()
 	now := time.Now().UTC()
 
+	initialStatus := ""
+	previewFamily := eventsv2.ContentFamily(0)
+	if isPreviewFamily(contentFamily) {
+		initialStatus = "pending"
+		previewFamily = contentFamily
+	}
+
 	file := File{
-		FileID:        fileID,
-		FolderID:      folderID,
-		Filename:      filename,
-		SizeBytes:     sizeBytes,
-		ContentType:   contentType,
-		ContentHash:   contentHash,
-		Version:       1,
-		CreatedAt:     now,
-		UpdatedAt:     now,
-		OwnerID:       ownerID,
-		BlockHashList: blockHashList,
-		Current:       true,
+		FileID:          fileID,
+		FolderID:        folderID,
+		Filename:        filename,
+		SizeBytes:       sizeBytes,
+		ContentType:     contentType,
+		ContentHash:     contentHash,
+		Version:         1,
+		CreatedAt:       now,
+		UpdatedAt:       now,
+		OwnerID:         ownerID,
+		BlockHashList:   blockHashList,
+		ContentFamily:   previewFamily,
+		ThumbnailStatus: initialStatus,
+		Current:         true,
 	}
 
 	if err := r.session.Query(
-		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, is_deleted, current)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		folderID, fileID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, ownerID, folderID, "", "pending", false, true,
+		`INSERT INTO files_by_folder (folder_id, file_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, owner_id, parent_folder_id, thumbnail_key, thumbnail_status, content_family, is_deleted, current)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		folderID, fileID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, ownerID, folderID, "", initialStatus, previewFamily, false, true,
 	).WithContext(ctx).Exec(); err != nil {
 		return File{}, fmt.Errorf("insert file: %w", err)
 	}
 	if err := r.session.Query(
-		`INSERT INTO files_by_id (file_id, folder_id, owner_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, thumbnail_key, thumbnail_status, is_deleted, current)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		fileID, folderID, ownerID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, "", "pending", false, true,
+		`INSERT INTO files_by_id (file_id, folder_id, owner_id, filename, size_bytes, content_type, content_hash, block_hash_list, version, created_at, updated_at, thumbnail_key, thumbnail_status, content_family, is_deleted, current)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		fileID, folderID, ownerID, filename, sizeBytes, contentType, contentHash, blockHashList, 1, now, now, "", initialStatus, previewFamily, false, true,
 	).WithContext(ctx).Exec(); err != nil {
 		return File{}, fmt.Errorf("index file: %w", err)
 	}
@@ -84,12 +126,36 @@ func (r *MetadataRepo) CreateFile(ctx context.Context, folderID, ownerID, filena
 		return File{}, fmt.Errorf("index file sort order: %w", err)
 	}
 
-	// Thumbnail sweeper work list. Best-effort: the file row is authoritative
-	// (thumbnail_status), so a failed insert only means THIS file can't be
-	// recovered by the sweeper — the normal worker path is unaffected.
-	_ = r.InsertThumbnailPending(ctx, ThumbnailPendingRef{
-		FileID: fileID, OwnerID: ownerID, FileVersion: 1, CreatedAt: now,
-	})
+	// Preview sweeper work list — only for preview families. Best-effort: the
+	// file row is authoritative (thumbnail_status), so a failed insert only
+	// means THIS file can't be recovered by the sweeper — the normal worker
+	// path is unaffected.
+	if isPreviewFamily(contentFamily) {
+		_ = r.InsertThumbnailPending(ctx, ThumbnailPendingRef{
+			FileID: fileID, OwnerID: ownerID, FileVersion: 1, CreatedAt: now, ContentFamily: int16(contentFamily),
+		})
+	} // Dense download manifest: pair each ordered block hash with its size so
+	// byte-range reconstruction is a single partition read instead of one
+	// blocks-table lookup per block. blockHashList[i] pairs with blockSizes[i].
+	if len(blockSizes) == len(blockHashList) && len(blockHashList) > 0 {
+		blocks := make([]ManifestBlock, len(blockHashList))
+		for i, hash := range blockHashList {
+			blocks[i] = ManifestBlock{Index: i, Hash: hash, SizeBytes: blockSizes[i]}
+		}
+		if err := r.WriteFileManifest(ctx, FileManifestRow{
+			FileID: fileID, TotalSize: sizeBytes, ContentType: contentType, ContentHash: contentHash, Blocks: blocks,
+		}); err != nil {
+			// Non-fatal: the sparse block_hash_list on the file row remains the
+			// fallback reconstruction path.
+			return file, fmt.Errorf("write manifest (file row kept): %w", err)
+		}
+		// Tier B work item: the file now exists and has no consolidated object
+		// yet, so enqueue it for the background stitcher. Best-effort — the
+		// manifest (already written) is what keeps the download path correct;
+		// a lost enqueue only means this file stays on Tier A until a later
+		// enqueue or manual stitch.
+		_ = NewStitchRepo(r.session).Enqueue(ctx, fileID, now)
+	}
 
 	return file, nil
 }
@@ -182,7 +248,11 @@ func (r *MetadataRepo) SetThumbnailByFolder(ctx context.Context, folderID, fileI
 // applied=false means at least one projection was missing. Unlike
 // SetThumbnailByFolder this does NOT return an error for missing rows —
 // missing is an expected, benign outcome here.
-func (r *MetadataRepo) SetThumbnailLWT(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string) (applied bool, err error) {
+// SetThumbnailLWT sets thumbnail fields with lightweight-transaction guards
+// (IF EXISTS) on both projections and reports whether both rows were applied.
+// contentFamily is carried purely for observability today (sweeper/log
+// labels); it does not affect the guard semantics.
+func (r *MetadataRepo) SetThumbnailLWT(ctx context.Context, folderID, fileID, thumbnailKey, thumbnailStatus string, contentFamily eventsv2.ContentFamily) (applied bool, err error) {
 	id, idErr := parseID(fileID)
 	if idErr != nil {
 		return false, fmt.Errorf("parse file id: %w", idErr)
@@ -230,12 +300,12 @@ func (r *MetadataRepo) GetThumbnailStatus(ctx context.Context, folderID, fileID 
 
 // Folder represents a folder record
 type Folder struct {
-	FolderID       string    `db:"folder_id"`
-	UserID         string    `db:"user_id"`
-	OwnerID        string    `db:"owner_id"`
-	ParentID       string    `db:"parent_id"`
-	FolderName     string    `db:"folder_name"`
-	PathCache      string    `db:"path_cache"`
+	FolderID   string `db:"folder_id"`
+	UserID     string `db:"user_id"`
+	OwnerID    string `db:"owner_id"`
+	ParentID   string `db:"parent_id"`
+	FolderName string `db:"folder_name"`
+	PathCache  string `db:"path_cache"`
 	// AncestorIDs is the ordered chain of ancestor folder ids, root first and
 	// direct parent last, excluding the folder itself. Empty for the root.
 	// Backed by the ancestor_ids list<uuid> column (z18 migration); used by

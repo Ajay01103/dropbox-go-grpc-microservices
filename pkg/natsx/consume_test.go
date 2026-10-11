@@ -47,9 +47,9 @@ func TestConsumerSpecsFollowContract(t *testing.T) {
 	// never reached before exhaustion.
 
 	// Kept simple and direct: check each spec explicitly.
-	if ThumbnailConsumer.MaxDeliver <= len(ThumbnailConsumer.BackOff) {
-		t.Errorf("ThumbnailConsumer MaxDeliver %d must be > len(BackOff) %d",
-			ThumbnailConsumer.MaxDeliver, len(ThumbnailConsumer.BackOff))
+	if ImageConsumer.MaxDeliver <= len(ImageConsumer.BackOff) {
+		t.Errorf("ImageConsumer MaxDeliver %d must be > len(BackOff) %d",
+			ImageConsumer.MaxDeliver, len(ImageConsumer.BackOff))
 	}
 	if DecrefConsumer.MaxDeliver <= len(DecrefConsumer.BackOff) {
 		t.Errorf("DecrefConsumer MaxDeliver %d must be > len(BackOff) %d",
@@ -60,9 +60,9 @@ func TestConsumerSpecsFollowContract(t *testing.T) {
 			PurgeCompletionConsumer.MaxDeliver, len(PurgeCompletionConsumer.BackOff))
 	}
 
-	if ThumbnailConsumer.Durable != events.ConsumerThumbnailV2 ||
-		ThumbnailConsumer.FilterSubject != events.SubjFileStored {
-		t.Errorf("ThumbnailConsumer wired to wrong durable/filter: %+v", ThumbnailConsumer)
+	if ImageConsumer.Durable != events.ConsumerPreviewImageV2 ||
+		ImageConsumer.FilterSubject != events.SubjFileStoredImage {
+		t.Errorf("ImageConsumer wired to wrong durable/filter: %+v", ImageConsumer)
 	}
 	if DecrefConsumer.Durable != events.ConsumerDecrefV2 ||
 		DecrefConsumer.FilterSubject != events.SubjDecrefRequested {

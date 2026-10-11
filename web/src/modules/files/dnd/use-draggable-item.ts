@@ -1,12 +1,12 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef } from "react"
 import {
   draggable,
 } from "@atlaskit/pragmatic-drag-and-drop/element/adapter"
 import { setCustomNativeDragPreview } from "@atlaskit/pragmatic-drag-and-drop/element/set-custom-native-drag-preview"
 
-import type { ItemDragData } from "./dnd-types"
+import { isItemDragData, type ItemDragData } from "./dnd-types"
 
 // useDraggableItem registers an element as draggable, carrying the item's
 // drag payload. The registration reads the payload through a ref so the
@@ -18,7 +18,6 @@ import type { ItemDragData } from "./dnd-types"
 // is rendered into a portal element: a pill with the item's icon and name.
 export function useDraggableItem(data: ItemDragData) {
   const ref = useRef<HTMLElement | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
   const dataRef = useRef(data)
   dataRef.current = data
 
@@ -29,10 +28,18 @@ export function useDraggableItem(data: ItemDragData) {
     return draggable({
       element: el,
       getInitialData: () => dataRef.current,
-      onDragStart: () => setIsDragging(true),
-      onDrop: () => setIsDragging(false),
+      onDragStart: () => {
+        el.dataset.dragging = "true"
+        el.style.opacity = "1"
+        el.style.filter = "none"
+      },
+      onDrop: () => {
+        delete el.dataset.dragging
+        el.style.removeProperty("opacity")
+        el.style.removeProperty("filter")
+      },
       onGenerateDragPreview({ nativeSetDragImage, source }) {
-        const payload = source.data as ItemDragData | undefined
+        const payload = isItemDragData(source.data) ? source.data : undefined
         if (!payload || !nativeSetDragImage) return
 
         setCustomNativeDragPreview({
@@ -45,12 +52,12 @@ export function useDraggableItem(data: ItemDragData) {
               "gap:8px",
               "padding:8px 14px",
               "border-radius:9999px",
-              "background:rgba(255,255,255,0.98)",
-              "border:1px solid rgba(0,0,0,0.12)",
+              "background:#172554",
+              "border:1px solid #3b82f6",
               "box-shadow:0 8px 24px rgba(0,0,0,0.18)",
-              "font:500 13px/1.2 system-ui, sans-serif",
-              "color:#1f2937",
-              "max-width:240px",
+              "font:600 13px/1.2 system-ui, sans-serif",
+              "color:#ffffff",
+              "white-space:nowrap",
             ].join(";")
 
             const dot = document.createElement("span")
@@ -59,9 +66,25 @@ export function useDraggableItem(data: ItemDragData) {
               (payload.itemType === "folder" ? "#60a5fa" : "#a3e635") + ";"
             const label = document.createElement("span")
             label.textContent = payload.name
-            label.style.cssText = "white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+            label.style.cssText =
+              "max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
 
             pill.append(dot, label)
+
+            if (payload.dragCount > 1) {
+              const count = document.createElement("span")
+              count.textContent = `${payload.dragCount} files`
+              count.style.cssText = [
+                "display:inline-flex",
+                "align-items:center",
+                "padding:0 6px",
+                "border-radius:9999px",
+                "background:#2563eb",
+                "color:white",
+                "font:700 11px/20px system-ui, sans-serif",
+              ].join(";")
+              pill.append(count)
+            }
             container.append(pill)
           },
         })
@@ -69,5 +92,5 @@ export function useDraggableItem(data: ItemDragData) {
     })
   }, [])
 
-  return { ref, isDragging }
+  return { ref }
 }

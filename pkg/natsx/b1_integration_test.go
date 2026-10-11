@@ -108,7 +108,7 @@ func TestProbePrefetchOneSerializes(t *testing.T) {
 			acks <- struct{}{}
 			return Ack()
 		},
-		WithPullMaxMessages(1),          // serial processing
+		WithPullMaxMessages(1),              // serial processing
 		WithHeartbeat(300*time.Millisecond), // keeps the ack deadline alive during the handler
 	)
 	if err != nil {

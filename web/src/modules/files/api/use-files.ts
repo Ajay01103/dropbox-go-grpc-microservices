@@ -190,6 +190,44 @@ interface MoveItemInput {
 // the destination folder, the recent-items feed, and every cached page of
 // each. Scoping per folder would miss the origin folder page the user is
 // currently looking at.
+//
+// useMoveItems batches N selected items into ONE mutation: a single
+// invalidate after every move settles (Promise.allSettled), so the grid
+// doesn't flicker through N intermediate states — and a failed move is
+// reported per item instead of silently dropped.
+export type MoveItemResult = { itemId: string; ok: true } | { itemId: string; ok: false; name?: string }
+
+export const useMoveItems = () => {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async ({
+      items,
+      targetFolderId,
+    }: {
+      items: { itemId: string; itemType: "file" | "folder"; name?: string }[]
+      targetFolderId: string
+    }): Promise<MoveItemResult[]> => {
+      const results = await Promise.allSettled(
+        items.map((it) =>
+          it.itemType === "folder"
+            ? metadataBrowserRpcClient.moveFolder({ folderId: it.itemId, newParentId: targetFolderId })
+            : metadataFileBrowserRpcClient.moveFile({ fileId: it.itemId, newFolderId: targetFolderId }),
+        ),
+      )
+      return results.map((result, index) => {
+        const item = items[index]
+        if (result.status === "fulfilled") return { itemId: item.itemId, ok: true }
+        return { itemId: item.itemId, ok: false, name: item.name }
+      })
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: fileQueryKeys.all })
+    },
+  })
+}
+
+// Legacy single-item hooks, kept for callers that move exactly one item
+// (e.g. keyboard actions); the DnD path uses useMoveItems.
 export const useMoveFile = () => {
   const queryClient = useQueryClient()
   return useMutation({

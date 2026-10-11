@@ -5,292 +5,325 @@
 package pbconnect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	pb "github.com/Ajay01103/go-dropbox/auth/gen/pb"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// AuthServiceName is the fully-qualified name of the AuthService service.
 	AuthServiceName = "auth.AuthService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AuthServiceRegisterProcedure is the fully-qualified name of the AuthService's Register RPC.
+	// AuthServiceRegisterProcedure is the procedure name of the AuthService's Register RPC.
 	AuthServiceRegisterProcedure = "/auth.AuthService/Register"
-	// AuthServiceLoginProcedure is the fully-qualified name of the AuthService's Login RPC.
+	// AuthServiceLoginProcedure is the procedure name of the AuthService's Login RPC.
 	AuthServiceLoginProcedure = "/auth.AuthService/Login"
-	// AuthServiceRefreshTokenProcedure is the fully-qualified name of the AuthService's RefreshToken
-	// RPC.
+	// AuthServiceRefreshTokenProcedure is the procedure name of the AuthService's RefreshToken RPC.
 	AuthServiceRefreshTokenProcedure = "/auth.AuthService/RefreshToken"
-	// AuthServiceLogoutProcedure is the fully-qualified name of the AuthService's Logout RPC.
+	// AuthServiceLogoutProcedure is the procedure name of the AuthService's Logout RPC.
 	AuthServiceLogoutProcedure = "/auth.AuthService/Logout"
-	// AuthServiceLogoutAllDevicesProcedure is the fully-qualified name of the AuthService's
-	// LogoutAllDevices RPC.
-	AuthServiceLogoutAllDevicesProcedure = "/auth.AuthService/LogoutAllDevices"
-	// AuthServiceValidateTokenProcedure is the fully-qualified name of the AuthService's ValidateToken
+	// AuthServiceLogoutAllDevicesProcedure is the procedure name of the AuthService's LogoutAllDevices
 	// RPC.
+	AuthServiceLogoutAllDevicesProcedure = "/auth.AuthService/LogoutAllDevices"
+	// AuthServiceValidateTokenProcedure is the procedure name of the AuthService's ValidateToken RPC.
 	AuthServiceValidateTokenProcedure = "/auth.AuthService/ValidateToken"
-	// AuthServiceGetCurrentUserProcedure is the fully-qualified name of the AuthService's
-	// GetCurrentUser RPC.
+	// AuthServiceGetCurrentUserProcedure is the procedure name of the AuthService's GetCurrentUser RPC.
 	AuthServiceGetCurrentUserProcedure = "/auth.AuthService/GetCurrentUser"
+)
+
+var (
+	authServiceRegisterSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("Register"),
+			Procedure:  AuthServiceRegisterProcedure,
+		}
+	})
+	authServiceLoginSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("Login"),
+			Procedure:  AuthServiceLoginProcedure,
+		}
+	})
+	authServiceRefreshTokenSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("RefreshToken"),
+			Procedure:  AuthServiceRefreshTokenProcedure,
+		}
+	})
+	authServiceLogoutSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("Logout"),
+			Procedure:  AuthServiceLogoutProcedure,
+		}
+	})
+	authServiceLogoutAllDevicesSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("LogoutAllDevices"),
+			Procedure:  AuthServiceLogoutAllDevicesProcedure,
+		}
+	})
+	authServiceValidateTokenSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("ValidateToken"),
+			Procedure:  AuthServiceValidateTokenProcedure,
+		}
+	})
+	authServiceGetCurrentUserSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_auth_proto.Services().ByName("AuthService").Methods().ByName("GetCurrentUser"),
+			Procedure:  AuthServiceGetCurrentUserProcedure,
+		}
+	})
 )
 
 // AuthServiceClient is a client for the auth.AuthService service.
 type AuthServiceClient interface {
 	// Register a new user, returns a fresh token pair
-	Register(context.Context, *connect.Request[pb.RegisterRequest]) (*connect.Response[pb.AuthResponse], error)
+	Register(context.Context, *pb.RegisterRequest) (*pb.AuthResponse, error)
 	// Login an existing user, returns a fresh token pair
-	Login(context.Context, *connect.Request[pb.LoginRequest]) (*connect.Response[pb.AuthResponse], error)
+	Login(context.Context, *pb.LoginRequest) (*pb.AuthResponse, error)
 	// Issue a new access token + rotate the refresh token.
 	// Validates the refresh token JWT and checks revocation state.
-	RefreshToken(context.Context, *connect.Request[pb.RefreshTokenRequest]) (*connect.Response[pb.AuthResponse], error)
+	RefreshToken(context.Context, *pb.RefreshTokenRequest) (*pb.AuthResponse, error)
 	// Invalidate the refresh token in Redis (logout)
-	Logout(context.Context, *connect.Request[pb.LogoutRequest]) (*connect.Response[pb.LogoutResponse], error)
+	Logout(context.Context, *pb.LogoutRequest) (*pb.LogoutResponse, error)
 	// Invalidate all active refresh token families for a user.
-	LogoutAllDevices(context.Context, *connect.Request[pb.LogoutAllDevicesRequest]) (*connect.Response[pb.LogoutAllDevicesResponse], error)
+	LogoutAllDevices(context.Context, *pb.LogoutAllDevicesRequest) (*pb.LogoutAllDevicesResponse, error)
 	// Validate an access token (used by other services / Next.js middleware)
-	ValidateToken(context.Context, *connect.Request[pb.ValidateTokenRequest]) (*connect.Response[pb.ValidateTokenResponse], error)
+	ValidateToken(context.Context, *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error)
 	// Return info about the currently logged in user based on the bearer token
-	GetCurrentUser(context.Context, *connect.Request[pb.GetCurrentUserRequest]) (*connect.Response[pb.GetCurrentUserResponse], error)
+	GetCurrentUser(context.Context, *pb.GetCurrentUserRequest) (*pb.GetCurrentUserResponse, error)
 }
 
-// NewAuthServiceClient constructs a client for the auth.AuthService service. By default, it uses
-// the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
-// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
-// connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewAuthServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AuthServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	authServiceMethods := pb.File_auth_proto.Services().ByName("AuthService").Methods()
-	return &authServiceClient{
-		register: connect.NewClient[pb.RegisterRequest, pb.AuthResponse](
-			httpClient,
-			baseURL+AuthServiceRegisterProcedure,
-			connect.WithSchema(authServiceMethods.ByName("Register")),
-			connect.WithClientOptions(opts...),
-		),
-		login: connect.NewClient[pb.LoginRequest, pb.AuthResponse](
-			httpClient,
-			baseURL+AuthServiceLoginProcedure,
-			connect.WithSchema(authServiceMethods.ByName("Login")),
-			connect.WithClientOptions(opts...),
-		),
-		refreshToken: connect.NewClient[pb.RefreshTokenRequest, pb.AuthResponse](
-			httpClient,
-			baseURL+AuthServiceRefreshTokenProcedure,
-			connect.WithSchema(authServiceMethods.ByName("RefreshToken")),
-			connect.WithClientOptions(opts...),
-		),
-		logout: connect.NewClient[pb.LogoutRequest, pb.LogoutResponse](
-			httpClient,
-			baseURL+AuthServiceLogoutProcedure,
-			connect.WithSchema(authServiceMethods.ByName("Logout")),
-			connect.WithClientOptions(opts...),
-		),
-		logoutAllDevices: connect.NewClient[pb.LogoutAllDevicesRequest, pb.LogoutAllDevicesResponse](
-			httpClient,
-			baseURL+AuthServiceLogoutAllDevicesProcedure,
-			connect.WithSchema(authServiceMethods.ByName("LogoutAllDevices")),
-			connect.WithClientOptions(opts...),
-		),
-		validateToken: connect.NewClient[pb.ValidateTokenRequest, pb.ValidateTokenResponse](
-			httpClient,
-			baseURL+AuthServiceValidateTokenProcedure,
-			connect.WithSchema(authServiceMethods.ByName("ValidateToken")),
-			connect.WithClientOptions(opts...),
-		),
-		getCurrentUser: connect.NewClient[pb.GetCurrentUserRequest, pb.GetCurrentUserResponse](
-			httpClient,
-			baseURL+AuthServiceGetCurrentUserProcedure,
-			connect.WithSchema(authServiceMethods.ByName("GetCurrentUser")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// authServiceClient implements AuthServiceClient.
-type authServiceClient struct {
-	register         *connect.Client[pb.RegisterRequest, pb.AuthResponse]
-	login            *connect.Client[pb.LoginRequest, pb.AuthResponse]
-	refreshToken     *connect.Client[pb.RefreshTokenRequest, pb.AuthResponse]
-	logout           *connect.Client[pb.LogoutRequest, pb.LogoutResponse]
-	logoutAllDevices *connect.Client[pb.LogoutAllDevicesRequest, pb.LogoutAllDevicesResponse]
-	validateToken    *connect.Client[pb.ValidateTokenRequest, pb.ValidateTokenResponse]
-	getCurrentUser   *connect.Client[pb.GetCurrentUserRequest, pb.GetCurrentUserResponse]
-}
-
-// Register calls auth.AuthService.Register.
-func (c *authServiceClient) Register(ctx context.Context, req *connect.Request[pb.RegisterRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return c.register.CallUnary(ctx, req)
-}
-
-// Login calls auth.AuthService.Login.
-func (c *authServiceClient) Login(ctx context.Context, req *connect.Request[pb.LoginRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return c.login.CallUnary(ctx, req)
-}
-
-// RefreshToken calls auth.AuthService.RefreshToken.
-func (c *authServiceClient) RefreshToken(ctx context.Context, req *connect.Request[pb.RefreshTokenRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return c.refreshToken.CallUnary(ctx, req)
-}
-
-// Logout calls auth.AuthService.Logout.
-func (c *authServiceClient) Logout(ctx context.Context, req *connect.Request[pb.LogoutRequest]) (*connect.Response[pb.LogoutResponse], error) {
-	return c.logout.CallUnary(ctx, req)
-}
-
-// LogoutAllDevices calls auth.AuthService.LogoutAllDevices.
-func (c *authServiceClient) LogoutAllDevices(ctx context.Context, req *connect.Request[pb.LogoutAllDevicesRequest]) (*connect.Response[pb.LogoutAllDevicesResponse], error) {
-	return c.logoutAllDevices.CallUnary(ctx, req)
-}
-
-// ValidateToken calls auth.AuthService.ValidateToken.
-func (c *authServiceClient) ValidateToken(ctx context.Context, req *connect.Request[pb.ValidateTokenRequest]) (*connect.Response[pb.ValidateTokenResponse], error) {
-	return c.validateToken.CallUnary(ctx, req)
-}
-
-// GetCurrentUser calls auth.AuthService.GetCurrentUser.
-func (c *authServiceClient) GetCurrentUser(ctx context.Context, req *connect.Request[pb.GetCurrentUserRequest]) (*connect.Response[pb.GetCurrentUserResponse], error) {
-	return c.getCurrentUser.CallUnary(ctx, req)
+// NewAuthServiceClient constructs a client for the auth.AuthService service. Multiple service
+// clients may share a single connect.Client.
+func NewAuthServiceClient(client *connect.Client) AuthServiceClient {
+	return &authServiceClient{client: client}
 }
 
 // AuthServiceHandler is an implementation of the auth.AuthService service.
 type AuthServiceHandler interface {
 	// Register a new user, returns a fresh token pair
-	Register(context.Context, *connect.Request[pb.RegisterRequest]) (*connect.Response[pb.AuthResponse], error)
+	Register(context.Context, *pb.RegisterRequest) (*pb.AuthResponse, error)
 	// Login an existing user, returns a fresh token pair
-	Login(context.Context, *connect.Request[pb.LoginRequest]) (*connect.Response[pb.AuthResponse], error)
+	Login(context.Context, *pb.LoginRequest) (*pb.AuthResponse, error)
 	// Issue a new access token + rotate the refresh token.
 	// Validates the refresh token JWT and checks revocation state.
-	RefreshToken(context.Context, *connect.Request[pb.RefreshTokenRequest]) (*connect.Response[pb.AuthResponse], error)
+	RefreshToken(context.Context, *pb.RefreshTokenRequest) (*pb.AuthResponse, error)
 	// Invalidate the refresh token in Redis (logout)
-	Logout(context.Context, *connect.Request[pb.LogoutRequest]) (*connect.Response[pb.LogoutResponse], error)
+	Logout(context.Context, *pb.LogoutRequest) (*pb.LogoutResponse, error)
 	// Invalidate all active refresh token families for a user.
-	LogoutAllDevices(context.Context, *connect.Request[pb.LogoutAllDevicesRequest]) (*connect.Response[pb.LogoutAllDevicesResponse], error)
+	LogoutAllDevices(context.Context, *pb.LogoutAllDevicesRequest) (*pb.LogoutAllDevicesResponse, error)
 	// Validate an access token (used by other services / Next.js middleware)
-	ValidateToken(context.Context, *connect.Request[pb.ValidateTokenRequest]) (*connect.Response[pb.ValidateTokenResponse], error)
+	ValidateToken(context.Context, *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error)
 	// Return info about the currently logged in user based on the bearer token
-	GetCurrentUser(context.Context, *connect.Request[pb.GetCurrentUserRequest]) (*connect.Response[pb.GetCurrentUserResponse], error)
+	GetCurrentUser(context.Context, *pb.GetCurrentUserRequest) (*pb.GetCurrentUserResponse, error)
 }
 
-// NewAuthServiceHandler builds an HTTP handler from the service implementation. It returns the path
-// on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewAuthServiceHandler(svc AuthServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	authServiceMethods := pb.File_auth_proto.Services().ByName("AuthService").Methods()
-	authServiceRegisterHandler := connect.NewUnaryHandler(
-		AuthServiceRegisterProcedure,
-		svc.Register,
-		connect.WithSchema(authServiceMethods.ByName("Register")),
-		connect.WithHandlerOptions(opts...),
+// RegisterAuthServiceHandler registers svc as the auth.AuthService implementation on server.
+func RegisterAuthServiceHandler(server *connect.Server, svc AuthServiceHandler) {
+	adapter := authServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: authServiceRegisterSpec(), Handler: adapter.register},
+		connect.Method{Spec: authServiceLoginSpec(), Handler: adapter.login},
+		connect.Method{Spec: authServiceRefreshTokenSpec(), Handler: adapter.refreshToken},
+		connect.Method{Spec: authServiceLogoutSpec(), Handler: adapter.logout},
+		connect.Method{Spec: authServiceLogoutAllDevicesSpec(), Handler: adapter.logoutAllDevices},
+		connect.Method{Spec: authServiceValidateTokenSpec(), Handler: adapter.validateToken},
+		connect.Method{Spec: authServiceGetCurrentUserSpec(), Handler: adapter.getCurrentUser},
 	)
-	authServiceLoginHandler := connect.NewUnaryHandler(
-		AuthServiceLoginProcedure,
-		svc.Login,
-		connect.WithSchema(authServiceMethods.ByName("Login")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authServiceRefreshTokenHandler := connect.NewUnaryHandler(
-		AuthServiceRefreshTokenProcedure,
-		svc.RefreshToken,
-		connect.WithSchema(authServiceMethods.ByName("RefreshToken")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authServiceLogoutHandler := connect.NewUnaryHandler(
-		AuthServiceLogoutProcedure,
-		svc.Logout,
-		connect.WithSchema(authServiceMethods.ByName("Logout")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authServiceLogoutAllDevicesHandler := connect.NewUnaryHandler(
-		AuthServiceLogoutAllDevicesProcedure,
-		svc.LogoutAllDevices,
-		connect.WithSchema(authServiceMethods.ByName("LogoutAllDevices")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authServiceValidateTokenHandler := connect.NewUnaryHandler(
-		AuthServiceValidateTokenProcedure,
-		svc.ValidateToken,
-		connect.WithSchema(authServiceMethods.ByName("ValidateToken")),
-		connect.WithHandlerOptions(opts...),
-	)
-	authServiceGetCurrentUserHandler := connect.NewUnaryHandler(
-		AuthServiceGetCurrentUserProcedure,
-		svc.GetCurrentUser,
-		connect.WithSchema(authServiceMethods.ByName("GetCurrentUser")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/auth.AuthService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case AuthServiceRegisterProcedure:
-			authServiceRegisterHandler.ServeHTTP(w, r)
-		case AuthServiceLoginProcedure:
-			authServiceLoginHandler.ServeHTTP(w, r)
-		case AuthServiceRefreshTokenProcedure:
-			authServiceRefreshTokenHandler.ServeHTTP(w, r)
-		case AuthServiceLogoutProcedure:
-			authServiceLogoutHandler.ServeHTTP(w, r)
-		case AuthServiceLogoutAllDevicesProcedure:
-			authServiceLogoutAllDevicesHandler.ServeHTTP(w, r)
-		case AuthServiceValidateTokenProcedure:
-			authServiceValidateTokenHandler.ServeHTTP(w, r)
-		case AuthServiceGetCurrentUserProcedure:
-			authServiceGetCurrentUserHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedAuthServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedAuthServiceHandler struct{}
 
-func (UnimplementedAuthServiceHandler) Register(context.Context, *connect.Request[pb.RegisterRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.Register is not implemented"))
+func (UnimplementedAuthServiceHandler) Register(context.Context, *pb.RegisterRequest) (*pb.AuthResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.Register is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) Login(context.Context, *connect.Request[pb.LoginRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.Login is not implemented"))
+func (UnimplementedAuthServiceHandler) Login(context.Context, *pb.LoginRequest) (*pb.AuthResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.Login is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) RefreshToken(context.Context, *connect.Request[pb.RefreshTokenRequest]) (*connect.Response[pb.AuthResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.RefreshToken is not implemented"))
+func (UnimplementedAuthServiceHandler) RefreshToken(context.Context, *pb.RefreshTokenRequest) (*pb.AuthResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.RefreshToken is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) Logout(context.Context, *connect.Request[pb.LogoutRequest]) (*connect.Response[pb.LogoutResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.Logout is not implemented"))
+func (UnimplementedAuthServiceHandler) Logout(context.Context, *pb.LogoutRequest) (*pb.LogoutResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.Logout is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) LogoutAllDevices(context.Context, *connect.Request[pb.LogoutAllDevicesRequest]) (*connect.Response[pb.LogoutAllDevicesResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.LogoutAllDevices is not implemented"))
+func (UnimplementedAuthServiceHandler) LogoutAllDevices(context.Context, *pb.LogoutAllDevicesRequest) (*pb.LogoutAllDevicesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.LogoutAllDevices is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) ValidateToken(context.Context, *connect.Request[pb.ValidateTokenRequest]) (*connect.Response[pb.ValidateTokenResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.ValidateToken is not implemented"))
+func (UnimplementedAuthServiceHandler) ValidateToken(context.Context, *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.ValidateToken is not implemented")
 }
 
-func (UnimplementedAuthServiceHandler) GetCurrentUser(context.Context, *connect.Request[pb.GetCurrentUserRequest]) (*connect.Response[pb.GetCurrentUserResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.AuthService.GetCurrentUser is not implemented"))
+func (UnimplementedAuthServiceHandler) GetCurrentUser(context.Context, *pb.GetCurrentUserRequest) (*pb.GetCurrentUserResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "auth.AuthService.GetCurrentUser is not implemented")
+}
+
+type authServiceClient struct {
+	client *connect.Client
+}
+
+func (c *authServiceClient) Register(ctx context.Context, req *pb.RegisterRequest) (*pb.AuthResponse, error) {
+	var res pb.AuthResponse
+	if err := c.client.CallUnary(ctx, authServiceRegisterSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) Login(ctx context.Context, req *pb.LoginRequest) (*pb.AuthResponse, error) {
+	var res pb.AuthResponse
+	if err := c.client.CallUnary(ctx, authServiceLoginSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) RefreshToken(ctx context.Context, req *pb.RefreshTokenRequest) (*pb.AuthResponse, error) {
+	var res pb.AuthResponse
+	if err := c.client.CallUnary(ctx, authServiceRefreshTokenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
+	var res pb.LogoutResponse
+	if err := c.client.CallUnary(ctx, authServiceLogoutSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) LogoutAllDevices(ctx context.Context, req *pb.LogoutAllDevicesRequest) (*pb.LogoutAllDevicesResponse, error) {
+	var res pb.LogoutAllDevicesResponse
+	if err := c.client.CallUnary(ctx, authServiceLogoutAllDevicesSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) ValidateToken(ctx context.Context, req *pb.ValidateTokenRequest) (*pb.ValidateTokenResponse, error) {
+	var res pb.ValidateTokenResponse
+	if err := c.client.CallUnary(ctx, authServiceValidateTokenSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *authServiceClient) GetCurrentUser(ctx context.Context, req *pb.GetCurrentUserRequest) (*pb.GetCurrentUserResponse, error) {
+	var res pb.GetCurrentUserResponse
+	if err := c.client.CallUnary(ctx, authServiceGetCurrentUserSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type authServiceHandler struct{ svc AuthServiceHandler }
+
+func (h authServiceHandler) register(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.RegisterRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Register(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) login(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.LoginRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Login(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) refreshToken(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.RefreshTokenRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RefreshToken(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) logout(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.LogoutRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.Logout(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) logoutAllDevices(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.LogoutAllDevicesRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.LogoutAllDevices(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) validateToken(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.ValidateTokenRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ValidateToken(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h authServiceHandler) getCurrentUser(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.GetCurrentUserRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetCurrentUser(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

@@ -5,250 +5,276 @@
 package pbconnect
 
 import (
-	connect "connectrpc.com/connect"
+	connect "connectrpc.com/connect/v2"
 	context "context"
-	errors "errors"
 	pb "github.com/Ajay01103/go-dropbox/sharing/gen/pb"
-	http "net/http"
-	strings "strings"
+	sync "sync"
 )
-
-// This is a compile-time assertion to ensure that this generated file and the connect package are
-// compatible. If you get a compiler error that this constant is not defined, this code was
-// generated with a version of connect newer than the one compiled into your binary. You can fix the
-// problem by either regenerating this code with an older version of connect or updating the connect
-// version compiled into your binary.
-const _ = connect.IsAtLeastVersion1_13_0
 
 const (
 	// SharingServiceName is the fully-qualified name of the SharingService service.
 	SharingServiceName = "sharing.SharingService"
 )
 
-// These constants are the fully-qualified names of the RPCs defined in this package. They're
-// exposed at runtime as Spec.Procedure and as the final two segments of the HTTP route.
+// These constants are the procedure names of the RPCs defined in this package. They're exposed at
+// runtime as Spec.Procedure and as the final two segments of the HTTP route.
 //
 // Note that these are different from the fully-qualified method names used by
 // google.golang.org/protobuf/reflect/protoreflect. To convert from these constants to
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// SharingServiceCreateShareProcedure is the fully-qualified name of the SharingService's
-	// CreateShare RPC.
+	// SharingServiceCreateShareProcedure is the procedure name of the SharingService's CreateShare RPC.
 	SharingServiceCreateShareProcedure = "/sharing.SharingService/CreateShare"
-	// SharingServiceRevokeShareProcedure is the fully-qualified name of the SharingService's
-	// RevokeShare RPC.
+	// SharingServiceRevokeShareProcedure is the procedure name of the SharingService's RevokeShare RPC.
 	SharingServiceRevokeShareProcedure = "/sharing.SharingService/RevokeShare"
-	// SharingServiceListSharesForFileProcedure is the fully-qualified name of the SharingService's
+	// SharingServiceListSharesForFileProcedure is the procedure name of the SharingService's
 	// ListSharesForFile RPC.
 	SharingServiceListSharesForFileProcedure = "/sharing.SharingService/ListSharesForFile"
-	// SharingServiceCheckAccessProcedure is the fully-qualified name of the SharingService's
-	// CheckAccess RPC.
+	// SharingServiceCheckAccessProcedure is the procedure name of the SharingService's CheckAccess RPC.
 	SharingServiceCheckAccessProcedure = "/sharing.SharingService/CheckAccess"
-	// SharingServiceCreatePublicLinkProcedure is the fully-qualified name of the SharingService's
+	// SharingServiceCreatePublicLinkProcedure is the procedure name of the SharingService's
 	// CreatePublicLink RPC.
 	SharingServiceCreatePublicLinkProcedure = "/sharing.SharingService/CreatePublicLink"
-	// SharingServiceRevokePublicLinkProcedure is the fully-qualified name of the SharingService's
+	// SharingServiceRevokePublicLinkProcedure is the procedure name of the SharingService's
 	// RevokePublicLink RPC.
 	SharingServiceRevokePublicLinkProcedure = "/sharing.SharingService/RevokePublicLink"
 )
 
+var (
+	sharingServiceCreateShareSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("CreateShare"),
+			Procedure:  SharingServiceCreateShareProcedure,
+		}
+	})
+	sharingServiceRevokeShareSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("RevokeShare"),
+			Procedure:  SharingServiceRevokeShareProcedure,
+		}
+	})
+	sharingServiceListSharesForFileSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("ListSharesForFile"),
+			Procedure:  SharingServiceListSharesForFileProcedure,
+		}
+	})
+	sharingServiceCheckAccessSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("CheckAccess"),
+			Procedure:  SharingServiceCheckAccessProcedure,
+		}
+	})
+	sharingServiceCreatePublicLinkSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("CreatePublicLink"),
+			Procedure:  SharingServiceCreatePublicLinkProcedure,
+		}
+	})
+	sharingServiceRevokePublicLinkSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_sharing_proto.Services().ByName("SharingService").Methods().ByName("RevokePublicLink"),
+			Procedure:  SharingServiceRevokePublicLinkProcedure,
+		}
+	})
+)
+
 // SharingServiceClient is a client for the sharing.SharingService service.
 type SharingServiceClient interface {
-	CreateShare(context.Context, *connect.Request[pb.CreateShareRequest]) (*connect.Response[pb.CreateShareResponse], error)
-	RevokeShare(context.Context, *connect.Request[pb.RevokeShareRequest]) (*connect.Response[pb.RevokeShareResponse], error)
-	ListSharesForFile(context.Context, *connect.Request[pb.ListSharesForFileRequest]) (*connect.Response[pb.ListSharesForFileResponse], error)
-	CheckAccess(context.Context, *connect.Request[pb.CheckAccessRequest]) (*connect.Response[pb.CheckAccessResponse], error)
-	CreatePublicLink(context.Context, *connect.Request[pb.CreatePublicLinkRequest]) (*connect.Response[pb.CreatePublicLinkResponse], error)
-	RevokePublicLink(context.Context, *connect.Request[pb.RevokePublicLinkRequest]) (*connect.Response[pb.RevokePublicLinkResponse], error)
+	CreateShare(context.Context, *pb.CreateShareRequest) (*pb.CreateShareResponse, error)
+	RevokeShare(context.Context, *pb.RevokeShareRequest) (*pb.RevokeShareResponse, error)
+	ListSharesForFile(context.Context, *pb.ListSharesForFileRequest) (*pb.ListSharesForFileResponse, error)
+	CheckAccess(context.Context, *pb.CheckAccessRequest) (*pb.CheckAccessResponse, error)
+	CreatePublicLink(context.Context, *pb.CreatePublicLinkRequest) (*pb.CreatePublicLinkResponse, error)
+	RevokePublicLink(context.Context, *pb.RevokePublicLinkRequest) (*pb.RevokePublicLinkResponse, error)
 }
 
-// NewSharingServiceClient constructs a client for the sharing.SharingService service. By default,
-// it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and
-// sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC()
-// or connect.WithGRPCWeb() options.
-//
-// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
-// http://api.acme.com or https://acme.com/grpc).
-func NewSharingServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) SharingServiceClient {
-	baseURL = strings.TrimRight(baseURL, "/")
-	sharingServiceMethods := pb.File_sharing_proto.Services().ByName("SharingService").Methods()
-	return &sharingServiceClient{
-		createShare: connect.NewClient[pb.CreateShareRequest, pb.CreateShareResponse](
-			httpClient,
-			baseURL+SharingServiceCreateShareProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("CreateShare")),
-			connect.WithClientOptions(opts...),
-		),
-		revokeShare: connect.NewClient[pb.RevokeShareRequest, pb.RevokeShareResponse](
-			httpClient,
-			baseURL+SharingServiceRevokeShareProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("RevokeShare")),
-			connect.WithClientOptions(opts...),
-		),
-		listSharesForFile: connect.NewClient[pb.ListSharesForFileRequest, pb.ListSharesForFileResponse](
-			httpClient,
-			baseURL+SharingServiceListSharesForFileProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("ListSharesForFile")),
-			connect.WithClientOptions(opts...),
-		),
-		checkAccess: connect.NewClient[pb.CheckAccessRequest, pb.CheckAccessResponse](
-			httpClient,
-			baseURL+SharingServiceCheckAccessProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("CheckAccess")),
-			connect.WithClientOptions(opts...),
-		),
-		createPublicLink: connect.NewClient[pb.CreatePublicLinkRequest, pb.CreatePublicLinkResponse](
-			httpClient,
-			baseURL+SharingServiceCreatePublicLinkProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("CreatePublicLink")),
-			connect.WithClientOptions(opts...),
-		),
-		revokePublicLink: connect.NewClient[pb.RevokePublicLinkRequest, pb.RevokePublicLinkResponse](
-			httpClient,
-			baseURL+SharingServiceRevokePublicLinkProcedure,
-			connect.WithSchema(sharingServiceMethods.ByName("RevokePublicLink")),
-			connect.WithClientOptions(opts...),
-		),
-	}
-}
-
-// sharingServiceClient implements SharingServiceClient.
-type sharingServiceClient struct {
-	createShare       *connect.Client[pb.CreateShareRequest, pb.CreateShareResponse]
-	revokeShare       *connect.Client[pb.RevokeShareRequest, pb.RevokeShareResponse]
-	listSharesForFile *connect.Client[pb.ListSharesForFileRequest, pb.ListSharesForFileResponse]
-	checkAccess       *connect.Client[pb.CheckAccessRequest, pb.CheckAccessResponse]
-	createPublicLink  *connect.Client[pb.CreatePublicLinkRequest, pb.CreatePublicLinkResponse]
-	revokePublicLink  *connect.Client[pb.RevokePublicLinkRequest, pb.RevokePublicLinkResponse]
-}
-
-// CreateShare calls sharing.SharingService.CreateShare.
-func (c *sharingServiceClient) CreateShare(ctx context.Context, req *connect.Request[pb.CreateShareRequest]) (*connect.Response[pb.CreateShareResponse], error) {
-	return c.createShare.CallUnary(ctx, req)
-}
-
-// RevokeShare calls sharing.SharingService.RevokeShare.
-func (c *sharingServiceClient) RevokeShare(ctx context.Context, req *connect.Request[pb.RevokeShareRequest]) (*connect.Response[pb.RevokeShareResponse], error) {
-	return c.revokeShare.CallUnary(ctx, req)
-}
-
-// ListSharesForFile calls sharing.SharingService.ListSharesForFile.
-func (c *sharingServiceClient) ListSharesForFile(ctx context.Context, req *connect.Request[pb.ListSharesForFileRequest]) (*connect.Response[pb.ListSharesForFileResponse], error) {
-	return c.listSharesForFile.CallUnary(ctx, req)
-}
-
-// CheckAccess calls sharing.SharingService.CheckAccess.
-func (c *sharingServiceClient) CheckAccess(ctx context.Context, req *connect.Request[pb.CheckAccessRequest]) (*connect.Response[pb.CheckAccessResponse], error) {
-	return c.checkAccess.CallUnary(ctx, req)
-}
-
-// CreatePublicLink calls sharing.SharingService.CreatePublicLink.
-func (c *sharingServiceClient) CreatePublicLink(ctx context.Context, req *connect.Request[pb.CreatePublicLinkRequest]) (*connect.Response[pb.CreatePublicLinkResponse], error) {
-	return c.createPublicLink.CallUnary(ctx, req)
-}
-
-// RevokePublicLink calls sharing.SharingService.RevokePublicLink.
-func (c *sharingServiceClient) RevokePublicLink(ctx context.Context, req *connect.Request[pb.RevokePublicLinkRequest]) (*connect.Response[pb.RevokePublicLinkResponse], error) {
-	return c.revokePublicLink.CallUnary(ctx, req)
+// NewSharingServiceClient constructs a client for the sharing.SharingService service. Multiple
+// service clients may share a single connect.Client.
+func NewSharingServiceClient(client *connect.Client) SharingServiceClient {
+	return &sharingServiceClient{client: client}
 }
 
 // SharingServiceHandler is an implementation of the sharing.SharingService service.
 type SharingServiceHandler interface {
-	CreateShare(context.Context, *connect.Request[pb.CreateShareRequest]) (*connect.Response[pb.CreateShareResponse], error)
-	RevokeShare(context.Context, *connect.Request[pb.RevokeShareRequest]) (*connect.Response[pb.RevokeShareResponse], error)
-	ListSharesForFile(context.Context, *connect.Request[pb.ListSharesForFileRequest]) (*connect.Response[pb.ListSharesForFileResponse], error)
-	CheckAccess(context.Context, *connect.Request[pb.CheckAccessRequest]) (*connect.Response[pb.CheckAccessResponse], error)
-	CreatePublicLink(context.Context, *connect.Request[pb.CreatePublicLinkRequest]) (*connect.Response[pb.CreatePublicLinkResponse], error)
-	RevokePublicLink(context.Context, *connect.Request[pb.RevokePublicLinkRequest]) (*connect.Response[pb.RevokePublicLinkResponse], error)
+	CreateShare(context.Context, *pb.CreateShareRequest) (*pb.CreateShareResponse, error)
+	RevokeShare(context.Context, *pb.RevokeShareRequest) (*pb.RevokeShareResponse, error)
+	ListSharesForFile(context.Context, *pb.ListSharesForFileRequest) (*pb.ListSharesForFileResponse, error)
+	CheckAccess(context.Context, *pb.CheckAccessRequest) (*pb.CheckAccessResponse, error)
+	CreatePublicLink(context.Context, *pb.CreatePublicLinkRequest) (*pb.CreatePublicLinkResponse, error)
+	RevokePublicLink(context.Context, *pb.RevokePublicLinkRequest) (*pb.RevokePublicLinkResponse, error)
 }
 
-// NewSharingServiceHandler builds an HTTP handler from the service implementation. It returns the
-// path on which to mount the handler and the handler itself.
-//
-// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
-// and JSON codecs. They also support gzip compression.
-func NewSharingServiceHandler(svc SharingServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	sharingServiceMethods := pb.File_sharing_proto.Services().ByName("SharingService").Methods()
-	sharingServiceCreateShareHandler := connect.NewUnaryHandler(
-		SharingServiceCreateShareProcedure,
-		svc.CreateShare,
-		connect.WithSchema(sharingServiceMethods.ByName("CreateShare")),
-		connect.WithHandlerOptions(opts...),
+// RegisterSharingServiceHandler registers svc as the sharing.SharingService implementation on
+// server.
+func RegisterSharingServiceHandler(server *connect.Server, svc SharingServiceHandler) {
+	adapter := sharingServiceHandler{svc: svc}
+	server.Register(
+		connect.Method{Spec: sharingServiceCreateShareSpec(), Handler: adapter.createShare},
+		connect.Method{Spec: sharingServiceRevokeShareSpec(), Handler: adapter.revokeShare},
+		connect.Method{Spec: sharingServiceListSharesForFileSpec(), Handler: adapter.listSharesForFile},
+		connect.Method{Spec: sharingServiceCheckAccessSpec(), Handler: adapter.checkAccess},
+		connect.Method{Spec: sharingServiceCreatePublicLinkSpec(), Handler: adapter.createPublicLink},
+		connect.Method{Spec: sharingServiceRevokePublicLinkSpec(), Handler: adapter.revokePublicLink},
 	)
-	sharingServiceRevokeShareHandler := connect.NewUnaryHandler(
-		SharingServiceRevokeShareProcedure,
-		svc.RevokeShare,
-		connect.WithSchema(sharingServiceMethods.ByName("RevokeShare")),
-		connect.WithHandlerOptions(opts...),
-	)
-	sharingServiceListSharesForFileHandler := connect.NewUnaryHandler(
-		SharingServiceListSharesForFileProcedure,
-		svc.ListSharesForFile,
-		connect.WithSchema(sharingServiceMethods.ByName("ListSharesForFile")),
-		connect.WithHandlerOptions(opts...),
-	)
-	sharingServiceCheckAccessHandler := connect.NewUnaryHandler(
-		SharingServiceCheckAccessProcedure,
-		svc.CheckAccess,
-		connect.WithSchema(sharingServiceMethods.ByName("CheckAccess")),
-		connect.WithHandlerOptions(opts...),
-	)
-	sharingServiceCreatePublicLinkHandler := connect.NewUnaryHandler(
-		SharingServiceCreatePublicLinkProcedure,
-		svc.CreatePublicLink,
-		connect.WithSchema(sharingServiceMethods.ByName("CreatePublicLink")),
-		connect.WithHandlerOptions(opts...),
-	)
-	sharingServiceRevokePublicLinkHandler := connect.NewUnaryHandler(
-		SharingServiceRevokePublicLinkProcedure,
-		svc.RevokePublicLink,
-		connect.WithSchema(sharingServiceMethods.ByName("RevokePublicLink")),
-		connect.WithHandlerOptions(opts...),
-	)
-	return "/sharing.SharingService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case SharingServiceCreateShareProcedure:
-			sharingServiceCreateShareHandler.ServeHTTP(w, r)
-		case SharingServiceRevokeShareProcedure:
-			sharingServiceRevokeShareHandler.ServeHTTP(w, r)
-		case SharingServiceListSharesForFileProcedure:
-			sharingServiceListSharesForFileHandler.ServeHTTP(w, r)
-		case SharingServiceCheckAccessProcedure:
-			sharingServiceCheckAccessHandler.ServeHTTP(w, r)
-		case SharingServiceCreatePublicLinkProcedure:
-			sharingServiceCreatePublicLinkHandler.ServeHTTP(w, r)
-		case SharingServiceRevokePublicLinkProcedure:
-			sharingServiceRevokePublicLinkHandler.ServeHTTP(w, r)
-		default:
-			http.NotFound(w, r)
-		}
-	})
 }
 
 // UnimplementedSharingServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedSharingServiceHandler struct{}
 
-func (UnimplementedSharingServiceHandler) CreateShare(context.Context, *connect.Request[pb.CreateShareRequest]) (*connect.Response[pb.CreateShareResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.CreateShare is not implemented"))
+func (UnimplementedSharingServiceHandler) CreateShare(context.Context, *pb.CreateShareRequest) (*pb.CreateShareResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.CreateShare is not implemented")
 }
 
-func (UnimplementedSharingServiceHandler) RevokeShare(context.Context, *connect.Request[pb.RevokeShareRequest]) (*connect.Response[pb.RevokeShareResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.RevokeShare is not implemented"))
+func (UnimplementedSharingServiceHandler) RevokeShare(context.Context, *pb.RevokeShareRequest) (*pb.RevokeShareResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.RevokeShare is not implemented")
 }
 
-func (UnimplementedSharingServiceHandler) ListSharesForFile(context.Context, *connect.Request[pb.ListSharesForFileRequest]) (*connect.Response[pb.ListSharesForFileResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.ListSharesForFile is not implemented"))
+func (UnimplementedSharingServiceHandler) ListSharesForFile(context.Context, *pb.ListSharesForFileRequest) (*pb.ListSharesForFileResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.ListSharesForFile is not implemented")
 }
 
-func (UnimplementedSharingServiceHandler) CheckAccess(context.Context, *connect.Request[pb.CheckAccessRequest]) (*connect.Response[pb.CheckAccessResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.CheckAccess is not implemented"))
+func (UnimplementedSharingServiceHandler) CheckAccess(context.Context, *pb.CheckAccessRequest) (*pb.CheckAccessResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.CheckAccess is not implemented")
 }
 
-func (UnimplementedSharingServiceHandler) CreatePublicLink(context.Context, *connect.Request[pb.CreatePublicLinkRequest]) (*connect.Response[pb.CreatePublicLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.CreatePublicLink is not implemented"))
+func (UnimplementedSharingServiceHandler) CreatePublicLink(context.Context, *pb.CreatePublicLinkRequest) (*pb.CreatePublicLinkResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.CreatePublicLink is not implemented")
 }
 
-func (UnimplementedSharingServiceHandler) RevokePublicLink(context.Context, *connect.Request[pb.RevokePublicLinkRequest]) (*connect.Response[pb.RevokePublicLinkResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("sharing.SharingService.RevokePublicLink is not implemented"))
+func (UnimplementedSharingServiceHandler) RevokePublicLink(context.Context, *pb.RevokePublicLinkRequest) (*pb.RevokePublicLinkResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "sharing.SharingService.RevokePublicLink is not implemented")
+}
+
+type sharingServiceClient struct {
+	client *connect.Client
+}
+
+func (c *sharingServiceClient) CreateShare(ctx context.Context, req *pb.CreateShareRequest) (*pb.CreateShareResponse, error) {
+	var res pb.CreateShareResponse
+	if err := c.client.CallUnary(ctx, sharingServiceCreateShareSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *sharingServiceClient) RevokeShare(ctx context.Context, req *pb.RevokeShareRequest) (*pb.RevokeShareResponse, error) {
+	var res pb.RevokeShareResponse
+	if err := c.client.CallUnary(ctx, sharingServiceRevokeShareSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *sharingServiceClient) ListSharesForFile(ctx context.Context, req *pb.ListSharesForFileRequest) (*pb.ListSharesForFileResponse, error) {
+	var res pb.ListSharesForFileResponse
+	if err := c.client.CallUnary(ctx, sharingServiceListSharesForFileSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *sharingServiceClient) CheckAccess(ctx context.Context, req *pb.CheckAccessRequest) (*pb.CheckAccessResponse, error) {
+	var res pb.CheckAccessResponse
+	if err := c.client.CallUnary(ctx, sharingServiceCheckAccessSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *sharingServiceClient) CreatePublicLink(ctx context.Context, req *pb.CreatePublicLinkRequest) (*pb.CreatePublicLinkResponse, error) {
+	var res pb.CreatePublicLinkResponse
+	if err := c.client.CallUnary(ctx, sharingServiceCreatePublicLinkSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *sharingServiceClient) RevokePublicLink(ctx context.Context, req *pb.RevokePublicLinkRequest) (*pb.RevokePublicLinkResponse, error) {
+	var res pb.RevokePublicLinkResponse
+	if err := c.client.CallUnary(ctx, sharingServiceRevokePublicLinkSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+type sharingServiceHandler struct{ svc SharingServiceHandler }
+
+func (h sharingServiceHandler) createShare(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.CreateShareRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreateShare(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h sharingServiceHandler) revokeShare(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.RevokeShareRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokeShare(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h sharingServiceHandler) listSharesForFile(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.ListSharesForFileRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.ListSharesForFile(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h sharingServiceHandler) checkAccess(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.CheckAccessRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CheckAccess(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h sharingServiceHandler) createPublicLink(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.CreatePublicLinkRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CreatePublicLink(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h sharingServiceHandler) revokePublicLink(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.RevokePublicLinkRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.RevokePublicLink(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
 }

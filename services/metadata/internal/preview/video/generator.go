@@ -62,9 +62,41 @@ func (g *Generator) Family() eventsv2.ContentFamily {
 	return eventsv2.ContentFamily_CONTENT_FAMILY_VIDEO
 }
 
-// GenerateToKey reassembles the video to a seekable scratch file, probes its
+// ffmpegFrameArgs builds the frame-extraction vector.
+//
+// -protocol_whitelist file is load-bearing. The sandbox note that these
+// invocations "never take URLs" is about the command line only: ffmpeg picks
+// its demuxer from the FILE'S CONTENT, so a playlist (HLS, concat, …) can
+// reference other paths or URLs. Restricting the input to the file protocol
+// pins that policy here instead of trusting whichever demuxer default — or
+// ffmpeg version — happens to apply (HLS, for one, defaults to
+// file,crypto,data unless told otherwise).
+func ffmpegFrameArgs(seek, srcPath, outPath string) []string {
+	return []string{
+		"-hide_banner", "-loglevel", "error",
+		"-protocol_whitelist", "file",
+		"-ss", seek,
+		"-i", srcPath,
+		"-frames:v", "1",
+		"-q:v", "3",
+		"-y", outPath,
+	}
+}
+
+// ffprobeDurationArgs probes format=duration under the same protocol policy.
+func ffprobeDurationArgs(srcPath string) []string {
+	return []string{
+		"-protocol_whitelist", "file",
+		"-v", "error",
+		"-show_entries", "format=duration",
+		"-of", "default=noprint_wrappers=1:nokey=1",
+		srcPath,
+	}
+}
+
+// GenerateToKey streams the video into a seekable scratch file, probes its
 // duration, extracts one frame at frameSeekFraction, and stores the resized
-// JPEG. Scratch is removed on every exit path.
+// JPEG. The scratch file and its directory go away on every exit path.
 func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, blockHashes []string) (string, error) {
 	exists, err := g.storage.ThumbnailExists(ctx, thumbnailKey)
 	if err != nil {
@@ -74,22 +106,17 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 		return thumbnailKey, nil
 	}
 
-	videoBytes, err := g.storage.ReassembleBlocks(ctx, blockHashes, maxVideoSourceBytes)
+	// The reassembly writes straight to disk, so a 500 MB video never passes
+	// through the heap; ffmpeg needs a real path anyway.
+	source, err := g.storage.ReassembleToFile(ctx, "input", blockHashes, maxVideoSourceBytes)
 	if err != nil {
 		return "", err
 	}
+	defer source.Close()
 
-	scratch, err := common.ScratchDir("video")
-	if err != nil {
-		return "", fmt.Errorf("create scratch dir: %w", err)
-	}
-	defer os.RemoveAll(scratch)
-
-	srcPath := filepath.Join(scratch, "input")
+	scratch := filepath.Dir(source.Name())
+	srcPath := source.Name()
 	outPath := filepath.Join(scratch, "frame.jpg")
-	if err := os.WriteFile(srcPath, videoBytes, 0600); err != nil {
-		return "", fmt.Errorf("write scratch video: %w", err)
-	}
 
 	// 1. Probe duration. Non-zero exit / no duration = corrupt or unsupported
 	// container → permanent (a retry cannot fix the bytes).
@@ -102,14 +129,7 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 	// a non-zero ffmpeg exit with real bytes is permanent.
 	seek := strconv.FormatFloat(duration*frameSeekFraction, 'f', 3, 64)
 	sandbox := common.SandboxedExec{Timeout: ffmpegTimeout, ScratchDir: scratch}
-	if _, err := sandbox.Run(ctx, g.ffmpeg,
-		"-hide_banner", "-loglevel", "error",
-		"-ss", seek,
-		"-i", srcPath,
-		"-frames:v", "1",
-		"-q:v", "3",
-		"-y", outPath,
-	); err != nil {
+	if _, err := sandbox.Run(ctx, g.ffmpeg, ffmpegFrameArgs(seek, srcPath, outPath)...); err != nil {
 		if common.IsTimeout(err) {
 			return "", fmt.Errorf("ffmpeg frame extraction timed out: %w", err)
 		}
@@ -122,7 +142,11 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 	}
 
 	// 3. Normalize: decode + shared fit so output sizing/format is uniform
-	// across families.
+	// across families. The frame's dimensions come from the container, so the
+	// declared-size guard runs before the decode here too.
+	if err := common.CheckSourcePixels(bytes.NewReader(frame)); err != nil {
+		return "", err
+	}
 	img, _, err := image.Decode(bytes.NewReader(frame))
 	if err != nil {
 		return "", common.Permanent(fmt.Errorf("decode extracted frame: %w", err))
@@ -140,12 +164,7 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 // probeDuration runs ffprobe and parses format=duration (seconds).
 func (g *Generator) probeDuration(ctx context.Context, srcPath string) (float64, error) {
 	sandbox := common.SandboxedExec{Timeout: ffprobeTimeout}
-	out, err := sandbox.Run(ctx, g.ffprobe,
-		"-v", "error",
-		"-show_entries", "format=duration",
-		"-of", "default=noprint_wrappers=1:nokey=1",
-		srcPath,
-	)
+	out, err := sandbox.Run(ctx, g.ffprobe, ffprobeDurationArgs(srcPath)...)
 	if err != nil {
 		return 0, err
 	}

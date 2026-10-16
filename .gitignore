@@ -19,7 +19,6 @@ dist/
 .env
 .env.*
 !.env.example
-*.json
 /docs
 
 # OS

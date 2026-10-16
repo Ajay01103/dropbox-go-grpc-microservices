@@ -11,7 +11,6 @@ require (
 	github.com/scylladb/gocqlx/v2 v2.8.0
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.27.1
-	golang.org/x/net v0.58.0
 	google.golang.org/protobuf v1.36.11
 )
 

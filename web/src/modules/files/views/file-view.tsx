@@ -29,6 +29,7 @@ import { FileFilters } from "@/modules/files/components/file-filters"
 import { FileHeader } from "@/modules/files/components/file-header"
 import { FilePreviewDrawer } from "@/modules/files/components/file-preview-drawer"
 import { InfiniteScrollSentinel } from "@/modules/files/components/infinite-scroll-sentinel"
+import { RenameFileDialog } from "@/modules/files/components/rename-file-dialog"
 import {
   useBreadcrumbs,
   useDeleteFile,
@@ -36,7 +37,7 @@ import {
   useFolderItems,
   useMoveItems,
   useRenameFolder,
-  useThumbnailUrl,
+  useThumbnailUrls,
   fileQueryKeys,
 } from "@/modules/files/api/use-files"
 import { useDownloadFile } from "@/modules/files/api/use-download"
@@ -398,22 +399,33 @@ function FolderCard({
   )
 }
 
+// RenameTarget is the file one shared rename dialog is open for. The dialog
+// itself lives in the view, not in the card: a grid has many cards, and a
+// per-card dialog lets two of them be open at once, stacking two modals and two
+// scrims.
+type RenameTarget = { fileId: string; name: string }
+
 function FileCard({
   item,
   isSelected,
   onSelect,
+  onRename,
+  thumbnailUrl,
   currentFolderId,
   dragCount,
 }: {
   item: Item
   isSelected: boolean
   onSelect: (selected: boolean) => void
+  onRename: (target: RenameTarget) => void
+  // Resolved for the whole grid in one batched request; a card only looks up its
+  // own id. Undefined means no ready preview, so the card shows its icon.
+  thumbnailUrl?: string
   currentFolderId: string
   dragCount: number
 }) {
   const file = item.details.case === "file" ? item.details.value : undefined
   const name = file?.filename ?? "Unnamed file"
-  const thumbnail = useThumbnailUrl(item.itemId, file?.thumbnailStatus ?? "", file?.thumbnailKey ?? "")
   const { downloadFile } = useDownloadFile()
   const router = useRouter()
 
@@ -459,8 +471,8 @@ function FileCard({
           {/* Thumbnails are family-agnostic: the preview pipeline stores a
               JPEG for image, video-frame, and pdf-first-page files alike,
               so render whenever the worker has marked one ready. */}
-          {thumbnail.data ? (
-            <img alt={name} className="h-full w-full object-cover" src={thumbnail.data} />
+          {thumbnailUrl ? (
+            <img alt={name} className="h-full w-full object-cover" src={thumbnailUrl} />
           ) : (
             <div className="flex h-full items-center justify-center">
               <FileText className="text-muted-foreground size-20" />
@@ -472,6 +484,7 @@ function FileCard({
           itemId={item.itemId}
           name={name}
           onDownload={() => void downloadFile(item.itemId, name)}
+          onRename={() => onRename({ fileId: item.itemId, name })}
         />
       </div>
       <div className="mt-3 flex items-center gap-2">
@@ -494,6 +507,17 @@ export const FileView = ({ folderId }: { folderId: string }) => {
     ).values(),
   )
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  // One rename dialog for the whole grid: the card menu only picks the target.
+  const [renameTarget, setRenameTarget] = useState<RenameTarget | null>(null)
+  const thumbnailUrls = useThumbnailUrls(
+    useMemo(
+      () =>
+        items
+          .filter((item) => item.details.case === "file")
+          .map((item) => item.itemId),
+      [items],
+    ),
+  )
   const deleteFile = useDeleteFile()
   const deleteFolder = useDeleteFolder()
   const moveItems = useMoveItems()
@@ -696,7 +720,9 @@ export const FileView = ({ folderId }: { folderId: string }) => {
                   isSelected={selectedIds.has(item.itemId)}
                   item={item}
                   key={`${item.itemType}-${item.itemId}`}
+                  onRename={setRenameTarget}
                   onSelect={(selected) => setItemSelected(item.itemId, selected)}
+                  thumbnailUrl={thumbnailUrls.urls.get(item.itemId)}
                   dragCount={selectedIds.has(item.itemId) ? selectedItems.length : 1}
                 />
               ),
@@ -712,6 +738,15 @@ export const FileView = ({ folderId }: { folderId: string }) => {
             </span>
           </div>
         )}
+
+        <RenameFileDialog
+          currentName={renameTarget?.name ?? ""}
+          fileId={renameTarget?.fileId ?? ""}
+          onOpenChange={(open) => {
+            if (!open) setRenameTarget(null)
+          }}
+          open={renameTarget !== null}
+        />
 
         <InfiniteScrollSentinel
           hasNextPage={Boolean(hasNextPage)}

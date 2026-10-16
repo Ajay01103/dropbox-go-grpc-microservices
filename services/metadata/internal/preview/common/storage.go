@@ -13,8 +13,13 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
+	"image/draw"
 	"image/jpeg"
 	"io"
+	"math"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -23,6 +28,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	xdraw "golang.org/x/image/draw"
 
 	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 )
@@ -87,48 +93,130 @@ func blockObjectKey(hash string) (string, error) {
 	return fmt.Sprintf("blocks/%s/%s/%s", hash[:2], hash[2:4], hash), nil
 }
 
-// ReadBlock fetches a block's bytes by its hex hash.
-func (s *Storage) ReadBlock(ctx context.Context, hash string) ([]byte, error) {
-	key, err := blockObjectKey(hash)
-	if err != nil {
-		return nil, err
-	}
-	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(s.bucket),
-		Key:    aws.String(key),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("read block %s from S3: %w", hash, err)
-	}
-	defer result.Body.Close()
-	data, err := io.ReadAll(result.Body)
-	if err != nil {
-		return nil, fmt.Errorf("read block %s body: %w", hash, err)
-	}
-	return data, nil
+// SourceFile is a reassembled block sequence materialized in a scratch file.
+//
+// Reassembly never holds the object in the heap: a video can be hundreds of
+// megabytes, and every consumer of the reassembled bytes either wants a
+// seekable path on disk (ffmpeg, pdftoppm) or a reader it can rewind (the
+// image decoder's header pass). Close removes the file and its scratch
+// directory, so a worker that returns on an error path still leaks nothing.
+type SourceFile struct {
+	*os.File
+	dir string
 }
 
-// ReassembleBlocks concatenates the ordered block list, enforcing a total
-// size cap (permanent failure past it — regenerating would just burn memory).
-func (s *Storage) ReassembleBlocks(ctx context.Context, blockHashes []string, maxSourceBytes int64) ([]byte, error) {
+// Rewind returns the read position to the start of the file. Callers need it
+// after any earlier pass over the source (the image worker peeks at the header
+// before decoding).
+func (f *SourceFile) Rewind() error {
+	if _, err := f.File.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("rewind source file: %w", err)
+	}
+	return nil
+}
+
+// Close closes the file and removes the scratch directory that holds it.
+func (f *SourceFile) Close() error {
+	err := f.File.Close()
+	if removeErr := os.RemoveAll(f.dir); err == nil {
+		err = removeErr
+	}
+	return err
+}
+
+// ReassembleToFile streams the ordered block list into a new scratch file named
+// name, enforcing a total size cap (permanent failure past it — regenerating
+// would just burn memory). The returned file is positioned at the start.
+//
+// Each block is copied straight from its S3 response body into the file, so
+// peak memory is one copy buffer rather than the whole object. The previous
+// buffered form grew a bytes.Buffer to the source's size — up to 500 MB for one
+// video, per in-flight job — and then wrote it to disk anyway.
+func (s *Storage) ReassembleToFile(ctx context.Context, name string, blockHashes []string, maxSourceBytes int64) (*SourceFile, error) {
 	if len(blockHashes) == 0 {
 		return nil, ErrNoBlocks
 	}
-	var content bytes.Buffer
+	if err := validateScratchName(name); err != nil {
+		return nil, err
+	}
+	dir, err := os.MkdirTemp("", "preview-source-")
+	if err != nil {
+		return nil, fmt.Errorf("create scratch dir: %w", err)
+	}
+	// O_RDWR: consumers read the file back (the image worker decodes from it),
+	// not just hand its path to a subprocess.
+	file, err := os.OpenFile(filepath.Join(dir, name), os.O_RDWR|os.O_CREATE|os.O_EXCL, 0600)
+	if err != nil {
+		_ = os.RemoveAll(dir)
+		return nil, fmt.Errorf("create scratch file: %w", err)
+	}
+	source := &SourceFile{File: file, dir: dir}
+	if err := s.streamBlocks(ctx, blockHashes, maxSourceBytes, file); err != nil {
+		_ = source.Close()
+		return nil, err
+	}
+	if err := source.Rewind(); err != nil {
+		_ = source.Close()
+		return nil, err
+	}
+	return source, nil
+}
+
+// streamBlocks copies each block's object body into w in order, failing with
+// ErrSourceTooLarge as soon as the running total would exceed maxSourceBytes.
+// The cap is enforced mid-copy (see capWriter), so an oversized source is
+// abandoned part-way instead of being fully transferred first.
+func (s *Storage) streamBlocks(ctx context.Context, blockHashes []string, maxSourceBytes int64, w io.Writer) error {
 	for _, hash := range blockHashes {
-		if len(hash) < 4 {
-			return nil, fmt.Errorf("invalid block hash %q", hash)
-		}
-		block, err := s.ReadBlock(ctx, hash)
+		key, err := blockObjectKey(hash)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		content.Write(block)
-		if int64(content.Len()) > maxSourceBytes {
-			return nil, fmt.Errorf("%w: %d bytes", ErrSourceTooLarge, content.Len())
+		result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+			Bucket: aws.String(s.bucket),
+			Key:    aws.String(key),
+		})
+		if err != nil {
+			return fmt.Errorf("read block %s from S3: %w", hash, err)
+		}
+		_, copyErr := io.Copy(&capWriter{w: w, limit: maxSourceBytes}, result.Body)
+		closeErr := result.Body.Close()
+		if copyErr != nil {
+			return copyErr
+		}
+		if closeErr != nil {
+			return fmt.Errorf("close block %s body: %w", hash, closeErr)
 		}
 	}
-	return content.Bytes(), nil
+	return nil
+}
+
+// capWriter enforces the reassembly byte cap while bytes stream through it: the
+// write that would cross limit fails with ErrSourceTooLarge, which is all a
+// caller needs to classify the failure as permanent.
+type capWriter struct {
+	w       io.Writer
+	limit   int64
+	written int64
+}
+
+func (c *capWriter) Write(p []byte) (int, error) {
+	if c.written+int64(len(p)) > c.limit {
+		return 0, fmt.Errorf("%w: %d bytes", ErrSourceTooLarge, c.written+int64(len(p)))
+	}
+	n, err := c.w.Write(p)
+	c.written += int64(n)
+	return n, err
+}
+
+// validateScratchName keeps a caller-supplied scratch file name inside the
+// scratch directory. Names are literals today ("input", "input.pdf"); this is
+// what stops a future caller from turning one into a path.
+func validateScratchName(name string) error {
+	if name == "" || name == "." || name == ".." || strings.ContainsAny(name, `/\`) {
+		return fmt.Errorf("invalid scratch file name %q", name)
+	}
+	return nil
 }
 
 // WriteThumbnail stores preview bytes under the exact key (JPEG for all
@@ -232,8 +320,9 @@ func Sha256OfBlocks(blockHashes []string) []byte {
 // ─── Error classification (family-agnostic) ─────────────────────────────────
 
 var (
-	// ErrSourceTooLarge: the reassembled source exceeds the family's cap.
-	// Permanent — retrying cannot shrink the file.
+	// ErrSourceTooLarge: the source exceeds the family's byte cap, or its
+	// header declares more pixels than the pipeline will decode (see
+	// CheckSourcePixels). Permanent — retrying cannot shrink the file.
 	ErrSourceTooLarge = errors.New("preview source exceeds size cap")
 	// ErrUnsupported: the family's worker does not handle this input at all.
 	ErrUnsupported = errors.New("preview unsupported for content family")
@@ -282,46 +371,94 @@ func IsPermanent(err error) bool {
 	return false
 }
 
+// ─── Decode guard ────────────────────────────────────────────────────────────
+
+// maxSourcePixels caps the pixel count an image header may declare.
+//
+// A source byte cap does not bound decode-time memory: a few-KB PNG/JPEG header
+// can declare billions of pixels, and the decoder allocates the whole pixel
+// buffer before any content is validated. 100 megapixels is above every
+// consumer camera, so no plausible photograph is refused, and it bounds one
+// decode to ~400 MB at 4 bytes per pixel.
+const maxSourcePixels = 100_000_000
+
+// CheckSourcePixels refuses an image whose header declares more pixels than
+// the pipeline will decode, reading only the header. It must run BEFORE the
+// decode — the point is to decline the allocation, not to survive it. Callers
+// pass the same bytes they are about to decode; the bytes are already in
+// memory, so the extra header pass is cheap.
+func CheckSourcePixels(r io.Reader) error {
+	cfg, format, err := image.DecodeConfig(r)
+	if err != nil {
+		return DecodeError(fmt.Errorf("read image header: %w", err))
+	}
+	if cfg.Width <= 0 || cfg.Height <= 0 {
+		return DecodeError(fmt.Errorf("image %s declares invalid dimensions %dx%d", format, cfg.Width, cfg.Height))
+	}
+	if pixels := int64(cfg.Width) * int64(cfg.Height); pixels > maxSourcePixels {
+		return fmt.Errorf("%w: %s declares %d pixels (%dx%d), cap is %d",
+			ErrSourceTooLarge, format, pixels, cfg.Width, cfg.Height, maxSourcePixels)
+	}
+	return nil
+}
+
 // ─── Shared output normalization ─────────────────────────────────────────────
 
-// Fit scales src down so its longest edge is at most max, preserving aspect
-// ratio. Sources already within bounds are returned unchanged. Every family
-// runs its raw preview frame/page through this so output sizing is uniform.
-func Fit(src image.Image, max int) image.Image {
+// opaquer is the Opaque() half of the standard image types. image.Image does
+// not expose it, but every decoder produces a type that has it.
+type opaquer interface{ Opaque() bool }
+
+// Fit scales src down so its longest edge is at most maxEdge, preserving
+// aspect ratio. Sources already within bounds are returned unchanged. Every
+// family runs its raw preview frame/page through this so output sizing is
+// uniform.
+//
+// The scale is one CatmullRom resample over the whole image. A per-pixel
+// nearest-neighbour loop (the previous implementation) both aliased hard on
+// photographic content and paid a virtual At() call for every output pixel;
+// the interpolator does the same work in a tight typed loop.
+func Fit(src image.Image, maxEdge int) image.Image {
 	bounds := src.Bounds()
 	width, height := bounds.Dx(), bounds.Dy()
 	if width <= 0 || height <= 0 {
 		return src
 	}
-	if width <= max && height <= max {
+	if width <= maxEdge && height <= maxEdge {
 		return src
 	}
-	scale := float64(max) / float64(width)
+	scale := float64(maxEdge) / float64(width)
 	if height > width {
-		scale = float64(max) / float64(height)
+		scale = float64(maxEdge) / float64(height)
 	}
-	newWidth, newHeight := int(float64(width)*scale), int(float64(height)*scale)
-	if newWidth < 1 {
-		newWidth = 1
-	}
-	if newHeight < 1 {
-		newHeight = 1
-	}
+	newWidth := max(1, int(math.Round(float64(width)*scale)))
+	newHeight := max(1, int(math.Round(float64(height)*scale)))
 	dst := image.NewRGBA(image.Rect(0, 0, newWidth, newHeight))
-	for y := 0; y < newHeight; y++ {
-		for x := 0; x < newWidth; x++ {
-			sx := bounds.Min.X + x*width/newWidth
-			sy := bounds.Min.Y + y*height/newHeight
-			dst.Set(x, y, src.At(sx, sy))
-		}
-	}
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, bounds, xdraw.Src, nil)
 	return dst
 }
 
-// EncodeJPEG encodes an image at the pipeline's standard quality.
+// FlattenOnWhite composites src over an opaque white background.
+//
+// JPEG has no alpha channel: jpeg.Encode treats a fully transparent pixel as
+// black, so a transparent PNG/GIF preview would come out as a black rectangle.
+// Opaque sources (every JPEG, and any already-flattened image) are returned
+// unchanged, so this costs nothing on the common path.
+func FlattenOnWhite(src image.Image) image.Image {
+	if opaque, ok := src.(opaquer); ok && opaque.Opaque() {
+		return src
+	}
+	bounds := src.Bounds()
+	dst := image.NewRGBA(image.Rect(0, 0, bounds.Dx(), bounds.Dy()))
+	draw.Draw(dst, dst.Bounds(), image.NewUniform(color.White), image.Point{}, draw.Src)
+	draw.Draw(dst, dst.Bounds(), src, bounds.Min, draw.Over)
+	return dst
+}
+
+// EncodeJPEG encodes an image at the pipeline's standard quality, flattening
+// any transparency onto white first (see FlattenOnWhite).
 func EncodeJPEG(img image.Image) ([]byte, error) {
 	var encoded bytes.Buffer
-	if err := jpeg.Encode(&encoded, img, &jpeg.Options{Quality: 85}); err != nil {
+	if err := jpeg.Encode(&encoded, FlattenOnWhite(img), &jpeg.Options{Quality: 85}); err != nil {
 		return nil, DecodeError(fmt.Errorf("encode thumbnail: %w", err))
 	}
 	return encoded.Bytes(), nil

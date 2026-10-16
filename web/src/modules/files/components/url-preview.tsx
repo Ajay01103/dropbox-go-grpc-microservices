@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
@@ -38,6 +38,12 @@ function itemFromFile(file: FileT): Item {
  */
 export function UrlFilePreview({ fileId, folderId }: { fileId: string; folderId: string }) {
   const router = useRouter();
+  // Set while navigating to the editor. Closing the drawer calls router.back()
+  // to restore the grid underneath the modal, but that would cancel an edit
+  // navigation that is still in flight: the drawer unmounts as the edit route
+  // takes over, and the back() would win. The flag makes "we are leaving on
+  // purpose" distinguishable from "the user dismissed the preview".
+  const leavingForEditor = useRef(false);
 
   const query = useQuery({
     queryKey: ["preview-file", fileId],
@@ -61,10 +67,18 @@ export function UrlFilePreview({ fileId, folderId }: { fileId: string; folderId:
     <FilePreviewDrawer
       item={file ? itemFromFile(file) : null}
       open={Boolean(file)}
+      onEdit={(item) => {
+        // Edit is a real route, not an overlay: the editor replaces the preview
+        // (push, so Back returns here) and the grid is left behind because a
+        // document engine needs the whole viewport.
+        leavingForEditor.current = true;
+        router.push(`/files/${folderId}/edit/${item.itemId}`);
+      }}
       onOpenChange={(open) => {
-        if (!open) {
-          router.back();
+        if (open || leavingForEditor.current) {
+          return;
         }
+        router.back();
       }}
     />
   );

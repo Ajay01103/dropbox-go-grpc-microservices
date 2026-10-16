@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/Ajay01103/go-dropbox/metadata/config"
+	"github.com/Ajay01103/go-dropbox/metadata/internal/purge"
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
 	eventsv2 "github.com/Ajay01103/go-dropbox/pkg/gen/events/v2"
 )
@@ -20,6 +21,9 @@ import (
 type PurgeCoordinator interface {
 	Request(context.Context, string, string) (repository.PurgeJob, error)
 	Status(context.Context, string, string) (repository.PurgeJob, error)
+	// PurgeFolderSubtree permanently deletes a soft-deleted folder, every
+	// folder beneath it, and every file they hold.
+	PurgeFolderSubtree(context.Context, string, string) (purge.FolderPurgeResult, error)
 }
 
 type ThumbnailURLer interface {
@@ -71,6 +75,13 @@ type MetadataService struct {
 	thumbnailURLer    ThumbnailURLer
 	stitchRepo        StitchLookup
 	presigner         ConsolidatedPresigner
+	// Edit path: the content store a commit is verified against, and the
+	// consolidated-object invalidator that stops Tier B serving the version a
+	// commit just superseded. Nil blockReader disables editing (see
+	// editing.go).
+	blockReader       BlockReader
+	consolidated      ConsolidatedInvalidator
+	stitchInvalidator StitchInvalidator
 	accessQueue       chan repository.RecentItem
 	dualWriteFailures atomic.Uint64
 	accessWriteErrors atomic.Uint64
@@ -130,6 +141,17 @@ func (s *MetadataService) RequestPermanentDelete(ctx context.Context, ownerID, f
 		return repository.PurgeJob{}, errors.New("purge coordinator is unavailable")
 	}
 	return s.purgeCoordinator.Request(ctx, ownerID, fileID)
+}
+
+// RequestPermanentDeleteFolder permanently deletes a soft-deleted folder along
+// with everything inside it. Unlike RequestPermanentDelete — one file, one job —
+// this fans out, so it reports counts instead of a job: the caller has to be
+// able to see a partial purge rather than assume success.
+func (s *MetadataService) RequestPermanentDeleteFolder(ctx context.Context, ownerID, folderID string) (purge.FolderPurgeResult, error) {
+	if s.purgeCoordinator == nil {
+		return purge.FolderPurgeResult{}, errors.New("purge coordinator is unavailable")
+	}
+	return s.purgeCoordinator.PurgeFolderSubtree(ctx, ownerID, folderID)
 }
 
 func (s *MetadataService) GetPurgeJobStatus(ctx context.Context, ownerID, jobID string) (repository.PurgeJob, error) {
@@ -259,6 +281,48 @@ func (s *MetadataService) GetThumbnailURL(ctx context.Context, ownerID, fileID s
 		return "", file.ThumbnailStatus, err
 	}
 	return url, file.ThumbnailStatus, nil
+}
+
+// ThumbnailURLResult is one entry of a batch thumbnail lookup. Error is set
+// instead of URL/ThumbnailStatus when this file could not be resolved.
+type ThumbnailURLResult struct {
+	FileID          string
+	URL             string
+	ThumbnailStatus string
+	Error           string
+}
+
+// MaxThumbnailURLBatch bounds one batch request. A folder page is 50 files;
+// the cap keeps a hostile caller from forcing unbounded ownership reads and
+// presigns inside the request timeout.
+const MaxThumbnailURLBatch = 100
+
+// GetThumbnailURLs resolves many files' preview URLs in one call, so a grid of
+// cards costs one round trip instead of one per card.
+//
+// Each file is resolved independently: an unknown or unowned id is reported as
+// that entry's Error rather than failing the batch, because one unreadable
+// card must not blank the whole grid. Ownership and the ready check stay in
+// GetThumbnailURL — the batch must never become a second, weaker auth path.
+func (s *MetadataService) GetThumbnailURLs(ctx context.Context, ownerID string, fileIDs []string) ([]ThumbnailURLResult, error) {
+	if len(fileIDs) == 0 {
+		return nil, errors.New("file_ids is required")
+	}
+	if len(fileIDs) > MaxThumbnailURLBatch {
+		return nil, fmt.Errorf("too many file ids: %d (max %d)", len(fileIDs), MaxThumbnailURLBatch)
+	}
+	results := make([]ThumbnailURLResult, 0, len(fileIDs))
+	for _, fileID := range fileIDs {
+		url, status, err := s.GetThumbnailURL(ctx, ownerID, fileID)
+		entry := ThumbnailURLResult{FileID: fileID, URL: url, ThumbnailStatus: status}
+		if err != nil {
+			entry.URL = ""
+			entry.ThumbnailStatus = ""
+			entry.Error = err.Error()
+		}
+		results = append(results, entry)
+	}
+	return results, nil
 }
 
 func (s *MetadataService) GetThumbnailStatus(ctx context.Context, fileID, folderID string) (string, string, error) {

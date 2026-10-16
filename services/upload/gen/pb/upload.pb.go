@@ -437,6 +437,354 @@ func (x *GetUploadStatusResponse) GetReceivedChunkIndices() []int32 {
 	return nil
 }
 
+type WriteEditBlockRequest struct {
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	FileId string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	// The block's position in the new version's ordered list. Not trusted as
+	// identity (the hash is), but it is what the logs and the ack refer to.
+	Index         int32  `protobuf:"varint,2,opt,name=index,proto3" json:"index,omitempty"`
+	Sha256        string `protobuf:"bytes,3,opt,name=sha256,proto3" json:"sha256,omitempty"`
+	Data          []byte `protobuf:"bytes,4,opt,name=data,proto3" json:"data,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteEditBlockRequest) Reset() {
+	*x = WriteEditBlockRequest{}
+	mi := &file_upload_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteEditBlockRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteEditBlockRequest) ProtoMessage() {}
+
+func (x *WriteEditBlockRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_upload_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteEditBlockRequest.ProtoReflect.Descriptor instead.
+func (*WriteEditBlockRequest) Descriptor() ([]byte, []int) {
+	return file_upload_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *WriteEditBlockRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+func (x *WriteEditBlockRequest) GetIndex() int32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *WriteEditBlockRequest) GetSha256() string {
+	if x != nil {
+		return x.Sha256
+	}
+	return ""
+}
+
+func (x *WriteEditBlockRequest) GetData() []byte {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
+// WriteEditBlockResponse reports what happened to one block: written means this
+// call stored the bytes (staged until a commit references them); reused means
+// the block was already there and nothing was written.
+type WriteEditBlockResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Written       bool                   `protobuf:"varint,1,opt,name=written,proto3" json:"written,omitempty"`
+	Reused        bool                   `protobuf:"varint,2,opt,name=reused,proto3" json:"reused,omitempty"`
+	SizeBytes     int64                  `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WriteEditBlockResponse) Reset() {
+	*x = WriteEditBlockResponse{}
+	mi := &file_upload_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WriteEditBlockResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WriteEditBlockResponse) ProtoMessage() {}
+
+func (x *WriteEditBlockResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_upload_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WriteEditBlockResponse.ProtoReflect.Descriptor instead.
+func (*WriteEditBlockResponse) Descriptor() ([]byte, []int) {
+	return file_upload_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *WriteEditBlockResponse) GetWritten() bool {
+	if x != nil {
+		return x.Written
+	}
+	return false
+}
+
+func (x *WriteEditBlockResponse) GetReused() bool {
+	if x != nil {
+		return x.Reused
+	}
+	return false
+}
+
+func (x *WriteEditBlockResponse) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+type CommitEditRequest struct {
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	FileId      string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	BaseVersion int32                  `protobuf:"varint,2,opt,name=base_version,json=baseVersion,proto3" json:"base_version,omitempty"`
+	// Client-generated, stored on the version row for audit and double-submit
+	// dedup. A retry of the same save keeps the same id.
+	CommitId  string `protobuf:"bytes,3,opt,name=commit_id,json=commitId,proto3" json:"commit_id,omitempty"`
+	SizeBytes int64  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	BlockSize int64  `protobuf:"varint,5,opt,name=block_size,json=blockSize,proto3" json:"block_size,omitempty"`
+	// The complete new version, in order: every hash, not only the new ones.
+	BlockHashes []string `protobuf:"bytes,6,rep,name=block_hashes,json=blockHashes,proto3" json:"block_hashes,omitempty"`
+	// Positionally paired with block_hashes; the server derives them and treats
+	// a mismatch as a client error.
+	BlockSizes    []int64 `protobuf:"varint,7,rep,packed,name=block_sizes,json=blockSizes,proto3" json:"block_sizes,omitempty"`
+	Editor        string  `protobuf:"bytes,8,opt,name=editor,proto3" json:"editor,omitempty"`
+	Filename      string  `protobuf:"bytes,9,opt,name=filename,proto3" json:"filename,omitempty"`
+	ContentType   string  `protobuf:"bytes,10,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitEditRequest) Reset() {
+	*x = CommitEditRequest{}
+	mi := &file_upload_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitEditRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitEditRequest) ProtoMessage() {}
+
+func (x *CommitEditRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_upload_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitEditRequest.ProtoReflect.Descriptor instead.
+func (*CommitEditRequest) Descriptor() ([]byte, []int) {
+	return file_upload_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *CommitEditRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+func (x *CommitEditRequest) GetBaseVersion() int32 {
+	if x != nil {
+		return x.BaseVersion
+	}
+	return 0
+}
+
+func (x *CommitEditRequest) GetCommitId() string {
+	if x != nil {
+		return x.CommitId
+	}
+	return ""
+}
+
+func (x *CommitEditRequest) GetSizeBytes() int64 {
+	if x != nil {
+		return x.SizeBytes
+	}
+	return 0
+}
+
+func (x *CommitEditRequest) GetBlockSize() int64 {
+	if x != nil {
+		return x.BlockSize
+	}
+	return 0
+}
+
+func (x *CommitEditRequest) GetBlockHashes() []string {
+	if x != nil {
+		return x.BlockHashes
+	}
+	return nil
+}
+
+func (x *CommitEditRequest) GetBlockSizes() []int64 {
+	if x != nil {
+		return x.BlockSizes
+	}
+	return nil
+}
+
+func (x *CommitEditRequest) GetEditor() string {
+	if x != nil {
+		return x.Editor
+	}
+	return ""
+}
+
+func (x *CommitEditRequest) GetFilename() string {
+	if x != nil {
+		return x.Filename
+	}
+	return ""
+}
+
+func (x *CommitEditRequest) GetContentType() string {
+	if x != nil {
+		return x.ContentType
+	}
+	return ""
+}
+
+type CommitEditResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Committed       bool                   `protobuf:"varint,1,opt,name=committed,proto3" json:"committed,omitempty"`
+	Conflict        bool                   `protobuf:"varint,2,opt,name=conflict,proto3" json:"conflict,omitempty"`
+	Version         int32                  `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
+	ContentHash     string                 `protobuf:"bytes,4,opt,name=content_hash,json=contentHash,proto3" json:"content_hash,omitempty"`
+	HeadVersion     int32                  `protobuf:"varint,5,opt,name=head_version,json=headVersion,proto3" json:"head_version,omitempty"`
+	HeadContentHash string                 `protobuf:"bytes,6,opt,name=head_content_hash,json=headContentHash,proto3" json:"head_content_hash,omitempty"`
+	// How many of the version's blocks the file already held — the saving a
+	// client can see and an operator can trend.
+	BlocksReused  int64 `protobuf:"varint,7,opt,name=blocks_reused,json=blocksReused,proto3" json:"blocks_reused,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CommitEditResponse) Reset() {
+	*x = CommitEditResponse{}
+	mi := &file_upload_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitEditResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitEditResponse) ProtoMessage() {}
+
+func (x *CommitEditResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_upload_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitEditResponse.ProtoReflect.Descriptor instead.
+func (*CommitEditResponse) Descriptor() ([]byte, []int) {
+	return file_upload_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *CommitEditResponse) GetCommitted() bool {
+	if x != nil {
+		return x.Committed
+	}
+	return false
+}
+
+func (x *CommitEditResponse) GetConflict() bool {
+	if x != nil {
+		return x.Conflict
+	}
+	return false
+}
+
+func (x *CommitEditResponse) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *CommitEditResponse) GetContentHash() string {
+	if x != nil {
+		return x.ContentHash
+	}
+	return ""
+}
+
+func (x *CommitEditResponse) GetHeadVersion() int32 {
+	if x != nil {
+		return x.HeadVersion
+	}
+	return 0
+}
+
+func (x *CommitEditResponse) GetHeadContentHash() string {
+	if x != nil {
+		return x.HeadContentHash
+	}
+	return ""
+}
+
+func (x *CommitEditResponse) GetBlocksReused() int64 {
+	if x != nil {
+		return x.BlocksReused
+	}
+	return 0
+}
+
 var File_upload_proto protoreflect.FileDescriptor
 
 const file_upload_proto_rawDesc = "" +
@@ -473,13 +821,49 @@ const file_upload_proto_rawDesc = "" +
 	"\x15last_persisted_offset\x18\x02 \x01(\x03R\x13lastPersistedOffset\x12(\n" +
 	"\x10total_size_bytes\x18\x03 \x01(\x03R\x0etotalSizeBytes\x12\x16\n" +
 	"\x06status\x18\x04 \x01(\tR\x06status\x124\n" +
-	"\x16received_chunk_indices\x18\x05 \x03(\x05R\x14receivedChunkIndices2\xb3\x02\n" +
+	"\x16received_chunk_indices\x18\x05 \x03(\x05R\x14receivedChunkIndices\"r\n" +
+	"\x15WriteEditBlockRequest\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12\x14\n" +
+	"\x05index\x18\x02 \x01(\x05R\x05index\x12\x16\n" +
+	"\x06sha256\x18\x03 \x01(\tR\x06sha256\x12\x12\n" +
+	"\x04data\x18\x04 \x01(\fR\x04data\"i\n" +
+	"\x16WriteEditBlockResponse\x12\x18\n" +
+	"\awritten\x18\x01 \x01(\bR\awritten\x12\x16\n" +
+	"\x06reused\x18\x02 \x01(\bR\x06reused\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03R\tsizeBytes\"\xc5\x02\n" +
+	"\x11CommitEditRequest\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\x12!\n" +
+	"\fbase_version\x18\x02 \x01(\x05R\vbaseVersion\x12\x1b\n" +
+	"\tcommit_id\x18\x03 \x01(\tR\bcommitId\x12\x1d\n" +
+	"\n" +
+	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x12\x1d\n" +
+	"\n" +
+	"block_size\x18\x05 \x01(\x03R\tblockSize\x12!\n" +
+	"\fblock_hashes\x18\x06 \x03(\tR\vblockHashes\x12\x1f\n" +
+	"\vblock_sizes\x18\a \x03(\x03R\n" +
+	"blockSizes\x12\x16\n" +
+	"\x06editor\x18\b \x01(\tR\x06editor\x12\x1a\n" +
+	"\bfilename\x18\t \x01(\tR\bfilename\x12!\n" +
+	"\fcontent_type\x18\n" +
+	" \x01(\tR\vcontentType\"\xff\x01\n" +
+	"\x12CommitEditResponse\x12\x1c\n" +
+	"\tcommitted\x18\x01 \x01(\bR\tcommitted\x12\x1a\n" +
+	"\bconflict\x18\x02 \x01(\bR\bconflict\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x05R\aversion\x12!\n" +
+	"\fcontent_hash\x18\x04 \x01(\tR\vcontentHash\x12!\n" +
+	"\fhead_version\x18\x05 \x01(\x05R\vheadVersion\x12*\n" +
+	"\x11head_content_hash\x18\x06 \x01(\tR\x0fheadContentHash\x12#\n" +
+	"\rblocks_reused\x18\a \x01(\x03R\fblocksReused2\xc9\x03\n" +
 	"\rUploadService\x12C\n" +
 	"\n" +
 	"InitUpload\x12\x19.upload.InitUploadRequest\x1a\x1a.upload.InitUploadResponse\x12A\n" +
 	"\vUploadChunk\x12\x1a.upload.UploadChunkRequest\x1a\x16.upload.UploadChunkAck\x12F\n" +
 	"\fUploadChunks\x12\x1a.upload.UploadChunkRequest\x1a\x16.upload.UploadChunkAck(\x010\x01\x12R\n" +
-	"\x0fGetUploadStatus\x12\x1e.upload.GetUploadStatusRequest\x1a\x1f.upload.GetUploadStatusResponseB2Z0github.com/Ajay01103/go-dropbox/upload/gen/pb;pbb\x06proto3"
+	"\x0fGetUploadStatus\x12\x1e.upload.GetUploadStatusRequest\x1a\x1f.upload.GetUploadStatusResponse\x12O\n" +
+	"\x0eWriteEditBlock\x12\x1d.upload.WriteEditBlockRequest\x1a\x1e.upload.WriteEditBlockResponse\x12C\n" +
+	"\n" +
+	"CommitEdit\x12\x19.upload.CommitEditRequest\x1a\x1a.upload.CommitEditResponseB2Z0github.com/Ajay01103/go-dropbox/upload/gen/pb;pbb\x06proto3"
 
 var (
 	file_upload_proto_rawDescOnce sync.Once
@@ -493,7 +877,7 @@ func file_upload_proto_rawDescGZIP() []byte {
 	return file_upload_proto_rawDescData
 }
 
-var file_upload_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_upload_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_upload_proto_goTypes = []any{
 	(*InitUploadRequest)(nil),       // 0: upload.InitUploadRequest
 	(*InitUploadResponse)(nil),      // 1: upload.InitUploadResponse
@@ -501,18 +885,26 @@ var file_upload_proto_goTypes = []any{
 	(*UploadChunkAck)(nil),          // 3: upload.UploadChunkAck
 	(*GetUploadStatusRequest)(nil),  // 4: upload.GetUploadStatusRequest
 	(*GetUploadStatusResponse)(nil), // 5: upload.GetUploadStatusResponse
+	(*WriteEditBlockRequest)(nil),   // 6: upload.WriteEditBlockRequest
+	(*WriteEditBlockResponse)(nil),  // 7: upload.WriteEditBlockResponse
+	(*CommitEditRequest)(nil),       // 8: upload.CommitEditRequest
+	(*CommitEditResponse)(nil),      // 9: upload.CommitEditResponse
 }
 var file_upload_proto_depIdxs = []int32{
 	0, // 0: upload.UploadService.InitUpload:input_type -> upload.InitUploadRequest
 	2, // 1: upload.UploadService.UploadChunk:input_type -> upload.UploadChunkRequest
 	2, // 2: upload.UploadService.UploadChunks:input_type -> upload.UploadChunkRequest
 	4, // 3: upload.UploadService.GetUploadStatus:input_type -> upload.GetUploadStatusRequest
-	1, // 4: upload.UploadService.InitUpload:output_type -> upload.InitUploadResponse
-	3, // 5: upload.UploadService.UploadChunk:output_type -> upload.UploadChunkAck
-	3, // 6: upload.UploadService.UploadChunks:output_type -> upload.UploadChunkAck
-	5, // 7: upload.UploadService.GetUploadStatus:output_type -> upload.GetUploadStatusResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	6, // 4: upload.UploadService.WriteEditBlock:input_type -> upload.WriteEditBlockRequest
+	8, // 5: upload.UploadService.CommitEdit:input_type -> upload.CommitEditRequest
+	1, // 6: upload.UploadService.InitUpload:output_type -> upload.InitUploadResponse
+	3, // 7: upload.UploadService.UploadChunk:output_type -> upload.UploadChunkAck
+	3, // 8: upload.UploadService.UploadChunks:output_type -> upload.UploadChunkAck
+	5, // 9: upload.UploadService.GetUploadStatus:output_type -> upload.GetUploadStatusResponse
+	7, // 10: upload.UploadService.WriteEditBlock:output_type -> upload.WriteEditBlockResponse
+	9, // 11: upload.UploadService.CommitEdit:output_type -> upload.CommitEditResponse
+	6, // [6:12] is the sub-list for method output_type
+	0, // [0:6] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -529,7 +921,7 @@ func file_upload_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_upload_proto_rawDesc), len(file_upload_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

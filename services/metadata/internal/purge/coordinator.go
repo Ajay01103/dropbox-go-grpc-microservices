@@ -31,14 +31,25 @@ type ThumbnailDeleter interface {
 	DeleteThumbnail(ctx context.Context, fileID, key string) error
 }
 
+// ConsolidatedDeleter can remove a file's consolidated (Tier B) object from
+// object storage. The content storage satisfies it, but a nil value is also
+// accepted (deletion is skipped gracefully).
+type ConsolidatedDeleter interface {
+	// DeleteConsolidated deletes the consolidated object for fileID. It must be
+	// idempotent: a missing object is success, because a purged file's key is
+	// derived from the file id and nothing else records that the object existed.
+	DeleteConsolidated(ctx context.Context, fileID string) error
+}
+
 type Coordinator struct {
-	repo             *repository.PurgeRepo
-	metadataRepo     *repository.MetadataRepo
-	thumbnailDeleter ThumbnailDeleter
-	conn             *nats.Conn
-	js               jetstream.JetStream
-	logger           *zap.Logger
-	cc               jetstream.ConsumeContext
+	repo                *repository.PurgeRepo
+	metadataRepo        *repository.MetadataRepo
+	thumbnailDeleter    ThumbnailDeleter
+	consolidatedDeleter ConsolidatedDeleter
+	conn                *nats.Conn
+	js                  jetstream.JetStream
+	logger              *zap.Logger
+	cc                  jetstream.ConsumeContext
 }
 
 func NewCoordinator(url string, repo *repository.PurgeRepo, metadataRepo *repository.MetadataRepo, logger *zap.Logger) (*Coordinator, error) {
@@ -65,6 +76,13 @@ func NewCoordinator(url string, repo *repository.PurgeRepo, metadataRepo *reposi
 // before Start.
 func (c *Coordinator) SetThumbnailDeleter(d ThumbnailDeleter) {
 	c.thumbnailDeleter = d
+}
+
+// SetConsolidatedDeleter wires in a ConsolidatedDeleter so the coordinator can
+// remove the assembled (Tier B) object when a file is permanently deleted.
+// Call this before Start.
+func (c *Coordinator) SetConsolidatedDeleter(d ConsolidatedDeleter) {
+	c.consolidatedDeleter = d
 }
 
 // maxOpsPerBatch is the v2 batch size (design B.5): a DecrefRequested carries
@@ -417,6 +435,105 @@ func (c *Coordinator) handleCompletion(ctx context.Context, msg jetstream.Msg) n
 	return natsx.Ack()
 }
 
+// deleteConsolidated removes a file's assembled (Tier B) object. A nil deleter
+// skips the step so the coordinator still works in configurations without
+// content storage (tests, Tier A-only deployments).
+func (c *Coordinator) deleteConsolidated(ctx context.Context, fileID, jobID string) error {
+	if c.consolidatedDeleter == nil {
+		return nil
+	}
+	if err := c.consolidatedDeleter.DeleteConsolidated(ctx, fileID); err != nil {
+		c.logger.Error("purge: failed to delete consolidated object",
+			zap.String("jobID", jobID),
+			zap.String("fileID", fileID),
+			zap.Error(err))
+		return fmt.Errorf("delete consolidated object for %s: %w", fileID, err)
+	}
+	return nil
+}
+
+// FolderPurgeResult reports what one permanent folder delete covered. It is
+// deliberately a count, not a boolean: a folder delete fans out to many files,
+// and a caller has to be able to tell a partial purge from a clean one.
+type FolderPurgeResult struct {
+	Folders int
+	Files   int
+	Failed  int
+}
+
+// PurgeFolderSubtree permanently deletes a soft-deleted folder together with
+// every descendant folder and every file they contain.
+//
+// The order matters and is the reason this is not just a loop of file purges: a
+// file's purge revokes its blocks and then removes its projections, and the
+// folder projections are removed only once every file has been queued. If the
+// folder row went first, a failure part-way through would leave files that are
+// unreachable from the UI (their parent is gone) but still present in the
+// folder's partitions — content the caller was told had been deleted.
+func (c *Coordinator) PurgeFolderSubtree(ctx context.Context, ownerID, folderID string) (FolderPurgeResult, error) {
+	root, err := c.metadataRepo.FolderByID(ctx, ownerID, folderID)
+	if err != nil {
+		if !strings.Contains(err.Error(), "not found") {
+			return FolderPurgeResult{}, err
+		}
+		// The folder row is already gone: a retried or double-clicked request,
+		// or an earlier run that died mid-sweep. Finish whatever is still
+		// addressable by id and report success — the alternative is a purge that
+		// can never clean up its own leftovers because the entry point vanished.
+		// Nothing is destroyed here that this owner could not already delete:
+		// the sweep re-derives ownership from every row it touches and skips
+		// folders that belong to someone else.
+		if err := c.metadataRepo.RemoveFolderProjections(ctx, ownerID, folderID); err != nil {
+			return FolderPurgeResult{}, fmt.Errorf("clean up leftover folder projections: %w", err)
+		}
+		return FolderPurgeResult{}, nil
+	}
+	// Same rule as files: the trash is the staging area, and only what is in it
+	// may be destroyed. Without this a single RPC could vaporize a live subtree.
+	if !root.IsDeleted {
+		return FolderPurgeResult{}, errors.New("folder must be soft-deleted before permanent deletion")
+	}
+	if root.ParentID == "" {
+		return FolderPurgeResult{}, errors.New("root folder cannot be permanently deleted")
+	}
+
+	subtree, err := c.metadataRepo.FolderSubtree(ctx, folderID)
+	if err != nil {
+		return FolderPurgeResult{}, err
+	}
+	result := FolderPurgeResult{}
+
+	for _, id := range subtree {
+		// Uncapped listing: a folder holding more files than one page must not
+		// come out of a permanent delete with its surplus still in storage.
+		files, err := c.metadataRepo.ListAllFilesByFolder(ctx, ownerID, id)
+		if err != nil {
+			return result, fmt.Errorf("list files of folder %s: %w", id, err)
+		}
+		for _, file := range files {
+			// Request is idempotent per (file, version), so a retried subtree
+			// purge re-drives the same jobs instead of inventing new ones.
+			if _, err := c.Request(ctx, ownerID, file.FileID); err != nil {
+				c.logger.Warn("folder purge: file not queued for deletion",
+					zap.String("folderID", folderID),
+					zap.String("fileID", file.FileID),
+					zap.Error(err))
+				result.Failed++
+				continue
+			}
+			result.Files++
+		}
+	}
+
+	if err := c.metadataRepo.RemoveFolderProjections(ctx, ownerID, folderID); err != nil {
+		return result, fmt.Errorf("remove folder projections: %w", err)
+	}
+	// Counted last, once the folders are actually gone: a caller that sees a
+	// non-zero folder count is reading a purge that completed.
+	result.Folders = len(subtree)
+	return result, nil
+}
+
 // slogZap bridges the metadata service's zap logger to the *slog.Logger the
 // natsx wrapper expects.
 type slogZap struct{ l *zap.Logger }
@@ -484,6 +601,13 @@ func (c *Coordinator) RemoveMetadataAndComplete(ctx context.Context, job reposit
 			FileID: job.FileID, FolderID: job.FolderID, OwnerID: job.OwnerID,
 			Filename: "", BlockHashList: job.BlockHashList,
 		}
+		// The consolidated object is keyed by file id alone, so it is still
+		// addressable after the row is gone — and it is the one artifact whose
+		// only remaining reference IS that row. Attempt it here for exactly the
+		// reason this branch exists: a crash can leave the object behind.
+		if err := c.deleteConsolidated(ctx, job.FileID, job.JobID); err != nil {
+			return err
+		}
 		if err := c.metadataRepo.RemoveFileProjections(ctx, file); err != nil {
 			return fmt.Errorf("remove residual projections for vanished file: %w", err)
 		}
@@ -505,6 +629,14 @@ func (c *Coordinator) RemoveMetadataAndComplete(ctx context.Context, job reposit
 					zap.String("jobID", job.JobID),
 					zap.String("thumbnailKey", file.ThumbnailKey))
 			}
+		}
+
+		// Object first, metadata second: once the registry row is gone nothing
+		// points at the assembled object again, and the block GC only reaps
+		// blocks/, so a failed delete has to abort the step and be retried
+		// rather than leaking the whole file under consolidated/ forever.
+		if err := c.deleteConsolidated(ctx, job.FileID, job.JobID); err != nil {
+			return err
 		}
 
 		if err := c.metadataRepo.RemoveFileProjections(ctx, file); err != nil {

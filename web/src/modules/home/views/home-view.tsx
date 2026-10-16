@@ -17,29 +17,24 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { formatBytes, formatRelativeTime } from "@/lib/utils"
 import { InfiniteScrollSentinel } from "@/modules/files/components/infinite-scroll-sentinel"
-import { fileQueryKeys, useRecentItems, useThumbnailUrl } from "@/modules/files/api/use-files"
+import { fileQueryKeys, useRecentItems, useThumbnailUrls } from "@/modules/files/api/use-files"
 import { HomeMainHeader } from "../components/home-main-header"
 
-const RecentFileCard = ({ item }: { item: Item }) => {
+const RecentFileCard = ({ item, thumbnailUrl }: { item: Item; thumbnailUrl?: string }) => {
   const file = item.details.case === "file" ? item.details.value : undefined
   const name = file?.filename ?? "Unnamed file"
-  const thumbnail = useThumbnailUrl(
-    item.itemId,
-    file?.thumbnailStatus ?? "",
-    file?.thumbnailKey ?? "",
-  )
   const isImage = Boolean(file?.contentType?.startsWith("image/"))
 
   return (
     <article className="group min-w-0">
       <div className="relative aspect-square overflow-hidden rounded-xl border shadow-sm transition-all group-hover:shadow-md group-hover:ring-2 group-hover:ring-lime-400/60">
         <div className="bg-muted/40 absolute inset-0">
-          {isImage && thumbnail.data ? (
-            // eslint-disable-next-line @next/next/no-img-element -- presigned S3 URLs expire, next/image optimization adds no value here
+          {isImage && thumbnailUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- a presigned object-storage URL, already a 512px JPEG: next/image can only re-proxy bytes we deliberately stopped piping
             <img
               alt={name}
               className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              src={thumbnail.data}
+              src={thumbnailUrl}
             />
           ) : (
             <div className="flex h-full items-center justify-center">
@@ -96,7 +91,13 @@ const RecentFolderCard = ({ item }: { item: Item }) => {
   )
 }
 
-const RecentGrid = ({ items }: { items: Item[] }) => (
+const RecentGrid = ({
+  items,
+  thumbnailUrls,
+}: {
+  items: Item[]
+  thumbnailUrls: { urls: ReadonlyMap<string, string> }
+}) => (
   <div className="grid grid-cols-2 gap-x-5 gap-y-7 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
     {items.map((item) =>
       item.details.case === "folder" ? (
@@ -108,6 +109,7 @@ const RecentGrid = ({ items }: { items: Item[] }) => (
         <RecentFileCard
           item={item}
           key={`${item.itemType}-${item.itemId}`}
+          thumbnailUrl={thumbnailUrls.urls.get(item.itemId)}
         />
       ),
     )}
@@ -159,6 +161,15 @@ const HomeView = () => {
     }
     return deduped
   }, [data])
+  // One batched presign request for the whole recent grid; each card looks up
+  // its own id. Bytes come from object storage, not through a Next.js route.
+  const thumbnailUrls = useThumbnailUrls(
+    useMemo(
+      () =>
+        items.filter((item) => item.details.case === "file").map((item) => item.itemId),
+      [items],
+    ),
+  )
 
   // useCreateFolder already invalidates the recent-items query; this keeps
   // the header's callback contract without duplicating state in the view.
@@ -216,7 +227,10 @@ const HomeView = () => {
                     {items.length} item{items.length === 1 ? "" : "s"}
                   </span>
                 </div>
-                <RecentGrid items={items} />
+                <RecentGrid
+                  items={items}
+                  thumbnailUrls={thumbnailUrls}
+                />
                 <InfiniteScrollSentinel
                   hasNextPage={Boolean(hasNextPage)}
                   isFetchingNextPage={isFetchingNextPage}

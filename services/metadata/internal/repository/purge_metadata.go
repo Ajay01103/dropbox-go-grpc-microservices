@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/gocql/gocql"
@@ -39,8 +40,12 @@ func (r *MetadataRepo) RemoveFileProjections(ctx context.Context, file File) err
 		// (soft delete bumps it in files_by_id without rewriting these
 		// projections), so a point-delete can silently miss. They are
 		// removed by the residual sweep below instead.
-		{`DELETE FROM files_by_folder_name WHERE folder_id = ? AND filename = ? AND file_id = ?`, []any{folderID, file.Filename, fileID}},
-		{`DELETE FROM files_by_folder_size WHERE folder_id = ? AND size_bytes = ? AND file_id = ?`, []any{folderID, file.SizeBytes, fileID}},
+		//
+		// The files_by_folder_name / files_by_folder_size deletes that used to
+		// live here are gone with the tables themselves (see migration
+		// z23_drop_unused_file_sort_indexes): no revision of this service writes
+		// them any more, so there is nothing to remove and nothing to fail
+		// against a dropped table.
 
 		// Folder item index tables — compound clustering keys must be fully specified.
 		// PRIMARY KEY ((folder_id), name, item_type, item_id)
@@ -109,6 +114,240 @@ func (r *MetadataRepo) RemoveFileProjections(ctx context.Context, file File) err
 		}
 	}
 
+	return nil
+}
+
+// FolderSubtree returns the folder itself followed by every descendant, in
+// breadth-first order. The walk reads folders_by_parent, so it sees
+// soft-deleted children too — a subtree delete has to take those with it.
+//
+// A folder id is globally unique, so this walk is owner-independent; callers
+// still scope every write by the owner they were authorized for.
+func (r *MetadataRepo) FolderSubtree(ctx context.Context, folderID string) ([]string, error) {
+	root, err := parseID(folderID)
+	if err != nil {
+		return nil, fmt.Errorf("parse folder id: %w", err)
+	}
+	seen := map[gocql.UUID]bool{root: true}
+	subtree := []string{root.String()}
+	for i := 0; i < len(subtree); i++ {
+		current, err := parseID(subtree[i])
+		if err != nil {
+			return nil, fmt.Errorf("parse folder id: %w", err)
+		}
+		iter := r.session.Query(
+			`SELECT folder_id FROM folders_by_parent WHERE parent_id = ?`, current,
+		).WithContext(ctx).Iter()
+		var child gocql.UUID
+		for iter.Scan(&child) {
+			if !seen[child] {
+				seen[child] = true
+				subtree = append(subtree, child.String())
+			}
+		}
+		if err := iter.Close(); err != nil {
+			return nil, fmt.Errorf("walk child folders of %s: %w", subtree[i], err)
+		}
+	}
+	return subtree, nil
+}
+
+// RemoveFolderProjections removes the folder metadata for an entire subtree:
+// the folder rows themselves and every folder-item index row that names one of
+// them, including the row that lists the subtree root inside its surviving
+// parent. It is idempotent, so a retried purge can run it again.
+//
+// Files are NOT touched here — each file's own purge removes its rows and its
+// object-storage content. What this closes is the other half of a folder
+// delete: without it a permanently deleted folder keeps its folders_by_owner,
+// folders_by_parent and folder_items_* rows, so it stays visible in the trash
+// listing and in its parent's item index even after the caller was told the
+// delete succeeded.
+func (r *MetadataRepo) RemoveFolderProjections(ctx context.Context, ownerID, folderID string) error {
+	owner, err := parseID(ownerID)
+	if err != nil {
+		return fmt.Errorf("parse owner id: %w", err)
+	}
+	root, err := parseID(folderID)
+	if err != nil {
+		return fmt.Errorf("parse folder id: %w", err)
+	}
+	subtree, err := r.FolderSubtree(ctx, folderID)
+	if err != nil {
+		return err
+	}
+
+	// Read every row before touching anything. The walk discovers folders
+	// through folders_by_parent, which the deletions below destroy, so a purge
+	// that died half-way could no longer find what it had left behind. Holding
+	// the ids and parents up front is what makes the remainder re-runnable.
+	folders := make([]purgedFolder, 0, len(subtree))
+	for _, subtreeFolderID := range subtree {
+		id, parseErr := parseID(subtreeFolderID)
+		if parseErr != nil {
+			return fmt.Errorf("parse folder id: %w", parseErr)
+		}
+		stored, rowErr := r.FolderRowByID(ctx, subtreeFolderID)
+		switch {
+		case rowErr != nil && !isFolderNotFound(rowErr):
+			return fmt.Errorf("load folder for purge: %w", rowErr)
+		case rowErr == nil && stored.OwnerID != owner.String():
+			// Not this owner's folder. The walk follows parent ids and folder
+			// ids are globally unique, so reaching one here means the data was
+			// never ours to purge — skip it rather than delete by id.
+			continue
+		}
+		folders = append(folders, purgedFolder{id: subtreeFolderID, uuid: id, parent: stored.ParentID, exists: rowErr == nil})
+	}
+	if len(folders) == 0 {
+		return nil
+	}
+
+	// Phase 1 — item indexes. These are keyed by ids this function already
+	// holds, so they are safe to sweep first, and sweeping them first means a
+	// crash leaves the folder rows (the walk's structure) intact for the retry.
+	for _, folder := range folders {
+		if err := r.deleteFolderItemRows(ctx, folder.uuid, nil); err != nil {
+			return err
+		}
+	}
+
+	// Phase 2 — the subtree root's item row in the parent that SURVIVES the
+	// purge. Everything else in that partition must stay, so the sweep is
+	// filtered to the subtree's ids.
+	if folders[0].uuid == root && folders[0].exists && folders[0].parent != "" {
+		parent, parseErr := parseID(folders[0].parent)
+		if parseErr != nil {
+			return fmt.Errorf("parse parent folder id: %w", parseErr)
+		}
+		purged := make(map[gocql.UUID]bool, len(folders))
+		for _, folder := range folders {
+			purged[folder.uuid] = true
+		}
+		if err := r.deleteFolderItemRows(ctx, parent, purged); err != nil {
+			return err
+		}
+	}
+
+	// Phase 3 — the folder rows themselves. This is the step that makes the
+	// subtree unreachable, so it runs only once nothing above can still fail on
+	// a row this function needs to find again.
+	for _, folder := range folders {
+		deletes := []folderDelete{
+			{statement: `DELETE FROM folders_by_id WHERE folder_id = ?`, args: []any{folder.uuid}},
+			{statement: `DELETE FROM folders_by_owner WHERE owner_id = ? AND folder_id = ?`, args: []any{owner, folder.uuid}},
+		}
+		// folders_by_parent is keyed by the PARENT, so the row lives in whichever
+		// partition the folder is listed under.
+		if folder.parent != "" {
+			parent, parseErr := parseID(folder.parent)
+			if parseErr != nil {
+				return fmt.Errorf("parse parent folder id: %w", parseErr)
+			}
+			deletes = append(deletes, folderDelete{
+				statement: `DELETE FROM folders_by_parent WHERE parent_id = ? AND folder_id = ?`,
+				args:      []any{parent, folder.uuid},
+			})
+		}
+		for _, del := range deletes {
+			if err := r.session.Query(del.statement, del.args...).WithContext(ctx).Exec(); err != nil {
+				return fmt.Errorf("remove folder projection (%s): %w", del.statement[:40], err)
+			}
+		}
+	}
+	return nil
+}
+
+// purgedFolder is one folder the sweep has decided it may delete, with the
+// parent id captured while the row was still readable.
+type purgedFolder struct {
+	id     string
+	uuid   gocql.UUID
+	parent string
+	// exists is false when the row is already gone: a retry after a partial
+	// purge still has item rows to clean, but no folder row to delete.
+	exists bool
+}
+
+// isFolderNotFound reports whether a folder read failed because there is no such
+// row. The repository has no sentinel for this (every caller in the service
+// layer matches on the message), so the purge matches it the same way.
+func isFolderNotFound(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "not found")
+}
+
+// folderDelete is one point delete against a folder projection table.
+type folderDelete struct {
+	statement string
+	args      []any
+}
+
+// folderItemIndex names one of the mixed file+folder item indexes: every one is
+// partitioned by folder_id and clusters by (sortColumn, item_type, item_id).
+type folderItemIndex struct {
+	table      string
+	sortColumn string
+}
+
+// folderItemIndexes are the tables that index a folder's contents (files and
+// subfolders alike).
+var folderItemIndexes = []folderItemIndex{
+	{table: "folder_items_by_name", sortColumn: "name"},
+	{table: "folder_items_by_size", sortColumn: "size_bytes"},
+	{table: "folder_items_by_updated", sortColumn: "updated_at"},
+}
+
+// deleteFolderItemRows removes rows from one folder's partitions across every
+// item index. A nil only removes the whole partition (the folder itself is
+// being purged, so everything inside it goes); a set removes just the rows for
+// those item ids, leaving the folder's other contents alone.
+//
+// MapScan is used because the sort column's Go type differs per index (text,
+// bigint, timestamp) and the scanned value is passed straight back as a bind
+// argument for the delete — reconstructing those keys by hand is what makes a
+// point delete here fragile.
+func (r *MetadataRepo) deleteFolderItemRows(ctx context.Context, folderID gocql.UUID, only map[gocql.UUID]bool) error {
+	for _, index := range folderItemIndexes {
+		iter := r.session.Query(
+			fmt.Sprintf(`SELECT %s, item_type, item_id FROM %s WHERE folder_id = ?`, index.sortColumn, index.table),
+			folderID,
+		).WithContext(ctx).Iter()
+		type itemRow struct {
+			sortKey  any
+			itemType string
+			itemID   gocql.UUID
+		}
+		var rows []itemRow
+		for {
+			row := make(map[string]any, 3)
+			if !iter.MapScan(row) {
+				break
+			}
+			itemType, ok := row["item_type"].(string)
+			if !ok {
+				return fmt.Errorf("scan %s: item_type is %T", index.table, row["item_type"])
+			}
+			itemID, ok := row["item_id"].(gocql.UUID)
+			if !ok {
+				return fmt.Errorf("scan %s: item_id is %T", index.table, row["item_id"])
+			}
+			if only != nil && !only[itemID] {
+				continue
+			}
+			rows = append(rows, itemRow{sortKey: row[index.sortColumn], itemType: itemType, itemID: itemID})
+		}
+		if err := iter.Close(); err != nil {
+			return fmt.Errorf("scan %s for folder purge: %w", index.table, err)
+		}
+		for _, row := range rows {
+			if err := r.session.Query(
+				fmt.Sprintf(`DELETE FROM %s WHERE folder_id = ? AND %s = ? AND item_type = ? AND item_id = ?`, index.table, index.sortColumn),
+				folderID, row.sortKey, row.itemType, row.itemID,
+			).WithContext(ctx).Exec(); err != nil {
+				return fmt.Errorf("delete %s row for folder purge: %w", index.table, err)
+			}
+		}
+	}
 	return nil
 }
 

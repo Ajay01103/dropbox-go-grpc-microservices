@@ -126,6 +126,36 @@ func (s *S3Storage) ReadObjectRange(ctx context.Context, key string, offset, len
 	return result.Body, nil
 }
 
+// BlockExists reports whether a block object is present with exactly the
+// expected size. A commit uses it to prove the block list it is about to
+// record really is readable before a version row names it: a version row
+// pointing at bytes that were never written is unrecoverable, whereas a
+// rejected commit can simply be retried.
+//
+// Size is compared, not just presence: a truncated write would otherwise pass
+// and every later read of that version would fail somewhere downstream.
+func (s *S3Storage) BlockExists(ctx context.Context, hash string, sizeBytes int64) (bool, error) {
+	key, err := blockObjectKey(hash)
+	if err != nil {
+		return false, err
+	}
+	result, err := s.client.HeadObject(ctx, &s3.HeadObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	})
+	if err != nil {
+		var apiErr smithy.APIError
+		if errors.As(err, &apiErr) && (apiErr.ErrorCode() == "NotFound" || apiErr.ErrorCode() == "NoSuchKey") {
+			return false, nil
+		}
+		return false, fmt.Errorf("head block %s: %w", hash, err)
+	}
+	if sizeBytes <= 0 || result.ContentLength == nil {
+		return true, nil
+	}
+	return *result.ContentLength == sizeBytes, nil
+}
+
 // PresignFileGET returns a short-lived presigned GET URL for a consolidated
 // (Tier B) object key, carrying the response headers the browser needs.
 //
@@ -156,6 +186,27 @@ func (s *S3Storage) PresignFileGET(ctx context.Context, key string, request serv
 		return "", fmt.Errorf("presign object %s: %w", key, err)
 	}
 	return result.URL, nil
+}
+
+// DeleteConsolidated removes a file's assembled (Tier B) object. This is the
+// only deletion that can free it: the block GC reaps blocks/, thumbnails live
+// under their own prefix, and the consolidated object is keyed by file id
+// alone, so once the registry row is gone nothing else points at it.
+//
+// DeleteObject is idempotent in S3 (a missing key is success), which is what a
+// retried purge needs.
+func (s *S3Storage) DeleteConsolidated(ctx context.Context, fileID string) error {
+	if fileID == "" {
+		return errors.New("file id is empty")
+	}
+	key := consolidatedKey(fileID)
+	if _, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: aws.String(s.bucket),
+		Key:    aws.String(key),
+	}); err != nil {
+		return fmt.Errorf("delete consolidated object %s: %w", key, err)
+	}
+	return nil
 }
 
 // Stitcher consolidates a file's block objects into one S3 object using

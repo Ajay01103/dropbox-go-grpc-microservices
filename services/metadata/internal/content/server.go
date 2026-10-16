@@ -172,6 +172,20 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Version pin. A ticket minted for an edit session names the exact version
+	// the editor is about to change; if the head has moved since, serving the
+	// current bytes under that ticket would hand the editor somebody else's
+	// version to overwrite (and the commit would be refused as stale anyway).
+	// 409 says "reload, your base is gone" instead of mixing two versions.
+	if ticket.ContentHash != "" && manifest.ContentHash != ticket.ContentHash {
+		s.logger.Info("version-pinned ticket refused: stored version moved on",
+			zap.String("fileID", fileID),
+			zap.Int32("ticketVersion", ticket.Version))
+		w.Header().Set("ETag", `"`+manifest.ContentHash+`"`)
+		http.Error(w, "the file changed since this ticket was issued", http.StatusConflict)
+		return
+	}
+
 	disposition := ticket.Disposition
 	if q := r.URL.Query().Get("disposition"); q == "inline" || q == "attachment" {
 		// The minting side (metadata) is authoritative; this param exists for
@@ -186,6 +200,24 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Accept-Ranges", "bytes")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "private, max-age=60") // ticket-bound, never shared
+
+	// ETag and conditional handling. The validator is the version's content
+	// hash, so it changes exactly when the bytes do: without it a ranged read
+	// spanning a commit could stitch the tail of one version onto the head of
+	// another. If-Range with a mismatched validator therefore drops the range
+	// and answers with the whole current version rather than a 206 that mixes
+	// versions.
+	if manifest.ContentHash != "" {
+		etag := `"` + manifest.ContentHash + `"`
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") != "" && etagMatches(r.Header.Get("If-None-Match"), etag) {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		if ifRange := r.Header.Get("If-Range"); ifRange != "" && r.Header.Get("Range") != "" && !etagMatches(ifRange, etag) {
+			r.Header.Del("Range")
+		}
+	}
 
 	// Tier B fast path, downloads only: a consolidated object is handed to the
 	// browser as a presigned URL so not one byte flows through this process.
@@ -248,6 +280,18 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 			zap.Int("firstIdx", firstIdx), zap.Int("lastIdx", lastIdx),
 			zap.Error(err))
 	}
+}
+
+// etagMatches implements the If-None-Match / If-Range comparison for a single
+// strong validator: "*", an exact match, or a weak-prefixed match all count.
+func etagMatches(header, etag string) bool {
+	for _, candidate := range strings.Split(header, ",") {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "*" || candidate == etag || strings.TrimPrefix(candidate, "W/") == etag {
+			return true
+		}
+	}
+	return false
 }
 
 // writeRangeStatus writes the status line and length headers for a full or

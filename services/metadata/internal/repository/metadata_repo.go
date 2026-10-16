@@ -118,12 +118,8 @@ func (r *MetadataRepo) CreateFileWithBlockSizes(ctx context.Context, folderID, o
 	).WithContext(ctx).Exec(); err != nil {
 		return File{}, fmt.Errorf("index file: %w", err)
 	}
-	if err := r.session.Query(
-		`INSERT INTO files_by_folder_updated (folder_id, updated_at, file_id, owner_id, filename, size_bytes, content_type, content_hash, version, created_at, is_deleted, current)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		folderID, now, fileID, ownerID, filename, sizeBytes, contentType, contentHash, 1, now, false, true,
-	).WithContext(ctx).Exec(); err != nil {
-		return File{}, fmt.Errorf("index file sort order: %w", err)
+	if err := r.insertFilesByFolderUpdated(ctx, file, now); err != nil {
+		return File{}, err
 	}
 
 	// Preview sweeper work list — only for preview families. Best-effort: the

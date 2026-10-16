@@ -209,6 +209,47 @@ func (s *MetadataServer) PermanentlyDeleteFile(ctx context.Context, req *pb.Perm
 	return purgeJobMessage(job), nil
 }
 
+// PermanentlyDeleteFolder drops a soft-deleted folder, its descendants and
+// their files. It answers with counts rather than a job because a subtree is
+// not one unit of work: each file gets its own purge job, and files that could
+// not be queued are reported in failed_count so the caller can surface a
+// partial delete instead of a false success.
+func (s *MetadataServer) PermanentlyDeleteFolder(ctx context.Context, req *pb.PermanentlyDeleteFolderRequest) (*pb.PermanentlyDeleteFolderResponse, error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
+	}
+	if req.GetFolderId() == "" {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("folder_id is required"))
+	}
+	result, err := s.svc.RequestPermanentDeleteFolder(ctx, userID, req.GetFolderId())
+	if err != nil {
+		// A failure before anything was destroyed (no folders dropped, no files
+		// queued) is the caller's error to see. Once the saga has begun, the
+		// counts are the truth and the error is logged: the retry is the client
+		// re-sending the same idempotent request.
+		if result.Folders == 0 && result.Files == 0 {
+			return nil, mapError(err)
+		}
+		s.logger.Error("permanent folder delete partially applied",
+			zap.String("userID", userID),
+			zap.String("folderID", req.GetFolderId()),
+			zap.Int("queuedFiles", result.Files),
+			zap.Error(err))
+	}
+	if result.Failed > 0 {
+		s.logger.Warn("permanent folder delete could not queue every file",
+			zap.String("userID", userID),
+			zap.String("folderID", req.GetFolderId()),
+			zap.Int("failed", result.Failed))
+	}
+	return &pb.PermanentlyDeleteFolderResponse{
+		FolderCount: int32(result.Folders),
+		FileCount:   int32(result.Files),
+		FailedCount: int32(result.Failed),
+	}, nil
+}
+
 func (s *MetadataServer) GetPurgeJobStatus(ctx context.Context, req *pb.GetPurgeJobStatusRequest) (*pb.PurgeJob, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {

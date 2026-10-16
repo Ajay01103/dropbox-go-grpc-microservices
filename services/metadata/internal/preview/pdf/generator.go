@@ -48,7 +48,7 @@ func (g *Generator) Family() eventsv2.ContentFamily {
 	return eventsv2.ContentFamily_CONTENT_FAMILY_PDF
 }
 
-// GenerateToKey reassembles the PDF to a scratch file and rasterizes page 1.
+// GenerateToKey streams the PDF into a scratch file and rasterizes page 1.
 // Encrypted/password-protected, zero-page and corrupt PDFs are permanent
 // failures — no retry opens a locked or malformed file.
 func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, blockHashes []string) (string, error) {
@@ -60,31 +60,28 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 		return thumbnailKey, nil
 	}
 
-	pdfBytes, err := g.storage.ReassembleBlocks(ctx, blockHashes, maxPDFSourceBytes)
+	// The reassembly writes straight to disk, so the PDF never sits in the heap;
+	// pdftoppm needs a real path anyway.
+	source, err := g.storage.ReassembleToFile(ctx, "input.pdf", blockHashes, maxPDFSourceBytes)
 	if err != nil {
 		return "", err
 	}
+	defer source.Close()
 
-	scratch, err := common.ScratchDir("pdf")
-	if err != nil {
-		return "", fmt.Errorf("create scratch dir: %w", err)
-	}
-	defer os.RemoveAll(scratch)
+	scratch := filepath.Dir(source.Name())
+	srcPath := source.Name()
 
-	srcPath := filepath.Join(scratch, "input.pdf")
-	if err := os.WriteFile(srcPath, pdfBytes, 0600); err != nil {
-		return "", fmt.Errorf("write scratch pdf: %w", err)
-	}
-
-	// -f 1 -l 1: first page only. -r 150: reasonable raster density before
-	// the shared Fit() normalization. outPrefix makes pdftoppm write
-	// <prefix>-1.jpg (or -01.jpg depending on version); we glob for it.
+	// -f 1 -l 1: first page only. -scale-to 1024 rasters the longer edge at
+	// 2x the final 512 cap, so Fit always downsamples — which also makes a
+	// separate -r resolution flag redundant (and -r would fight it anyway).
+	// -singlefile: one output named page.jpg instead of page-1.jpg, so the
+	// path is known instead of globbed for.
 	sandbox := common.SandboxedExec{Timeout: pdfRenderTimeout, ScratchDir: scratch}
 	if _, err := sandbox.Run(ctx, g.pdftoppm,
 		"-jpeg",
 		"-f", "1", "-l", "1",
-		"-r", "150",
-		"-scale-to", "1024", // raster bigger than the final 512 fit; Fit shrinks
+		"-scale-to", "1024",
+		"-singlefile",
 		srcPath,
 		filepath.Join(scratch, "page"),
 	); err != nil {
@@ -96,17 +93,16 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 		return "", common.Permanent(fmt.Errorf("pdftoppm rasterization failed: %w", err))
 	}
 
-	pagePath, err := findPage(scratch)
-	if err != nil {
-		// Tool exited 0 but wrote nothing: zero-page or pathological PDF.
-		return "", common.Permanent(err)
-	}
-
-	page, err := os.ReadFile(pagePath)
+	// -singlefile pins the name, so a missing file here means the tool exited 0
+	// but wrote nothing: zero-page or pathological PDF.
+	page, err := os.ReadFile(filepath.Join(scratch, "page.jpg"))
 	if err != nil {
 		return "", common.Permanent(fmt.Errorf("read rasterized page: %w", err))
 	}
 
+	if err := common.CheckSourcePixels(bytes.NewReader(page)); err != nil {
+		return "", err
+	}
 	img, _, err := image.Decode(bytes.NewReader(page))
 	if err != nil {
 		return "", common.Permanent(fmt.Errorf("decode rasterized page: %w", err))
@@ -119,20 +115,4 @@ func (g *Generator) GenerateToKey(ctx context.Context, thumbnailKey string, bloc
 		return "", err
 	}
 	return thumbnailKey, nil
-}
-
-// findPage locates the single rasterized page pdftoppm wrote in scratch.
-func findPage(scratch string) (string, error) {
-	matches, err := filepath.Glob(filepath.Join(scratch, "page*.jpg"))
-	if err != nil || len(matches) == 0 {
-		return "", fmt.Errorf("pdftoppm produced no page image (empty or zero-page PDF)")
-	}
-	// Prefer the lowest-numbered page in case a version emitted extras.
-	best := matches[0]
-	for _, m := range matches[1:] {
-		if m < best {
-			best = m
-		}
-	}
-	return best, nil
 }

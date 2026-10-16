@@ -16,8 +16,6 @@ import (
 	"connectrpc.com/connect/v2/connecthttp"
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/Ajay01103/go-dropbox/auth/config"
 	"github.com/Ajay01103/go-dropbox/auth/db"
@@ -190,9 +188,13 @@ func run() error {
 	connecthttp.Mount(mux, connectSrv)
 
 	addr := fmt.Sprintf(":%s", cfg.GRPCPort)
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: h2c.NewHandler(mux, &http2.Server{}),
+		Addr:      addr,
+		Handler:   corsMiddleware(mux),
+		Protocols: protocols,
 	}
 	serverErrCh := make(chan error, 1)
 

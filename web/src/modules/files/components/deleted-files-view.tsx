@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table"
 import {
   usePermanentlyDeleteFile,
+  usePermanentlyDeleteFolder,
   useRestoreFile,
   useRestoreFolder,
   useTrashItems,
@@ -52,6 +53,7 @@ export const DeletedFilesView = () => {
   const restoreFile = useRestoreFile()
   const restoreFolder = useRestoreFolder()
   const permanentlyDeleteFile = usePermanentlyDeleteFile()
+  const permanentlyDeleteFolder = usePermanentlyDeleteFolder()
 
   const items = useMemo<DeletedItem[]>(
     () =>
@@ -75,7 +77,10 @@ export const DeletedFilesView = () => {
   const selectedItems = items.filter((item) => selectedKeys.has(itemKey(item)))
   const allSelected = items.length > 0 && selectedItems.length === items.length
   const isMutating =
-    restoreFile.isPending || restoreFolder.isPending || permanentlyDeleteFile.isPending
+    restoreFile.isPending ||
+    restoreFolder.isPending ||
+    permanentlyDeleteFile.isPending ||
+    permanentlyDeleteFolder.isPending
 
   const setSelected = (item: DeletedItem, selected: boolean) => {
     setSelectedKeys((current) => {
@@ -102,19 +107,53 @@ export const DeletedFilesView = () => {
   }
 
   const permanentlyDeleteSelected = async () => {
-    const folderSelected = selectedItems.some((item) => item.kind === "folder")
-    if (folderSelected) {
-      window.alert("Permanent folder deletion is not available yet.")
-    }
-
     const files = selectedItems.filter((item) => item.kind === "file")
-    if (files.length === 0) return
-    if (!window.confirm(`Permanently delete ${files.length} selected file${files.length === 1 ? "" : "s"}?`)) {
+    const folders = selectedItems.filter((item) => item.kind === "folder")
+    if (files.length === 0 && folders.length === 0) return
+
+    const described = [
+      files.length > 0 ? `${files.length} file${files.length === 1 ? "" : "s"}` : "",
+      folders.length > 0
+        ? `${folders.length} folder${folders.length === 1 ? "" : "s"} and everything inside`
+        : "",
+    ]
+      .filter(Boolean)
+      .join(" and ")
+    if (!window.confirm(`Permanently delete ${described}? This cannot be undone.`)) {
       return
     }
 
-    await Promise.all(files.map((item) => permanentlyDeleteFile.mutateAsync(item.id)))
+    // One target per selected item so a failure can name the item it belongs
+    // to. Folder deletes resolve to counts, and a non-zero failedCount means
+    // part of the subtree was not queued — reported as a failure of that
+    // folder rather than swallowed, which is the whole point of the counts.
+    const targets = [
+      ...files.map((item) => ({
+        name: item.name,
+        run: async () => {
+          await permanentlyDeleteFile.mutateAsync(item.id)
+        },
+      })),
+      ...folders.map((item) => ({
+        name: item.name,
+        run: async () => {
+          const response = await permanentlyDeleteFolder.mutateAsync(item.id)
+          if (response.failedCount > 0) {
+            throw new Error(`${response.failedCount} file(s) could not be deleted`)
+          }
+        },
+      })),
+    ]
+
+    const results = await Promise.allSettled(targets.map((target) => target.run()))
     setSelectedKeys(new Set())
+
+    const failed = targets.filter((_, index) => results[index].status === "rejected")
+    if (failed.length > 0) {
+      window.alert(
+        `Could not delete ${failed.map((target) => `"${target.name}"`).join(", ")}. Some content may remain.`,
+      )
+    }
   }
 
   return (

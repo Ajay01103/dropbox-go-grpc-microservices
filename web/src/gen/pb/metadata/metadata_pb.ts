@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file metadata.proto.
  */
 export const file_metadata: GenFile = /*@__PURE__*/
-  fileDesc("Cg5tZXRhZGF0YS5wcm90bxIIbWV0YWRhdGEi1wEKEUNyZWF0ZUZpbGVSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhQKDGNvbnRlbnRfdHlwZRgEIAEoCRIUCgxjb250ZW50X2hhc2gYBSABKAkSFwoPYmxvY2tfaGFzaF9saXN0GAggAygJEhYKDmNvbnRlbnRfZmFtaWx5GAkgASgNEiYKCmJsb2NrX3JlZnMYCiADKAsyEi5tZXRhZGF0YS5CbG9ja1JlZkoECAYQByIsCghCbG9ja1JlZhIMCgRoYXNoGAEgASgJEhIKCnNpemVfYnl0ZXMYAiABKAMilQEKDEZpbGVNYW5pZmVzdBIPCgdmaWxlX2lkGAEgASgJEhAKCGZpbGVuYW1lGAIgASgJEhIKCnRvdGFsX3NpemUYAyABKAMSFAoMY29udGVudF90eXBlGAQgASgJEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRIiCgZibG9ja3MYBiADKAsyEi5tZXRhZGF0YS5CbG9ja1JlZiKnAQoSQ3JlYXRlRmlsZVJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkSEQoJZm9sZGVyX2lkGAIgASgJEhAKCGZpbGVuYW1lGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFwoPYmxvY2tfaGFzaF9saXN0GAggAygJSgQIBxAIIlcKE1NldFRodW1ibmFpbFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIVCg10aHVtYm5haWxfa2V5GAIgASgJEhgKEHRodW1ibmFpbF9zdGF0dXMYAyABKAkiJwoUU2V0VGh1bWJuYWlsUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIsChlHZXRUaHVtYm5haWxTdGF0dXNSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiTQoaR2V0VGh1bWJuYWlsU3RhdHVzUmVzcG9uc2USFQoNdGh1bWJuYWlsX2tleRgBIAEoCRIYChB0aHVtYm5haWxfc3RhdHVzGAIgASgJIikKFkdldFRodW1ibmFpbFVSTFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSJAChdHZXRUaHVtYm5haWxVUkxSZXNwb25zZRILCgN1cmwYASABKAkSGAoQdGh1bWJuYWlsX3N0YXR1cxgCIAEoCSIhCg5HZXRGaWxlUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIikKFkdldEZpbGVNYW5pZmVzdFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSJAChhHZXREb3dubG9hZFRpY2tldFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRITCgtkaXNwb3NpdGlvbhgCIAEoCSKQAQoZR2V0RG93bmxvYWRUaWNrZXRSZXNwb25zZRIOCgZ0aWNrZXQYASABKAkSCwoDdXJsGAIgASgJEhoKEmV4cGlyZXNfaW5fc2Vjb25kcxgDIAEoAxIQCghmaWxlbmFtZRgEIAEoCRIUCgxjb250ZW50X3R5cGUYBSABKAkSEgoKc2l6ZV9ieXRlcxgGIAEoAyK3AgoERmlsZRIPCgdmaWxlX2lkGAEgASgJEhEKCWZvbGRlcl9pZBgCIAEoCRIQCghmaWxlbmFtZRgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEhQKDGNvbnRlbnRfdHlwZRgFIAEoCRIUCgxjb250ZW50X2hhc2gYBiABKAkSDwoHdmVyc2lvbhgHIAEoBRISCgpjcmVhdGVkX2F0GAggASgJEhAKCG93bmVyX2lkGAkgASgJEhgKEHBhcmVudF9mb2xkZXJfaWQYCiABKAkSFQoNdGh1bWJuYWlsX2tleRgLIAEoCRIYChB0aHVtYm5haWxfc3RhdHVzGAwgASgJEhIKCmlzX2RlbGV0ZWQYDSABKAgSEgoKZGVsZXRlZF9hdBgOIAEoCRIPCgdjdXJyZW50GA8gASgIIqwBCgZGb2xkZXISEQoJZm9sZGVyX2lkGAEgASgJEhAKCG93bmVyX2lkGAIgASgJEhEKCXBhcmVudF9pZBgDIAEoCRIMCgRuYW1lGAQgASgJEgwKBHBhdGgYBSABKAkSEgoKY3JlYXRlZF9hdBgGIAEoCRISCgp1cGRhdGVkX2F0GAcgASgJEhIKCmlzX2RlbGV0ZWQYCCABKAgSEgoKZGVsZXRlZF9hdBgJIAEoCSI2ChNDcmVhdGVGb2xkZXJSZXF1ZXN0EhEKCXBhcmVudF9pZBgBIAEoCRIMCgRuYW1lGAIgASgJIiUKEEdldEZvbGRlclJlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJIlUKGUxpc3RGb2xkZXJDb250ZW50c1JlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJEhIKCnBhZ2VfdG9rZW4YAiABKAkSEQoJcGFnZV9zaXplGAMgASgFIncKGkxpc3RGb2xkZXJDb250ZW50c1Jlc3BvbnNlEiEKB2ZvbGRlcnMYASADKAsyEC5tZXRhZGF0YS5Gb2xkZXISHQoFZmlsZXMYAiADKAsyDi5tZXRhZGF0YS5GaWxlEhcKD25leHRfcGFnZV90b2tlbhgDIAEoCSI6ChNSZW5hbWVGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIQCghuZXdfbmFtZRgCIAEoCSI9ChFNb3ZlRm9sZGVyUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkSFQoNbmV3X3BhcmVudF9pZBgCIAEoCSIoChNEZWxldGVGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCSInChREZWxldGVGb2xkZXJSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIIikKFFJlc3RvcmVGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCSIqChVHZXRCcmVhZGNydW1ic1JlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJIjsKFkdldEJyZWFkY3J1bWJzUmVzcG9uc2USIQoHZm9sZGVycxgBIAMoCzIQLm1ldGFkYXRhLkZvbGRlciIeChxHZXRPckNyZWF0ZVJvb3RGb2xkZXJSZXF1ZXN0IkEKHUdldE9yQ3JlYXRlUm9vdEZvbGRlclJlc3BvbnNlEiAKBmZvbGRlchgBIAEoCzIQLm1ldGFkYXRhLkZvbGRlciJuChBMaXN0RmlsZXNSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRISCgpwYWdlX3Rva2VuGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoBRIgCgRzb3J0GAQgASgOMhIubWV0YWRhdGEuRmlsZVNvcnQiSwoRTGlzdEZpbGVzUmVzcG9uc2USHQoFZmlsZXMYASADKAsyDi5tZXRhZGF0YS5GaWxlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSKMAQoESXRlbRIRCglpdGVtX3R5cGUYASABKAkSDwoHaXRlbV9pZBgCIAEoCRIRCglmb2xkZXJfaWQYAyABKAkSHgoEZmlsZRgEIAEoCzIOLm1ldGFkYXRhLkZpbGVIABIiCgZmb2xkZXIYBSABKAsyEC5tZXRhZGF0YS5Gb2xkZXJIAEIJCgdkZXRhaWxzInQKFkxpc3RGb2xkZXJJdGVtc1JlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJEhIKCnBhZ2VfdG9rZW4YAiABKAkSEQoJcGFnZV9zaXplGAMgASgFEiAKBHNvcnQYBCABKA4yEi5tZXRhZGF0YS5GaWxlU29ydCJRChdMaXN0Rm9sZGVySXRlbXNSZXNwb25zZRIdCgVpdGVtcxgBIAMoCzIOLm1ldGFkYXRhLkl0ZW0SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIj8KFkxpc3RSZWNlbnRJdGVtc1JlcXVlc3QSEgoKcGFnZV90b2tlbhgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUiUQoXTGlzdFJlY2VudEl0ZW1zUmVzcG9uc2USHQoFaXRlbXMYASADKAsyDi5tZXRhZGF0YS5JdGVtEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIqChdSZWNvcmRGaWxlQWNjZXNzUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIisKGFJlY29yZEZpbGVBY2Nlc3NSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIIjYKEVJlbmFtZUZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSEAoIbmV3X25hbWUYAiABKAkiOQoPTW92ZUZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSFQoNbmV3X2ZvbGRlcl9pZBgCIAEoCSIlChJSZXN0b3JlRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSIvChxQZXJtYW5lbnRseURlbGV0ZUZpbGVSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAki7AEKCFB1cmdlSm9iEg4KBmpvYl9pZBgBIAEoCRIPCgdmaWxlX2lkGAIgASgJEhQKDGZpbGVfdmVyc2lvbhgDIAEoBRINCgVzdGF0ZRgEIAEoCRIhChloYXNfcmVjb25jaWxpYXRpb25fZXJyb3JzGAUgASgIEhAKCGF0dGVtcHRzGAYgASgFEhIKCmxhc3RfZXJyb3IYByABKAkSEgoKY3JlYXRlZF9hdBgIIAEoCRISCgp1cGRhdGVkX2F0GAkgASgJEhQKDGNvbXBsZXRlZF9hdBgKIAEoCRITCgtpbnZhbGlkX29wcxgLIAMoBSIqChhHZXRQdXJnZUpvYlN0YXR1c1JlcXVlc3QSDgoGam9iX2lkGAEgASgJIjkKEExpc3RUcmFzaFJlcXVlc3QSEgoKcGFnZV90b2tlbhgBIAEoCRIRCglwYWdlX3NpemUYAiABKAUibgoRTGlzdFRyYXNoUmVzcG9uc2USHQoFZmlsZXMYASADKAsyDi5tZXRhZGF0YS5GaWxlEiEKB2ZvbGRlcnMYAiADKAsyEC5tZXRhZGF0YS5Gb2xkZXISFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJIk0KEUxpc3RGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRISCgpwYWdlX3Rva2VuGAIgASgJEhEKCXBhZ2Vfc2l6ZRgDIAEoBSJMChJMaXN0Rm9sZGVyUmVzcG9uc2USHQoFZmlsZXMYASADKAsyDi5tZXRhZGF0YS5GaWxlEhcKD25leHRfcGFnZV90b2tlbhgCIAEoCSIkChFEZWxldGVGaWxlUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIiUKEkRlbGV0ZUZpbGVSZXNwb25zZRIPCgdzdWNjZXNzGAEgASgIKkwKCEZpbGVTb3J0EhgKFEZJTEVfU09SVF9VUERBVEVEX0FUEAASEgoORklMRV9TT1JUX05BTUUQARISCg5GSUxFX1NPUlRfU0laRRACMocFCg9NZXRhZGF0YVNlcnZpY2USRwoKQ3JlYXRlRmlsZRIbLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXF1ZXN0GhwubWV0YWRhdGEuQ3JlYXRlRmlsZVJlc3BvbnNlEk0KDFNldFRodW1ibmFpbBIdLm1ldGFkYXRhLlNldFRodW1ibmFpbFJlcXVlc3QaHi5tZXRhZGF0YS5TZXRUaHVtYm5haWxSZXNwb25zZRJfChJHZXRUaHVtYm5haWxTdGF0dXMSIy5tZXRhZGF0YS5HZXRUaHVtYm5haWxTdGF0dXNSZXF1ZXN0GiQubWV0YWRhdGEuR2V0VGh1bWJuYWlsU3RhdHVzUmVzcG9uc2USVgoPR2V0VGh1bWJuYWlsVVJMEiAubWV0YWRhdGEuR2V0VGh1bWJuYWlsVVJMUmVxdWVzdBohLm1ldGFkYXRhLkdldFRodW1ibmFpbFVSTFJlc3BvbnNlElwKEUdldERvd25sb2FkVGlja2V0EiIubWV0YWRhdGEuR2V0RG93bmxvYWRUaWNrZXRSZXF1ZXN0GiMubWV0YWRhdGEuR2V0RG93bmxvYWRUaWNrZXRSZXNwb25zZRIzCgdHZXRGaWxlEhgubWV0YWRhdGEuR2V0RmlsZVJlcXVlc3QaDi5tZXRhZGF0YS5GaWxlEkcKCkxpc3RGb2xkZXISGy5tZXRhZGF0YS5MaXN0Rm9sZGVyUmVxdWVzdBocLm1ldGFkYXRhLkxpc3RGb2xkZXJSZXNwb25zZRJHCgpEZWxldGVGaWxlEhsubWV0YWRhdGEuRGVsZXRlRmlsZVJlcXVlc3QaHC5tZXRhZGF0YS5EZWxldGVGaWxlUmVzcG9uc2UysQcKC0ZpbGVTZXJ2aWNlEkcKCkNyZWF0ZUZpbGUSGy5tZXRhZGF0YS5DcmVhdGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXNwb25zZRIzCgdHZXRGaWxlEhgubWV0YWRhdGEuR2V0RmlsZVJlcXVlc3QaDi5tZXRhZGF0YS5GaWxlEksKD0dldEZpbGVNYW5pZmVzdBIgLm1ldGFkYXRhLkdldEZpbGVNYW5pZmVzdFJlcXVlc3QaFi5tZXRhZGF0YS5GaWxlTWFuaWZlc3QSRAoJTGlzdEZpbGVzEhoubWV0YWRhdGEuTGlzdEZpbGVzUmVxdWVzdBobLm1ldGFkYXRhLkxpc3RGaWxlc1Jlc3BvbnNlEjkKClJlbmFtZUZpbGUSGy5tZXRhZGF0YS5SZW5hbWVGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSNQoITW92ZUZpbGUSGS5tZXRhZGF0YS5Nb3ZlRmlsZVJlcXVlc3QaDi5tZXRhZGF0YS5GaWxlEkcKCkRlbGV0ZUZpbGUSGy5tZXRhZGF0YS5EZWxldGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkRlbGV0ZUZpbGVSZXNwb25zZRI7CgtSZXN0b3JlRmlsZRIcLm1ldGFkYXRhLlJlc3RvcmVGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSUwoVUGVybWFuZW50bHlEZWxldGVGaWxlEiYubWV0YWRhdGEuUGVybWFuZW50bHlEZWxldGVGaWxlUmVxdWVzdBoSLm1ldGFkYXRhLlB1cmdlSm9iEksKEUdldFB1cmdlSm9iU3RhdHVzEiIubWV0YWRhdGEuR2V0UHVyZ2VKb2JTdGF0dXNSZXF1ZXN0GhIubWV0YWRhdGEuUHVyZ2VKb2ISRAoJTGlzdFRyYXNoEhoubWV0YWRhdGEuTGlzdFRyYXNoUmVxdWVzdBobLm1ldGFkYXRhLkxpc3RUcmFzaFJlc3BvbnNlElYKD0xpc3RSZWNlbnRJdGVtcxIgLm1ldGFkYXRhLkxpc3RSZWNlbnRJdGVtc1JlcXVlc3QaIS5tZXRhZGF0YS5MaXN0UmVjZW50SXRlbXNSZXNwb25zZRJZChBSZWNvcmRGaWxlQWNjZXNzEiEubWV0YWRhdGEuUmVjb3JkRmlsZUFjY2Vzc1JlcXVlc3QaIi5tZXRhZGF0YS5SZWNvcmRGaWxlQWNjZXNzUmVzcG9uc2UykwYKDUZvbGRlclNlcnZpY2USPwoMQ3JlYXRlRm9sZGVyEh0ubWV0YWRhdGEuQ3JlYXRlRm9sZGVyUmVxdWVzdBoQLm1ldGFkYXRhLkZvbGRlchI5CglHZXRGb2xkZXISGi5tZXRhZGF0YS5HZXRGb2xkZXJSZXF1ZXN0GhAubWV0YWRhdGEuRm9sZGVyEl8KEkxpc3RGb2xkZXJDb250ZW50cxIjLm1ldGFkYXRhLkxpc3RGb2xkZXJDb250ZW50c1JlcXVlc3QaJC5tZXRhZGF0YS5MaXN0Rm9sZGVyQ29udGVudHNSZXNwb25zZRJWCg9MaXN0Rm9sZGVySXRlbXMSIC5tZXRhZGF0YS5MaXN0Rm9sZGVySXRlbXNSZXF1ZXN0GiEubWV0YWRhdGEuTGlzdEZvbGRlckl0ZW1zUmVzcG9uc2USPwoMUmVuYW1lRm9sZGVyEh0ubWV0YWRhdGEuUmVuYW1lRm9sZGVyUmVxdWVzdBoQLm1ldGFkYXRhLkZvbGRlchI7CgpNb3ZlRm9sZGVyEhsubWV0YWRhdGEuTW92ZUZvbGRlclJlcXVlc3QaEC5tZXRhZGF0YS5Gb2xkZXISTQoMRGVsZXRlRm9sZGVyEh0ubWV0YWRhdGEuRGVsZXRlRm9sZGVyUmVxdWVzdBoeLm1ldGFkYXRhLkRlbGV0ZUZvbGRlclJlc3BvbnNlEkEKDVJlc3RvcmVGb2xkZXISHi5tZXRhZGF0YS5SZXN0b3JlRm9sZGVyUmVxdWVzdBoQLm1ldGFkYXRhLkZvbGRlchJTCg5HZXRCcmVhZGNydW1icxIfLm1ldGFkYXRhLkdldEJyZWFkY3J1bWJzUmVxdWVzdBogLm1ldGFkYXRhLkdldEJyZWFkY3J1bWJzUmVzcG9uc2USaAoVR2V0T3JDcmVhdGVSb290Rm9sZGVyEiYubWV0YWRhdGEuR2V0T3JDcmVhdGVSb290Rm9sZGVyUmVxdWVzdBonLm1ldGFkYXRhLkdldE9yQ3JlYXRlUm9vdEZvbGRlclJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vQWpheTAxMTAzL2dvLWRyb3Bib3gvbWV0YWRhdGEvZ2VuL3BiO3BiYgZwcm90bzM");
+  fileDesc("Cg5tZXRhZGF0YS5wcm90bxIIbWV0YWRhdGEi1wEKEUNyZWF0ZUZpbGVSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIQCghmaWxlbmFtZRgCIAEoCRISCgpzaXplX2J5dGVzGAMgASgDEhQKDGNvbnRlbnRfdHlwZRgEIAEoCRIUCgxjb250ZW50X2hhc2gYBSABKAkSFwoPYmxvY2tfaGFzaF9saXN0GAggAygJEhYKDmNvbnRlbnRfZmFtaWx5GAkgASgNEiYKCmJsb2NrX3JlZnMYCiADKAsyEi5tZXRhZGF0YS5CbG9ja1JlZkoECAYQByIsCghCbG9ja1JlZhIMCgRoYXNoGAEgASgJEhIKCnNpemVfYnl0ZXMYAiABKAMilQEKDEZpbGVNYW5pZmVzdBIPCgdmaWxlX2lkGAEgASgJEhAKCGZpbGVuYW1lGAIgASgJEhIKCnRvdGFsX3NpemUYAyABKAMSFAoMY29udGVudF90eXBlGAQgASgJEhQKDGNvbnRlbnRfaGFzaBgFIAEoCRIiCgZibG9ja3MYBiADKAsyEi5tZXRhZGF0YS5CbG9ja1JlZiKnAQoSQ3JlYXRlRmlsZVJlc3BvbnNlEg8KB2ZpbGVfaWQYASABKAkSEQoJZm9sZGVyX2lkGAIgASgJEhAKCGZpbGVuYW1lGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSFAoMY29udGVudF9oYXNoGAUgASgJEhIKCmNyZWF0ZWRfYXQYBiABKAkSFwoPYmxvY2tfaGFzaF9saXN0GAggAygJSgQIBxAIIlcKE1NldFRodW1ibmFpbFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIVCg10aHVtYm5haWxfa2V5GAIgASgJEhgKEHRodW1ibmFpbF9zdGF0dXMYAyABKAkiJwoUU2V0VGh1bWJuYWlsUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCIsChlHZXRUaHVtYm5haWxTdGF0dXNSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiTQoaR2V0VGh1bWJuYWlsU3RhdHVzUmVzcG9uc2USFQoNdGh1bWJuYWlsX2tleRgBIAEoCRIYChB0aHVtYm5haWxfc3RhdHVzGAIgASgJIikKFkdldFRodW1ibmFpbFVSTFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSJAChdHZXRUaHVtYm5haWxVUkxSZXNwb25zZRILCgN1cmwYASABKAkSGAoQdGh1bWJuYWlsX3N0YXR1cxgCIAEoCSIrChdHZXRUaHVtYm5haWxVUkxzUmVxdWVzdBIQCghmaWxlX2lkcxgBIAMoCSJVCgxUaHVtYm5haWxVUkwSDwoHZmlsZV9pZBgBIAEoCRILCgN1cmwYAiABKAkSGAoQdGh1bWJuYWlsX3N0YXR1cxgDIAEoCRINCgVlcnJvchgEIAEoCSJGChhHZXRUaHVtYm5haWxVUkxzUmVzcG9uc2USKgoKdGh1bWJuYWlscxgBIAMoCzIWLm1ldGFkYXRhLlRodW1ibmFpbFVSTCIhCg5HZXRGaWxlUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIikKFkdldEZpbGVNYW5pZmVzdFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSJAChhHZXREb3dubG9hZFRpY2tldFJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRITCgtkaXNwb3NpdGlvbhgCIAEoCSKQAQoZR2V0RG93bmxvYWRUaWNrZXRSZXNwb25zZRIOCgZ0aWNrZXQYASABKAkSCwoDdXJsGAIgASgJEhoKEmV4cGlyZXNfaW5fc2Vjb25kcxgDIAEoAxIQCghmaWxlbmFtZRgEIAEoCRIUCgxjb250ZW50X3R5cGUYBSABKAkSEgoKc2l6ZV9ieXRlcxgGIAEoAyIoChVHZXRFZGl0U2Vzc2lvblJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSKxAgoWR2V0RWRpdFNlc3Npb25SZXNwb25zZRIQCghjYW5fZWRpdBgBIAEoCBIaChJ1bmF2YWlsYWJsZV9yZWFzb24YAiABKAkSDwoHdmVyc2lvbhgDIAEoBRIUCgxjb250ZW50X2hhc2gYBCABKAkSEgoKdGlja2V0X3VybBgFIAEoCRIaChJleHBpcmVzX2luX3NlY29uZHMYBiABKAMSEgoKYmxvY2tfc2l6ZRgHIAEoAxIWCg5tYXhfZWRpdF9ieXRlcxgIIAEoAxIUCgxzbmlmZmVkX3R5cGUYCSABKAkSEAoIZmlsZW5hbWUYCiABKAkSEgoKc2l6ZV9ieXRlcxgLIAEoAxIUCgxjb250ZW50X3R5cGUYDCABKAkSFAoMYmxvY2tfaGFzaGVzGA0gAygJInsKFFByZXBhcmVDb21taXRSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSFAoMYmFzZV92ZXJzaW9uGAIgASgFEhIKCnNpemVfYnl0ZXMYAyABKAMSEgoKYmxvY2tfc2l6ZRgEIAEoAxIUCgxibG9ja19oYXNoZXMYBSADKAkiZgoVUHJlcGFyZUNvbW1pdFJlc3BvbnNlEiEKGWFscmVhZHlfcmVmZXJlbmNlZF9oYXNoZXMYASADKAkSFAoMaGVhZF92ZXJzaW9uGAIgASgFEhQKDGJhc2VfaXNfaGVhZBgDIAEoCCLbAQoUQ29tbWl0VmVyc2lvblJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIUCgxiYXNlX3ZlcnNpb24YAiABKAUSEQoJY29tbWl0X2lkGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSEgoKYmxvY2tfc2l6ZRgFIAEoAxIUCgxibG9ja19oYXNoZXMYBiADKAkSEwoLYmxvY2tfc2l6ZXMYByADKAMSDgoGZWRpdG9yGAggASgJEhQKDGNvbnRlbnRfdHlwZRgJIAEoCRIQCghmaWxlbmFtZRgKIAEoCSKnAQoVQ29tbWl0VmVyc2lvblJlc3BvbnNlEhEKCWNvbW1pdHRlZBgBIAEoCBIQCghjb25mbGljdBgCIAEoCBIPCgd2ZXJzaW9uGAMgASgFEhQKDGNvbnRlbnRfaGFzaBgEIAEoCRIUCgxoZWFkX3ZlcnNpb24YBSABKAUSGQoRaGVhZF9jb250ZW50X2hhc2gYBiABKAkSEQoJZHVwbGljYXRlGAcgASgIIrcCCgRGaWxlEg8KB2ZpbGVfaWQYASABKAkSEQoJZm9sZGVyX2lkGAIgASgJEhAKCGZpbGVuYW1lGAMgASgJEhIKCnNpemVfYnl0ZXMYBCABKAMSFAoMY29udGVudF90eXBlGAUgASgJEhQKDGNvbnRlbnRfaGFzaBgGIAEoCRIPCgd2ZXJzaW9uGAcgASgFEhIKCmNyZWF0ZWRfYXQYCCABKAkSEAoIb3duZXJfaWQYCSABKAkSGAoQcGFyZW50X2ZvbGRlcl9pZBgKIAEoCRIVCg10aHVtYm5haWxfa2V5GAsgASgJEhgKEHRodW1ibmFpbF9zdGF0dXMYDCABKAkSEgoKaXNfZGVsZXRlZBgNIAEoCBISCgpkZWxldGVkX2F0GA4gASgJEg8KB2N1cnJlbnQYDyABKAgirAEKBkZvbGRlchIRCglmb2xkZXJfaWQYASABKAkSEAoIb3duZXJfaWQYAiABKAkSEQoJcGFyZW50X2lkGAMgASgJEgwKBG5hbWUYBCABKAkSDAoEcGF0aBgFIAEoCRISCgpjcmVhdGVkX2F0GAYgASgJEhIKCnVwZGF0ZWRfYXQYByABKAkSEgoKaXNfZGVsZXRlZBgIIAEoCBISCgpkZWxldGVkX2F0GAkgASgJIjYKE0NyZWF0ZUZvbGRlclJlcXVlc3QSEQoJcGFyZW50X2lkGAEgASgJEgwKBG5hbWUYAiABKAkiJQoQR2V0Rm9sZGVyUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkiVQoZTGlzdEZvbGRlckNvbnRlbnRzUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkSEgoKcGFnZV90b2tlbhgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUidwoaTGlzdEZvbGRlckNvbnRlbnRzUmVzcG9uc2USIQoHZm9sZGVycxgBIAMoCzIQLm1ldGFkYXRhLkZvbGRlchIdCgVmaWxlcxgCIAMoCzIOLm1ldGFkYXRhLkZpbGUSFwoPbmV4dF9wYWdlX3Rva2VuGAMgASgJIjoKE1JlbmFtZUZvbGRlclJlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJEhAKCG5ld19uYW1lGAIgASgJIj0KEU1vdmVGb2xkZXJSZXF1ZXN0EhEKCWZvbGRlcl9pZBgBIAEoCRIVCg1uZXdfcGFyZW50X2lkGAIgASgJIigKE0RlbGV0ZUZvbGRlclJlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJIicKFERlbGV0ZUZvbGRlclJlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiKQoUUmVzdG9yZUZvbGRlclJlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJIioKFUdldEJyZWFkY3J1bWJzUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkiOwoWR2V0QnJlYWRjcnVtYnNSZXNwb25zZRIhCgdmb2xkZXJzGAEgAygLMhAubWV0YWRhdGEuRm9sZGVyIh4KHEdldE9yQ3JlYXRlUm9vdEZvbGRlclJlcXVlc3QiQQodR2V0T3JDcmVhdGVSb290Rm9sZGVyUmVzcG9uc2USIAoGZm9sZGVyGAEgASgLMhAubWV0YWRhdGEuRm9sZGVyIm4KEExpc3RGaWxlc1JlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJEhIKCnBhZ2VfdG9rZW4YAiABKAkSEQoJcGFnZV9zaXplGAMgASgFEiAKBHNvcnQYBCABKA4yEi5tZXRhZGF0YS5GaWxlU29ydCJLChFMaXN0RmlsZXNSZXNwb25zZRIdCgVmaWxlcxgBIAMoCzIOLm1ldGFkYXRhLkZpbGUSFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIowBCgRJdGVtEhEKCWl0ZW1fdHlwZRgBIAEoCRIPCgdpdGVtX2lkGAIgASgJEhEKCWZvbGRlcl9pZBgDIAEoCRIeCgRmaWxlGAQgASgLMg4ubWV0YWRhdGEuRmlsZUgAEiIKBmZvbGRlchgFIAEoCzIQLm1ldGFkYXRhLkZvbGRlckgAQgkKB2RldGFpbHMidAoWTGlzdEZvbGRlckl0ZW1zUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkSEgoKcGFnZV90b2tlbhgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUSIAoEc29ydBgEIAEoDjISLm1ldGFkYXRhLkZpbGVTb3J0IlEKF0xpc3RGb2xkZXJJdGVtc1Jlc3BvbnNlEh0KBWl0ZW1zGAEgAygLMg4ubWV0YWRhdGEuSXRlbRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiPwoWTGlzdFJlY2VudEl0ZW1zUmVxdWVzdBISCgpwYWdlX3Rva2VuGAEgASgJEhEKCXBhZ2Vfc2l6ZRgCIAEoBSJRChdMaXN0UmVjZW50SXRlbXNSZXNwb25zZRIdCgVpdGVtcxgBIAMoCzIOLm1ldGFkYXRhLkl0ZW0SFwoPbmV4dF9wYWdlX3Rva2VuGAIgASgJIioKF1JlY29yZEZpbGVBY2Nlc3NSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkiKwoYUmVjb3JkRmlsZUFjY2Vzc1Jlc3BvbnNlEg8KB3N1Y2Nlc3MYASABKAgiNgoRUmVuYW1lRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIQCghuZXdfbmFtZRgCIAEoCSI5Cg9Nb3ZlRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRIVCg1uZXdfZm9sZGVyX2lkGAIgASgJIiUKElJlc3RvcmVGaWxlUmVxdWVzdBIPCgdmaWxlX2lkGAEgASgJIi8KHFBlcm1hbmVudGx5RGVsZXRlRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSIzCh5QZXJtYW5lbnRseURlbGV0ZUZvbGRlclJlcXVlc3QSEQoJZm9sZGVyX2lkGAEgASgJImEKH1Blcm1hbmVudGx5RGVsZXRlRm9sZGVyUmVzcG9uc2USFAoMZm9sZGVyX2NvdW50GAEgASgFEhIKCmZpbGVfY291bnQYAiABKAUSFAoMZmFpbGVkX2NvdW50GAMgASgFIuwBCghQdXJnZUpvYhIOCgZqb2JfaWQYASABKAkSDwoHZmlsZV9pZBgCIAEoCRIUCgxmaWxlX3ZlcnNpb24YAyABKAUSDQoFc3RhdGUYBCABKAkSIQoZaGFzX3JlY29uY2lsaWF0aW9uX2Vycm9ycxgFIAEoCBIQCghhdHRlbXB0cxgGIAEoBRISCgpsYXN0X2Vycm9yGAcgASgJEhIKCmNyZWF0ZWRfYXQYCCABKAkSEgoKdXBkYXRlZF9hdBgJIAEoCRIUCgxjb21wbGV0ZWRfYXQYCiABKAkSEwoLaW52YWxpZF9vcHMYCyADKAUiKgoYR2V0UHVyZ2VKb2JTdGF0dXNSZXF1ZXN0Eg4KBmpvYl9pZBgBIAEoCSI5ChBMaXN0VHJhc2hSZXF1ZXN0EhIKCnBhZ2VfdG9rZW4YASABKAkSEQoJcGFnZV9zaXplGAIgASgFIm4KEUxpc3RUcmFzaFJlc3BvbnNlEh0KBWZpbGVzGAEgAygLMg4ubWV0YWRhdGEuRmlsZRIhCgdmb2xkZXJzGAIgAygLMhAubWV0YWRhdGEuRm9sZGVyEhcKD25leHRfcGFnZV90b2tlbhgDIAEoCSJNChFMaXN0Rm9sZGVyUmVxdWVzdBIRCglmb2xkZXJfaWQYASABKAkSEgoKcGFnZV90b2tlbhgCIAEoCRIRCglwYWdlX3NpemUYAyABKAUiTAoSTGlzdEZvbGRlclJlc3BvbnNlEh0KBWZpbGVzGAEgAygLMg4ubWV0YWRhdGEuRmlsZRIXCg9uZXh0X3BhZ2VfdG9rZW4YAiABKAkiJAoRRGVsZXRlRmlsZVJlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCSIlChJEZWxldGVGaWxlUmVzcG9uc2USDwoHc3VjY2VzcxgBIAEoCCpMCghGaWxlU29ydBIYChRGSUxFX1NPUlRfVVBEQVRFRF9BVBAAEhIKDkZJTEVfU09SVF9OQU1FEAESEgoORklMRV9TT1JUX1NJWkUQAjLbBwoPTWV0YWRhdGFTZXJ2aWNlEkcKCkNyZWF0ZUZpbGUSGy5tZXRhZGF0YS5DcmVhdGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXNwb25zZRJNCgxTZXRUaHVtYm5haWwSHS5tZXRhZGF0YS5TZXRUaHVtYm5haWxSZXF1ZXN0Gh4ubWV0YWRhdGEuU2V0VGh1bWJuYWlsUmVzcG9uc2USXwoSR2V0VGh1bWJuYWlsU3RhdHVzEiMubWV0YWRhdGEuR2V0VGh1bWJuYWlsU3RhdHVzUmVxdWVzdBokLm1ldGFkYXRhLkdldFRodW1ibmFpbFN0YXR1c1Jlc3BvbnNlElYKD0dldFRodW1ibmFpbFVSTBIgLm1ldGFkYXRhLkdldFRodW1ibmFpbFVSTFJlcXVlc3QaIS5tZXRhZGF0YS5HZXRUaHVtYm5haWxVUkxSZXNwb25zZRJZChBHZXRUaHVtYm5haWxVUkxzEiEubWV0YWRhdGEuR2V0VGh1bWJuYWlsVVJMc1JlcXVlc3QaIi5tZXRhZGF0YS5HZXRUaHVtYm5haWxVUkxzUmVzcG9uc2USXAoRR2V0RG93bmxvYWRUaWNrZXQSIi5tZXRhZGF0YS5HZXREb3dubG9hZFRpY2tldFJlcXVlc3QaIy5tZXRhZGF0YS5HZXREb3dubG9hZFRpY2tldFJlc3BvbnNlEjMKB0dldEZpbGUSGC5tZXRhZGF0YS5HZXRGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSRwoKTGlzdEZvbGRlchIbLm1ldGFkYXRhLkxpc3RGb2xkZXJSZXF1ZXN0GhwubWV0YWRhdGEuTGlzdEZvbGRlclJlc3BvbnNlEkcKCkRlbGV0ZUZpbGUSGy5tZXRhZGF0YS5EZWxldGVGaWxlUmVxdWVzdBocLm1ldGFkYXRhLkRlbGV0ZUZpbGVSZXNwb25zZRJTCg5HZXRFZGl0U2Vzc2lvbhIfLm1ldGFkYXRhLkdldEVkaXRTZXNzaW9uUmVxdWVzdBogLm1ldGFkYXRhLkdldEVkaXRTZXNzaW9uUmVzcG9uc2USUAoNUHJlcGFyZUNvbW1pdBIeLm1ldGFkYXRhLlByZXBhcmVDb21taXRSZXF1ZXN0Gh8ubWV0YWRhdGEuUHJlcGFyZUNvbW1pdFJlc3BvbnNlElAKDUNvbW1pdFZlcnNpb24SHi5tZXRhZGF0YS5Db21taXRWZXJzaW9uUmVxdWVzdBofLm1ldGFkYXRhLkNvbW1pdFZlcnNpb25SZXNwb25zZTKxBwoLRmlsZVNlcnZpY2USRwoKQ3JlYXRlRmlsZRIbLm1ldGFkYXRhLkNyZWF0ZUZpbGVSZXF1ZXN0GhwubWV0YWRhdGEuQ3JlYXRlRmlsZVJlc3BvbnNlEjMKB0dldEZpbGUSGC5tZXRhZGF0YS5HZXRGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSSwoPR2V0RmlsZU1hbmlmZXN0EiAubWV0YWRhdGEuR2V0RmlsZU1hbmlmZXN0UmVxdWVzdBoWLm1ldGFkYXRhLkZpbGVNYW5pZmVzdBJECglMaXN0RmlsZXMSGi5tZXRhZGF0YS5MaXN0RmlsZXNSZXF1ZXN0GhsubWV0YWRhdGEuTGlzdEZpbGVzUmVzcG9uc2USOQoKUmVuYW1lRmlsZRIbLm1ldGFkYXRhLlJlbmFtZUZpbGVSZXF1ZXN0Gg4ubWV0YWRhdGEuRmlsZRI1CghNb3ZlRmlsZRIZLm1ldGFkYXRhLk1vdmVGaWxlUmVxdWVzdBoOLm1ldGFkYXRhLkZpbGUSRwoKRGVsZXRlRmlsZRIbLm1ldGFkYXRhLkRlbGV0ZUZpbGVSZXF1ZXN0GhwubWV0YWRhdGEuRGVsZXRlRmlsZVJlc3BvbnNlEjsKC1Jlc3RvcmVGaWxlEhwubWV0YWRhdGEuUmVzdG9yZUZpbGVSZXF1ZXN0Gg4ubWV0YWRhdGEuRmlsZRJTChVQZXJtYW5lbnRseURlbGV0ZUZpbGUSJi5tZXRhZGF0YS5QZXJtYW5lbnRseURlbGV0ZUZpbGVSZXF1ZXN0GhIubWV0YWRhdGEuUHVyZ2VKb2ISSwoRR2V0UHVyZ2VKb2JTdGF0dXMSIi5tZXRhZGF0YS5HZXRQdXJnZUpvYlN0YXR1c1JlcXVlc3QaEi5tZXRhZGF0YS5QdXJnZUpvYhJECglMaXN0VHJhc2gSGi5tZXRhZGF0YS5MaXN0VHJhc2hSZXF1ZXN0GhsubWV0YWRhdGEuTGlzdFRyYXNoUmVzcG9uc2USVgoPTGlzdFJlY2VudEl0ZW1zEiAubWV0YWRhdGEuTGlzdFJlY2VudEl0ZW1zUmVxdWVzdBohLm1ldGFkYXRhLkxpc3RSZWNlbnRJdGVtc1Jlc3BvbnNlElkKEFJlY29yZEZpbGVBY2Nlc3MSIS5tZXRhZGF0YS5SZWNvcmRGaWxlQWNjZXNzUmVxdWVzdBoiLm1ldGFkYXRhLlJlY29yZEZpbGVBY2Nlc3NSZXNwb25zZTKDBwoNRm9sZGVyU2VydmljZRI/CgxDcmVhdGVGb2xkZXISHS5tZXRhZGF0YS5DcmVhdGVGb2xkZXJSZXF1ZXN0GhAubWV0YWRhdGEuRm9sZGVyEjkKCUdldEZvbGRlchIaLm1ldGFkYXRhLkdldEZvbGRlclJlcXVlc3QaEC5tZXRhZGF0YS5Gb2xkZXISXwoSTGlzdEZvbGRlckNvbnRlbnRzEiMubWV0YWRhdGEuTGlzdEZvbGRlckNvbnRlbnRzUmVxdWVzdBokLm1ldGFkYXRhLkxpc3RGb2xkZXJDb250ZW50c1Jlc3BvbnNlElYKD0xpc3RGb2xkZXJJdGVtcxIgLm1ldGFkYXRhLkxpc3RGb2xkZXJJdGVtc1JlcXVlc3QaIS5tZXRhZGF0YS5MaXN0Rm9sZGVySXRlbXNSZXNwb25zZRI/CgxSZW5hbWVGb2xkZXISHS5tZXRhZGF0YS5SZW5hbWVGb2xkZXJSZXF1ZXN0GhAubWV0YWRhdGEuRm9sZGVyEjsKCk1vdmVGb2xkZXISGy5tZXRhZGF0YS5Nb3ZlRm9sZGVyUmVxdWVzdBoQLm1ldGFkYXRhLkZvbGRlchJNCgxEZWxldGVGb2xkZXISHS5tZXRhZGF0YS5EZWxldGVGb2xkZXJSZXF1ZXN0Gh4ubWV0YWRhdGEuRGVsZXRlRm9sZGVyUmVzcG9uc2USQQoNUmVzdG9yZUZvbGRlchIeLm1ldGFkYXRhLlJlc3RvcmVGb2xkZXJSZXF1ZXN0GhAubWV0YWRhdGEuRm9sZGVyEm4KF1Blcm1hbmVudGx5RGVsZXRlRm9sZGVyEigubWV0YWRhdGEuUGVybWFuZW50bHlEZWxldGVGb2xkZXJSZXF1ZXN0GikubWV0YWRhdGEuUGVybWFuZW50bHlEZWxldGVGb2xkZXJSZXNwb25zZRJTCg5HZXRCcmVhZGNydW1icxIfLm1ldGFkYXRhLkdldEJyZWFkY3J1bWJzUmVxdWVzdBogLm1ldGFkYXRhLkdldEJyZWFkY3J1bWJzUmVzcG9uc2USaAoVR2V0T3JDcmVhdGVSb290Rm9sZGVyEiYubWV0YWRhdGEuR2V0T3JDcmVhdGVSb290Rm9sZGVyUmVxdWVzdBonLm1ldGFkYXRhLkdldE9yQ3JlYXRlUm9vdEZvbGRlclJlc3BvbnNlQjRaMmdpdGh1Yi5jb20vQWpheTAxMTAzL2dvLWRyb3Bib3gvbWV0YWRhdGEvZ2VuL3BiO3BiYgZwcm90bzM");
 
 /**
  * @generated from message metadata.CreateFileRequest
@@ -320,6 +320,82 @@ export const GetThumbnailURLResponseSchema: GenMessage<GetThumbnailURLResponse> 
   messageDesc(file_metadata, 9);
 
 /**
+ * @generated from message metadata.GetThumbnailURLsRequest
+ */
+export type GetThumbnailURLsRequest = Message<"metadata.GetThumbnailURLsRequest"> & {
+  /**
+   * @generated from field: repeated string file_ids = 1;
+   */
+  fileIds: string[];
+};
+
+/**
+ * Describes the message metadata.GetThumbnailURLsRequest.
+ * Use `create(GetThumbnailURLsRequestSchema)` to create a new message.
+ */
+export const GetThumbnailURLsRequestSchema: GenMessage<GetThumbnailURLsRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 10);
+
+/**
+ * ThumbnailURL is one item of a batch lookup. Each requested file gets exactly
+ * one entry (same order as the request), so a grid can map results back
+ * without a second index.
+ *
+ * @generated from message metadata.ThumbnailURL
+ */
+export type ThumbnailURL = Message<"metadata.ThumbnailURL"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * Empty when the file has no ready thumbnail (see thumbnail_status) or when
+   * this file could not be resolved at all (see error).
+   *
+   * @generated from field: string url = 2;
+   */
+  url: string;
+
+  /**
+   * @generated from field: string thumbnail_status = 3;
+   */
+  thumbnailStatus: string;
+
+  /**
+   * Set when the file could not be resolved: unknown id, or a file the caller
+   * does not own. One bad id never fails the whole batch.
+   *
+   * @generated from field: string error = 4;
+   */
+  error: string;
+};
+
+/**
+ * Describes the message metadata.ThumbnailURL.
+ * Use `create(ThumbnailURLSchema)` to create a new message.
+ */
+export const ThumbnailURLSchema: GenMessage<ThumbnailURL> = /*@__PURE__*/
+  messageDesc(file_metadata, 11);
+
+/**
+ * @generated from message metadata.GetThumbnailURLsResponse
+ */
+export type GetThumbnailURLsResponse = Message<"metadata.GetThumbnailURLsResponse"> & {
+  /**
+   * @generated from field: repeated metadata.ThumbnailURL thumbnails = 1;
+   */
+  thumbnails: ThumbnailURL[];
+};
+
+/**
+ * Describes the message metadata.GetThumbnailURLsResponse.
+ * Use `create(GetThumbnailURLsResponseSchema)` to create a new message.
+ */
+export const GetThumbnailURLsResponseSchema: GenMessage<GetThumbnailURLsResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 12);
+
+/**
  * @generated from message metadata.GetFileRequest
  */
 export type GetFileRequest = Message<"metadata.GetFileRequest"> & {
@@ -334,7 +410,7 @@ export type GetFileRequest = Message<"metadata.GetFileRequest"> & {
  * Use `create(GetFileRequestSchema)` to create a new message.
  */
 export const GetFileRequestSchema: GenMessage<GetFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 10);
+  messageDesc(file_metadata, 13);
 
 /**
  * @generated from message metadata.GetFileManifestRequest
@@ -351,7 +427,7 @@ export type GetFileManifestRequest = Message<"metadata.GetFileManifestRequest"> 
  * Use `create(GetFileManifestRequestSchema)` to create a new message.
  */
 export const GetFileManifestRequestSchema: GenMessage<GetFileManifestRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 11);
+  messageDesc(file_metadata, 14);
 
 /**
  * @generated from message metadata.GetDownloadTicketRequest
@@ -376,7 +452,7 @@ export type GetDownloadTicketRequest = Message<"metadata.GetDownloadTicketReques
  * Use `create(GetDownloadTicketRequestSchema)` to create a new message.
  */
 export const GetDownloadTicketRequestSchema: GenMessage<GetDownloadTicketRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 12);
+  messageDesc(file_metadata, 15);
 
 /**
  * @generated from message metadata.GetDownloadTicketResponse
@@ -420,7 +496,315 @@ export type GetDownloadTicketResponse = Message<"metadata.GetDownloadTicketRespo
  * Use `create(GetDownloadTicketResponseSchema)` to create a new message.
  */
 export const GetDownloadTicketResponseSchema: GenMessage<GetDownloadTicketResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 13);
+  messageDesc(file_metadata, 16);
+
+/**
+ * @generated from message metadata.GetEditSessionRequest
+ */
+export type GetEditSessionRequest = Message<"metadata.GetEditSessionRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+};
+
+/**
+ * Describes the message metadata.GetEditSessionRequest.
+ * Use `create(GetEditSessionRequestSchema)` to create a new message.
+ */
+export const GetEditSessionRequestSchema: GenMessage<GetEditSessionRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 17);
+
+/**
+ * GetEditSession is the editor's entry point: it authorizes the caller, decides
+ * whether the type is editable at all, and hands back a version-pinned ticket
+ * URL so the bytes the user edits are exactly the version the commit will be
+ * based on. The upload service calls it too, to learn the head block list when
+ * a save only needs to send the blocks that changed.
+ *
+ * @generated from message metadata.GetEditSessionResponse
+ */
+export type GetEditSessionResponse = Message<"metadata.GetEditSessionResponse"> & {
+  /**
+   * @generated from field: bool can_edit = 1;
+   */
+  canEdit: boolean;
+
+  /**
+   * Why editing is unavailable: type_not_editable | too_large | disabled.
+   * Empty when can_edit is true.
+   *
+   * @generated from field: string unavailable_reason = 2;
+   */
+  unavailableReason: string;
+
+  /**
+   * @generated from field: int32 version = 3;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string content_hash = 4;
+   */
+  contentHash: string;
+
+  /**
+   * Version-pinned inline content URL (ticket already appended).
+   *
+   * @generated from field: string ticket_url = 5;
+   */
+  ticketUrl: string;
+
+  /**
+   * @generated from field: int64 expires_in_seconds = 6;
+   */
+  expiresInSeconds: bigint;
+
+  /**
+   * The block size the file was written with. A save must split at exactly
+   * this size, so the unchanged blocks keep their hash and are not re-sent.
+   *
+   * @generated from field: int64 block_size = 7;
+   */
+  blockSize: bigint;
+
+  /**
+   * @generated from field: int64 max_edit_bytes = 8;
+   */
+  maxEditBytes: bigint;
+
+  /**
+   * pdf | docx | xlsx (sniffed from the bytes, never the client's MIME).
+   *
+   * @generated from field: string sniffed_type = 9;
+   */
+  sniffedType: string;
+
+  /**
+   * @generated from field: string filename = 10;
+   */
+  filename: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 11;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: string content_type = 12;
+   */
+  contentType: string;
+
+  /**
+   * Head block hashes, in order — the list a save compares itself against.
+   *
+   * @generated from field: repeated string block_hashes = 13;
+   */
+  blockHashes: string[];
+};
+
+/**
+ * Describes the message metadata.GetEditSessionResponse.
+ * Use `create(GetEditSessionResponseSchema)` to create a new message.
+ */
+export const GetEditSessionResponseSchema: GenMessage<GetEditSessionResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 18);
+
+/**
+ * @generated from message metadata.PrepareCommitRequest
+ */
+export type PrepareCommitRequest = Message<"metadata.PrepareCommitRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * @generated from field: int32 base_version = 2;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: int64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: int64 block_size = 4;
+   */
+  blockSize: bigint;
+
+  /**
+   * @generated from field: repeated string block_hashes = 5;
+   */
+  blockHashes: string[];
+};
+
+/**
+ * Describes the message metadata.PrepareCommitRequest.
+ * Use `create(PrepareCommitRequestSchema)` to create a new message.
+ */
+export const PrepareCommitRequestSchema: GenMessage<PrepareCommitRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 19);
+
+/**
+ * PrepareCommit is an advisory pre-flight: it reports which of the caller's
+ * hashes this file already references (so a save can skip sending unchanged
+ * blocks) and whether the base version is still the head. It never reports on
+ * blocks the caller does not already reference — that would be a cross-user
+ * dedup oracle. Commit is the authority, not this call.
+ *
+ * @generated from message metadata.PrepareCommitResponse
+ */
+export type PrepareCommitResponse = Message<"metadata.PrepareCommitResponse"> & {
+  /**
+   * @generated from field: repeated string already_referenced_hashes = 1;
+   */
+  alreadyReferencedHashes: string[];
+
+  /**
+   * @generated from field: int32 head_version = 2;
+   */
+  headVersion: number;
+
+  /**
+   * @generated from field: bool base_is_head = 3;
+   */
+  baseIsHead: boolean;
+};
+
+/**
+ * Describes the message metadata.PrepareCommitResponse.
+ * Use `create(PrepareCommitResponseSchema)` to create a new message.
+ */
+export const PrepareCommitResponseSchema: GenMessage<PrepareCommitResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 20);
+
+/**
+ * @generated from message metadata.CommitVersionRequest
+ */
+export type CommitVersionRequest = Message<"metadata.CommitVersionRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * The version the edit was based on. The commit wins (file_id, base+1) with
+   * INSERT ... IF NOT EXISTS; a loser gets conflict=true and the head it lost
+   * to, never an overwrite.
+   *
+   * @generated from field: int32 base_version = 2;
+   */
+  baseVersion: number;
+
+  /**
+   * @generated from field: string commit_id = 3;
+   */
+  commitId: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 4;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: int64 block_size = 5;
+   */
+  blockSize: bigint;
+
+  /**
+   * @generated from field: repeated string block_hashes = 6;
+   */
+  blockHashes: string[];
+
+  /**
+   * Per-block sizes, positionally paired with block_hashes.
+   *
+   * @generated from field: repeated int64 block_sizes = 7;
+   */
+  blockSizes: bigint[];
+
+  /**
+   * Which editor produced these bytes, e.g. extend-pdf-editor.
+   *
+   * @generated from field: string editor = 8;
+   */
+  editor: string;
+
+  /**
+   * @generated from field: string content_type = 9;
+   */
+  contentType: string;
+
+  /**
+   * @generated from field: string filename = 10;
+   */
+  filename: string;
+};
+
+/**
+ * Describes the message metadata.CommitVersionRequest.
+ * Use `create(CommitVersionRequestSchema)` to create a new message.
+ */
+export const CommitVersionRequestSchema: GenMessage<CommitVersionRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 21);
+
+/**
+ * @generated from message metadata.CommitVersionResponse
+ */
+export type CommitVersionResponse = Message<"metadata.CommitVersionResponse"> & {
+  /**
+   * @generated from field: bool committed = 1;
+   */
+  committed: boolean;
+
+  /**
+   * @generated from field: bool conflict = 2;
+   */
+  conflict: boolean;
+
+  /**
+   * Set when committed: the new version and its content hash.
+   *
+   * @generated from field: int32 version = 3;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string content_hash = 4;
+   */
+  contentHash: string;
+
+  /**
+   * Set when conflict: where the file actually is.
+   *
+   * @generated from field: int32 head_version = 5;
+   */
+  headVersion: number;
+
+  /**
+   * @generated from field: string head_content_hash = 6;
+   */
+  headContentHash: string;
+
+  /**
+   * True when these exact bytes were already committed (a retry of a save
+   * whose response was lost). Committed is true and the version is the one
+   * that already holds them — the caller must not count the version's blocks
+   * as newly referenced, or a retry would inflate every ref count.
+   *
+   * @generated from field: bool duplicate = 7;
+   */
+  duplicate: boolean;
+};
+
+/**
+ * Describes the message metadata.CommitVersionResponse.
+ * Use `create(CommitVersionResponseSchema)` to create a new message.
+ */
+export const CommitVersionResponseSchema: GenMessage<CommitVersionResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 22);
 
 /**
  * @generated from message metadata.File
@@ -507,7 +891,7 @@ export type File = Message<"metadata.File"> & {
  * Use `create(FileSchema)` to create a new message.
  */
 export const FileSchema: GenMessage<File> = /*@__PURE__*/
-  messageDesc(file_metadata, 14);
+  messageDesc(file_metadata, 23);
 
 /**
  * @generated from message metadata.Folder
@@ -564,7 +948,7 @@ export type Folder = Message<"metadata.Folder"> & {
  * Use `create(FolderSchema)` to create a new message.
  */
 export const FolderSchema: GenMessage<Folder> = /*@__PURE__*/
-  messageDesc(file_metadata, 15);
+  messageDesc(file_metadata, 24);
 
 /**
  * @generated from message metadata.CreateFolderRequest
@@ -586,7 +970,7 @@ export type CreateFolderRequest = Message<"metadata.CreateFolderRequest"> & {
  * Use `create(CreateFolderRequestSchema)` to create a new message.
  */
 export const CreateFolderRequestSchema: GenMessage<CreateFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 16);
+  messageDesc(file_metadata, 25);
 
 /**
  * @generated from message metadata.GetFolderRequest
@@ -603,7 +987,7 @@ export type GetFolderRequest = Message<"metadata.GetFolderRequest"> & {
  * Use `create(GetFolderRequestSchema)` to create a new message.
  */
 export const GetFolderRequestSchema: GenMessage<GetFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 17);
+  messageDesc(file_metadata, 26);
 
 /**
  * @generated from message metadata.ListFolderContentsRequest
@@ -630,7 +1014,7 @@ export type ListFolderContentsRequest = Message<"metadata.ListFolderContentsRequ
  * Use `create(ListFolderContentsRequestSchema)` to create a new message.
  */
 export const ListFolderContentsRequestSchema: GenMessage<ListFolderContentsRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 18);
+  messageDesc(file_metadata, 27);
 
 /**
  * @generated from message metadata.ListFolderContentsResponse
@@ -657,7 +1041,7 @@ export type ListFolderContentsResponse = Message<"metadata.ListFolderContentsRes
  * Use `create(ListFolderContentsResponseSchema)` to create a new message.
  */
 export const ListFolderContentsResponseSchema: GenMessage<ListFolderContentsResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 19);
+  messageDesc(file_metadata, 28);
 
 /**
  * @generated from message metadata.RenameFolderRequest
@@ -679,7 +1063,7 @@ export type RenameFolderRequest = Message<"metadata.RenameFolderRequest"> & {
  * Use `create(RenameFolderRequestSchema)` to create a new message.
  */
 export const RenameFolderRequestSchema: GenMessage<RenameFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 20);
+  messageDesc(file_metadata, 29);
 
 /**
  * @generated from message metadata.MoveFolderRequest
@@ -701,7 +1085,7 @@ export type MoveFolderRequest = Message<"metadata.MoveFolderRequest"> & {
  * Use `create(MoveFolderRequestSchema)` to create a new message.
  */
 export const MoveFolderRequestSchema: GenMessage<MoveFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 21);
+  messageDesc(file_metadata, 30);
 
 /**
  * @generated from message metadata.DeleteFolderRequest
@@ -718,7 +1102,7 @@ export type DeleteFolderRequest = Message<"metadata.DeleteFolderRequest"> & {
  * Use `create(DeleteFolderRequestSchema)` to create a new message.
  */
 export const DeleteFolderRequestSchema: GenMessage<DeleteFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 22);
+  messageDesc(file_metadata, 31);
 
 /**
  * @generated from message metadata.DeleteFolderResponse
@@ -735,7 +1119,7 @@ export type DeleteFolderResponse = Message<"metadata.DeleteFolderResponse"> & {
  * Use `create(DeleteFolderResponseSchema)` to create a new message.
  */
 export const DeleteFolderResponseSchema: GenMessage<DeleteFolderResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 23);
+  messageDesc(file_metadata, 32);
 
 /**
  * @generated from message metadata.RestoreFolderRequest
@@ -752,7 +1136,7 @@ export type RestoreFolderRequest = Message<"metadata.RestoreFolderRequest"> & {
  * Use `create(RestoreFolderRequestSchema)` to create a new message.
  */
 export const RestoreFolderRequestSchema: GenMessage<RestoreFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 24);
+  messageDesc(file_metadata, 33);
 
 /**
  * @generated from message metadata.GetBreadcrumbsRequest
@@ -769,7 +1153,7 @@ export type GetBreadcrumbsRequest = Message<"metadata.GetBreadcrumbsRequest"> & 
  * Use `create(GetBreadcrumbsRequestSchema)` to create a new message.
  */
 export const GetBreadcrumbsRequestSchema: GenMessage<GetBreadcrumbsRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 25);
+  messageDesc(file_metadata, 34);
 
 /**
  * @generated from message metadata.GetBreadcrumbsResponse
@@ -786,7 +1170,7 @@ export type GetBreadcrumbsResponse = Message<"metadata.GetBreadcrumbsResponse"> 
  * Use `create(GetBreadcrumbsResponseSchema)` to create a new message.
  */
 export const GetBreadcrumbsResponseSchema: GenMessage<GetBreadcrumbsResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 26);
+  messageDesc(file_metadata, 35);
 
 /**
  * empty — owner is derived from the authenticated session
@@ -801,7 +1185,7 @@ export type GetOrCreateRootFolderRequest = Message<"metadata.GetOrCreateRootFold
  * Use `create(GetOrCreateRootFolderRequestSchema)` to create a new message.
  */
 export const GetOrCreateRootFolderRequestSchema: GenMessage<GetOrCreateRootFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 27);
+  messageDesc(file_metadata, 36);
 
 /**
  * @generated from message metadata.GetOrCreateRootFolderResponse
@@ -818,7 +1202,7 @@ export type GetOrCreateRootFolderResponse = Message<"metadata.GetOrCreateRootFol
  * Use `create(GetOrCreateRootFolderResponseSchema)` to create a new message.
  */
 export const GetOrCreateRootFolderResponseSchema: GenMessage<GetOrCreateRootFolderResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 28);
+  messageDesc(file_metadata, 37);
 
 /**
  * @generated from message metadata.ListFilesRequest
@@ -850,7 +1234,7 @@ export type ListFilesRequest = Message<"metadata.ListFilesRequest"> & {
  * Use `create(ListFilesRequestSchema)` to create a new message.
  */
 export const ListFilesRequestSchema: GenMessage<ListFilesRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 29);
+  messageDesc(file_metadata, 38);
 
 /**
  * @generated from message metadata.ListFilesResponse
@@ -872,7 +1256,7 @@ export type ListFilesResponse = Message<"metadata.ListFilesResponse"> & {
  * Use `create(ListFilesResponseSchema)` to create a new message.
  */
 export const ListFilesResponseSchema: GenMessage<ListFilesResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 30);
+  messageDesc(file_metadata, 39);
 
 /**
  * @generated from message metadata.Item
@@ -918,7 +1302,7 @@ export type Item = Message<"metadata.Item"> & {
  * Use `create(ItemSchema)` to create a new message.
  */
 export const ItemSchema: GenMessage<Item> = /*@__PURE__*/
-  messageDesc(file_metadata, 31);
+  messageDesc(file_metadata, 40);
 
 /**
  * @generated from message metadata.ListFolderItemsRequest
@@ -950,7 +1334,7 @@ export type ListFolderItemsRequest = Message<"metadata.ListFolderItemsRequest"> 
  * Use `create(ListFolderItemsRequestSchema)` to create a new message.
  */
 export const ListFolderItemsRequestSchema: GenMessage<ListFolderItemsRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 32);
+  messageDesc(file_metadata, 41);
 
 /**
  * @generated from message metadata.ListFolderItemsResponse
@@ -972,7 +1356,7 @@ export type ListFolderItemsResponse = Message<"metadata.ListFolderItemsResponse"
  * Use `create(ListFolderItemsResponseSchema)` to create a new message.
  */
 export const ListFolderItemsResponseSchema: GenMessage<ListFolderItemsResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 33);
+  messageDesc(file_metadata, 42);
 
 /**
  * @generated from message metadata.ListRecentItemsRequest
@@ -994,7 +1378,7 @@ export type ListRecentItemsRequest = Message<"metadata.ListRecentItemsRequest"> 
  * Use `create(ListRecentItemsRequestSchema)` to create a new message.
  */
 export const ListRecentItemsRequestSchema: GenMessage<ListRecentItemsRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 34);
+  messageDesc(file_metadata, 43);
 
 /**
  * @generated from message metadata.ListRecentItemsResponse
@@ -1016,7 +1400,7 @@ export type ListRecentItemsResponse = Message<"metadata.ListRecentItemsResponse"
  * Use `create(ListRecentItemsResponseSchema)` to create a new message.
  */
 export const ListRecentItemsResponseSchema: GenMessage<ListRecentItemsResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 35);
+  messageDesc(file_metadata, 44);
 
 /**
  * @generated from message metadata.RecordFileAccessRequest
@@ -1033,7 +1417,7 @@ export type RecordFileAccessRequest = Message<"metadata.RecordFileAccessRequest"
  * Use `create(RecordFileAccessRequestSchema)` to create a new message.
  */
 export const RecordFileAccessRequestSchema: GenMessage<RecordFileAccessRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 36);
+  messageDesc(file_metadata, 45);
 
 /**
  * @generated from message metadata.RecordFileAccessResponse
@@ -1050,7 +1434,7 @@ export type RecordFileAccessResponse = Message<"metadata.RecordFileAccessRespons
  * Use `create(RecordFileAccessResponseSchema)` to create a new message.
  */
 export const RecordFileAccessResponseSchema: GenMessage<RecordFileAccessResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 37);
+  messageDesc(file_metadata, 46);
 
 /**
  * @generated from message metadata.RenameFileRequest
@@ -1072,7 +1456,7 @@ export type RenameFileRequest = Message<"metadata.RenameFileRequest"> & {
  * Use `create(RenameFileRequestSchema)` to create a new message.
  */
 export const RenameFileRequestSchema: GenMessage<RenameFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 38);
+  messageDesc(file_metadata, 47);
 
 /**
  * @generated from message metadata.MoveFileRequest
@@ -1094,7 +1478,7 @@ export type MoveFileRequest = Message<"metadata.MoveFileRequest"> & {
  * Use `create(MoveFileRequestSchema)` to create a new message.
  */
 export const MoveFileRequestSchema: GenMessage<MoveFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 39);
+  messageDesc(file_metadata, 48);
 
 /**
  * @generated from message metadata.RestoreFileRequest
@@ -1111,7 +1495,7 @@ export type RestoreFileRequest = Message<"metadata.RestoreFileRequest"> & {
  * Use `create(RestoreFileRequestSchema)` to create a new message.
  */
 export const RestoreFileRequestSchema: GenMessage<RestoreFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 40);
+  messageDesc(file_metadata, 49);
 
 /**
  * @generated from message metadata.PermanentlyDeleteFileRequest
@@ -1128,7 +1512,63 @@ export type PermanentlyDeleteFileRequest = Message<"metadata.PermanentlyDeleteFi
  * Use `create(PermanentlyDeleteFileRequestSchema)` to create a new message.
  */
 export const PermanentlyDeleteFileRequestSchema: GenMessage<PermanentlyDeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 41);
+  messageDesc(file_metadata, 50);
+
+/**
+ * @generated from message metadata.PermanentlyDeleteFolderRequest
+ */
+export type PermanentlyDeleteFolderRequest = Message<"metadata.PermanentlyDeleteFolderRequest"> & {
+  /**
+   * @generated from field: string folder_id = 1;
+   */
+  folderId: string;
+};
+
+/**
+ * Describes the message metadata.PermanentlyDeleteFolderRequest.
+ * Use `create(PermanentlyDeleteFolderRequestSchema)` to create a new message.
+ */
+export const PermanentlyDeleteFolderRequestSchema: GenMessage<PermanentlyDeleteFolderRequest> = /*@__PURE__*/
+  messageDesc(file_metadata, 51);
+
+/**
+ * PermanentlyDeleteFolder is a subtree operation: the folder, every descendant
+ * folder, and every file they contain are queued for permanent deletion and
+ * then dropped from metadata. The counts are reported because this is a
+ * fan-out, not one file — a caller must be able to tell a partial purge from a
+ * clean one instead of assuming success.
+ *
+ * @generated from message metadata.PermanentlyDeleteFolderResponse
+ */
+export type PermanentlyDeleteFolderResponse = Message<"metadata.PermanentlyDeleteFolderResponse"> & {
+  /**
+   * Folders dropped from metadata: the target plus each descendant.
+   *
+   * @generated from field: int32 folder_count = 1;
+   */
+  folderCount: number;
+
+  /**
+   * Files inside the subtree that were queued for permanent deletion.
+   *
+   * @generated from field: int32 file_count = 2;
+   */
+  fileCount: number;
+
+  /**
+   * Files that could not be queued. Non-zero means some content may survive.
+   *
+   * @generated from field: int32 failed_count = 3;
+   */
+  failedCount: number;
+};
+
+/**
+ * Describes the message metadata.PermanentlyDeleteFolderResponse.
+ * Use `create(PermanentlyDeleteFolderResponseSchema)` to create a new message.
+ */
+export const PermanentlyDeleteFolderResponseSchema: GenMessage<PermanentlyDeleteFolderResponse> = /*@__PURE__*/
+  messageDesc(file_metadata, 52);
 
 /**
  * @generated from message metadata.PurgeJob
@@ -1200,7 +1640,7 @@ export type PurgeJob = Message<"metadata.PurgeJob"> & {
  * Use `create(PurgeJobSchema)` to create a new message.
  */
 export const PurgeJobSchema: GenMessage<PurgeJob> = /*@__PURE__*/
-  messageDesc(file_metadata, 42);
+  messageDesc(file_metadata, 53);
 
 /**
  * @generated from message metadata.GetPurgeJobStatusRequest
@@ -1217,7 +1657,7 @@ export type GetPurgeJobStatusRequest = Message<"metadata.GetPurgeJobStatusReques
  * Use `create(GetPurgeJobStatusRequestSchema)` to create a new message.
  */
 export const GetPurgeJobStatusRequestSchema: GenMessage<GetPurgeJobStatusRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 43);
+  messageDesc(file_metadata, 54);
 
 /**
  * @generated from message metadata.ListTrashRequest
@@ -1239,7 +1679,7 @@ export type ListTrashRequest = Message<"metadata.ListTrashRequest"> & {
  * Use `create(ListTrashRequestSchema)` to create a new message.
  */
 export const ListTrashRequestSchema: GenMessage<ListTrashRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 44);
+  messageDesc(file_metadata, 55);
 
 /**
  * @generated from message metadata.ListTrashResponse
@@ -1266,7 +1706,7 @@ export type ListTrashResponse = Message<"metadata.ListTrashResponse"> & {
  * Use `create(ListTrashResponseSchema)` to create a new message.
  */
 export const ListTrashResponseSchema: GenMessage<ListTrashResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 45);
+  messageDesc(file_metadata, 56);
 
 /**
  * @generated from message metadata.ListFolderRequest
@@ -1297,7 +1737,7 @@ export type ListFolderRequest = Message<"metadata.ListFolderRequest"> & {
  * Use `create(ListFolderRequestSchema)` to create a new message.
  */
 export const ListFolderRequestSchema: GenMessage<ListFolderRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 46);
+  messageDesc(file_metadata, 57);
 
 /**
  * @generated from message metadata.ListFolderResponse
@@ -1319,7 +1759,7 @@ export type ListFolderResponse = Message<"metadata.ListFolderResponse"> & {
  * Use `create(ListFolderResponseSchema)` to create a new message.
  */
 export const ListFolderResponseSchema: GenMessage<ListFolderResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 47);
+  messageDesc(file_metadata, 58);
 
 /**
  * @generated from message metadata.DeleteFileRequest
@@ -1336,7 +1776,7 @@ export type DeleteFileRequest = Message<"metadata.DeleteFileRequest"> & {
  * Use `create(DeleteFileRequestSchema)` to create a new message.
  */
 export const DeleteFileRequestSchema: GenMessage<DeleteFileRequest> = /*@__PURE__*/
-  messageDesc(file_metadata, 48);
+  messageDesc(file_metadata, 59);
 
 /**
  * @generated from message metadata.DeleteFileResponse
@@ -1353,7 +1793,7 @@ export type DeleteFileResponse = Message<"metadata.DeleteFileResponse"> & {
  * Use `create(DeleteFileResponseSchema)` to create a new message.
  */
 export const DeleteFileResponseSchema: GenMessage<DeleteFileResponse> = /*@__PURE__*/
-  messageDesc(file_metadata, 49);
+  messageDesc(file_metadata, 60);
 
 /**
  * @generated from enum metadata.FileSort
@@ -1418,6 +1858,16 @@ export const MetadataService: GenService<{
     output: typeof GetThumbnailURLResponseSchema;
   },
   /**
+   * Batch form of GetThumbnailURL: one round trip for a whole grid of cards.
+   *
+   * @generated from rpc metadata.MetadataService.GetThumbnailURLs
+   */
+  getThumbnailURLs: {
+    methodKind: "unary";
+    input: typeof GetThumbnailURLsRequestSchema;
+    output: typeof GetThumbnailURLsResponseSchema;
+  },
+  /**
    * Mints a single-file, short-lived download ticket after an ownership
    * check. The plain-HTTP content server verifies this ticket statelessly;
    * it never re-checks ACLs.
@@ -1452,6 +1902,40 @@ export const MetadataService: GenService<{
     methodKind: "unary";
     input: typeof DeleteFileRequestSchema;
     output: typeof DeleteFileResponseSchema;
+  },
+  /**
+   * ─── In-browser editing ───────────────────────────────────────────────────
+   * Authorizes an edit and returns a version-pinned ticket + the parameters a
+   * save must use (block size, caps, sniffed type).
+   *
+   * @generated from rpc metadata.MetadataService.GetEditSession
+   */
+  getEditSession: {
+    methodKind: "unary";
+    input: typeof GetEditSessionRequestSchema;
+    output: typeof GetEditSessionResponseSchema;
+  },
+  /**
+   * Advisory pre-flight for a save: which blocks this file already has.
+   *
+   * @generated from rpc metadata.MetadataService.PrepareCommit
+   */
+  prepareCommit: {
+    methodKind: "unary";
+    input: typeof PrepareCommitRequestSchema;
+    output: typeof PrepareCommitResponseSchema;
+  },
+  /**
+   * Commits edited bytes as the next immutable version. Called by the upload
+   * service on finalize (it owns block writes and ref-counting), never by the
+   * browser directly.
+   *
+   * @generated from rpc metadata.MetadataService.CommitVersion
+   */
+  commitVersion: {
+    methodKind: "unary";
+    input: typeof CommitVersionRequestSchema;
+    output: typeof CommitVersionResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_metadata, 0);
@@ -1638,6 +2122,18 @@ export const FolderService: GenService<{
     methodKind: "unary";
     input: typeof RestoreFolderRequestSchema;
     output: typeof FolderSchema;
+  },
+  /**
+   * Permanent deletion of a trashed folder, its descendant folders, and every
+   * file they contain. Requires the folder to be soft-deleted already, so this
+   * can never become a hard-delete back door for live data.
+   *
+   * @generated from rpc metadata.FolderService.PermanentlyDeleteFolder
+   */
+  permanentlyDeleteFolder: {
+    methodKind: "unary";
+    input: typeof PermanentlyDeleteFolderRequestSchema;
+    output: typeof PermanentlyDeleteFolderResponseSchema;
   },
   /**
    * @generated from rpc metadata.FolderService.GetBreadcrumbs

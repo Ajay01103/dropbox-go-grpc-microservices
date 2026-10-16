@@ -84,6 +84,28 @@ message GetThumbnailURLResponse {
   string thumbnail_status = 2;
 }
 
+message GetThumbnailURLsRequest {
+  repeated string file_ids = 1;
+}
+
+// ThumbnailURL is one item of a batch lookup. Each requested file gets exactly
+// one entry (same order as the request), so a grid can map results back
+// without a second index.
+message ThumbnailURL {
+  string file_id = 1;
+  // Empty when the file has no ready thumbnail (see thumbnail_status) or when
+  // this file could not be resolved at all (see error).
+  string url = 2;
+  string thumbnail_status = 3;
+  // Set when the file could not be resolved: unknown id, or a file the caller
+  // does not own. One bad id never fails the whole batch.
+  string error = 4;
+}
+
+message GetThumbnailURLsResponse {
+  repeated ThumbnailURL thumbnails = 1;
+}
+
 message GetFileRequest {
   string file_id = 1;
 }
@@ -107,6 +129,96 @@ message GetDownloadTicketResponse {
   string filename = 4;
   string content_type = 5;
   int64 size_bytes = 6;
+}
+
+// ─── In-browser editing (PDF / DOCX / XLSX) ──────────────────────────────────
+
+// BlockRef/FileManifest above describe a file version's bytes. Editing adds a
+// version history: (file_id, version) rows are immutable, only the head moves.
+
+message GetEditSessionRequest {
+  string file_id = 1;
+}
+
+// GetEditSession is the editor's entry point: it authorizes the caller, decides
+// whether the type is editable at all, and hands back a version-pinned ticket
+// URL so the bytes the user edits are exactly the version the commit will be
+// based on. The upload service calls it too, to learn the head block list when
+// a save only needs to send the blocks that changed.
+message GetEditSessionResponse {
+  bool can_edit = 1;
+  // Why editing is unavailable: type_not_editable | too_large | disabled.
+  // Empty when can_edit is true.
+  string unavailable_reason = 2;
+  int32 version = 3;
+  string content_hash = 4;
+  // Version-pinned inline content URL (ticket already appended).
+  string ticket_url = 5;
+  int64 expires_in_seconds = 6;
+  // The block size the file was written with. A save must split at exactly
+  // this size, so the unchanged blocks keep their hash and are not re-sent.
+  int64 block_size = 7;
+  int64 max_edit_bytes = 8;
+  // pdf | docx | xlsx (sniffed from the bytes, never the client's MIME).
+  string sniffed_type = 9;
+  string filename = 10;
+  int64 size_bytes = 11;
+  string content_type = 12;
+  // Head block hashes, in order — the list a save compares itself against.
+  repeated string block_hashes = 13;
+}
+
+message PrepareCommitRequest {
+  string file_id = 1;
+  int32 base_version = 2;
+  int64 size_bytes = 3;
+  int64 block_size = 4;
+  repeated string block_hashes = 5;
+}
+
+// PrepareCommit is an advisory pre-flight: it reports which of the caller's
+// hashes this file already references (so a save can skip sending unchanged
+// blocks) and whether the base version is still the head. It never reports on
+// blocks the caller does not already reference — that would be a cross-user
+// dedup oracle. Commit is the authority, not this call.
+message PrepareCommitResponse {
+  repeated string already_referenced_hashes = 1;
+  int32 head_version = 2;
+  bool base_is_head = 3;
+}
+
+message CommitVersionRequest {
+  string file_id = 1;
+  // The version the edit was based on. The commit wins (file_id, base+1) with
+  // INSERT ... IF NOT EXISTS; a loser gets conflict=true and the head it lost
+  // to, never an overwrite.
+  int32 base_version = 2;
+  string commit_id = 3;
+  int64 size_bytes = 4;
+  int64 block_size = 5;
+  repeated string block_hashes = 6;
+  // Per-block sizes, positionally paired with block_hashes.
+  repeated int64 block_sizes = 7;
+  // Which editor produced these bytes, e.g. extend-pdf-editor.
+  string editor = 8;
+  string content_type = 9;
+  string filename = 10;
+}
+
+message CommitVersionResponse {
+  bool committed = 1;
+  bool conflict = 2;
+  // Set when committed: the new version and its content hash.
+  int32 version = 3;
+  string content_hash = 4;
+  // Set when conflict: where the file actually is.
+  int32 head_version = 5;
+  string head_content_hash = 6;
+  // True when these exact bytes were already committed (a retry of a save
+  // whose response was lost). Committed is true and the version is the one
+  // that already holds them — the caller must not count the version's blocks
+  // as newly referenced, or a retry would inflate every ref count.
+  bool duplicate = 7;
 }
 
 message File {
@@ -274,6 +386,24 @@ message PermanentlyDeleteFileRequest {
   string file_id = 1;
 }
 
+message PermanentlyDeleteFolderRequest {
+  string folder_id = 1;
+}
+
+// PermanentlyDeleteFolder is a subtree operation: the folder, every descendant
+// folder, and every file they contain are queued for permanent deletion and
+// then dropped from metadata. The counts are reported because this is a
+// fan-out, not one file — a caller must be able to tell a partial purge from a
+// clean one instead of assuming success.
+message PermanentlyDeleteFolderResponse {
+  // Folders dropped from metadata: the target plus each descendant.
+  int32 folder_count = 1;
+  // Files inside the subtree that were queued for permanent deletion.
+  int32 file_count = 2;
+  // Files that could not be queued. Non-zero means some content may survive.
+  int32 failed_count = 3;
+}
+
 message PurgeJob {
   string job_id = 1;
   string file_id = 2;
@@ -332,6 +462,8 @@ service MetadataService {
   rpc SetThumbnail(SetThumbnailRequest) returns (SetThumbnailResponse);
   rpc GetThumbnailStatus(GetThumbnailStatusRequest) returns (GetThumbnailStatusResponse);
   rpc GetThumbnailURL(GetThumbnailURLRequest) returns (GetThumbnailURLResponse);
+  // Batch form of GetThumbnailURL: one round trip for a whole grid of cards.
+  rpc GetThumbnailURLs(GetThumbnailURLsRequest) returns (GetThumbnailURLsResponse);
   // Mints a single-file, short-lived download ticket after an ownership
   // check. The plain-HTTP content server verifies this ticket statelessly;
   // it never re-checks ACLs.
@@ -339,6 +471,16 @@ service MetadataService {
   rpc GetFile(GetFileRequest) returns (File);
   rpc ListFolder(ListFolderRequest) returns (ListFolderResponse);
   rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+  // ─── In-browser editing ───────────────────────────────────────────────────
+  // Authorizes an edit and returns a version-pinned ticket + the parameters a
+  // save must use (block size, caps, sniffed type).
+  rpc GetEditSession(GetEditSessionRequest) returns (GetEditSessionResponse);
+  // Advisory pre-flight for a save: which blocks this file already has.
+  rpc PrepareCommit(PrepareCommitRequest) returns (PrepareCommitResponse);
+  // Commits edited bytes as the next immutable version. Called by the upload
+  // service on finalize (it owns block writes and ref-counting), never by the
+  // browser directly.
+  rpc CommitVersion(CommitVersionRequest) returns (CommitVersionResponse);
 }
 
 service FileService {
@@ -369,6 +511,10 @@ service FolderService {
   rpc MoveFolder(MoveFolderRequest) returns (Folder);
   rpc DeleteFolder(DeleteFolderRequest) returns (DeleteFolderResponse);
   rpc RestoreFolder(RestoreFolderRequest) returns (Folder);
+  // Permanent deletion of a trashed folder, its descendant folders, and every
+  // file they contain. Requires the folder to be soft-deleted already, so this
+  // can never become a hard-delete back door for live data.
+  rpc PermanentlyDeleteFolder(PermanentlyDeleteFolderRequest) returns (PermanentlyDeleteFolderResponse);
   rpc GetBreadcrumbs(GetBreadcrumbsRequest) returns (GetBreadcrumbsResponse);
   rpc GetOrCreateRootFolder(GetOrCreateRootFolderRequest) returns (GetOrCreateRootFolderResponse);
 }

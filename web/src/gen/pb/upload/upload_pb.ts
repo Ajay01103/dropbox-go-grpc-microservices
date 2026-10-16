@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file upload.proto.
  */
 export const file_upload: GenFile = /*@__PURE__*/
-  fileDesc("Cgx1cGxvYWQucHJvdG8SBnVwbG9hZCJyChFJbml0VXBsb2FkUmVxdWVzdBIQCghmaWxlbmFtZRgBIAEoCRIYChB0b3RhbF9zaXplX2J5dGVzGAIgASgDEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIbChNzaGEyNTZfb2ZfZnVsbF9maWxlGAQgASgJIrgBChJJbml0VXBsb2FkUmVzcG9uc2USEQoJdXBsb2FkX2lkGAEgASgJEhgKEGNodW5rX3NpemVfYnl0ZXMYAiABKAMSIAoYYWxyZWFkeV9yZWNlaXZlZF9vZmZzZXRzGAMgAygDEhgKEGFscmVhZHlfY29tcGxldGUYBCABKAgSEQoJb2JqZWN0X2lkGAUgASgJEiYKHmFscmVhZHlfcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgGIAMoBSJzChJVcGxvYWRDaHVua1JlcXVlc3QSEQoJdXBsb2FkX2lkGAEgASgJEg4KBm9mZnNldBgCIAEoAxIMCgRkYXRhGAMgASgMEhcKD3NoYTI1Nl9vZl9jaHVuaxgEIAEoCRITCgtjaHVua19pbmRleBgFIAEoBSJlCg5VcGxvYWRDaHVua0FjaxIRCgl1cGxvYWRfaWQYASABKAkSGAoQb2Zmc2V0X3BlcnNpc3RlZBgCIAEoAxIQCghpc19maW5hbBgDIAEoCBIUCgxkZWR1cGxpY2F0ZWQYBCABKAgiKwoWR2V0VXBsb2FkU3RhdHVzUmVxdWVzdBIRCgl1cGxvYWRfaWQYASABKAkilQEKF0dldFVwbG9hZFN0YXR1c1Jlc3BvbnNlEhEKCXVwbG9hZF9pZBgBIAEoCRIdChVsYXN0X3BlcnNpc3RlZF9vZmZzZXQYAiABKAMSGAoQdG90YWxfc2l6ZV9ieXRlcxgDIAEoAxIOCgZzdGF0dXMYBCABKAkSHgoWcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgFIAMoBTKzAgoNVXBsb2FkU2VydmljZRJDCgpJbml0VXBsb2FkEhkudXBsb2FkLkluaXRVcGxvYWRSZXF1ZXN0GhoudXBsb2FkLkluaXRVcGxvYWRSZXNwb25zZRJBCgtVcGxvYWRDaHVuaxIaLnVwbG9hZC5VcGxvYWRDaHVua1JlcXVlc3QaFi51cGxvYWQuVXBsb2FkQ2h1bmtBY2sSRgoMVXBsb2FkQ2h1bmtzEhoudXBsb2FkLlVwbG9hZENodW5rUmVxdWVzdBoWLnVwbG9hZC5VcGxvYWRDaHVua0FjaygBMAESUgoPR2V0VXBsb2FkU3RhdHVzEh4udXBsb2FkLkdldFVwbG9hZFN0YXR1c1JlcXVlc3QaHy51cGxvYWQuR2V0VXBsb2FkU3RhdHVzUmVzcG9uc2VCMlowZ2l0aHViLmNvbS9BamF5MDExMDMvZ28tZHJvcGJveC91cGxvYWQvZ2VuL3BiO3BiYgZwcm90bzM");
+  fileDesc("Cgx1cGxvYWQucHJvdG8SBnVwbG9hZCJyChFJbml0VXBsb2FkUmVxdWVzdBIQCghmaWxlbmFtZRgBIAEoCRIYChB0b3RhbF9zaXplX2J5dGVzGAIgASgDEhQKDGNvbnRlbnRfdHlwZRgDIAEoCRIbChNzaGEyNTZfb2ZfZnVsbF9maWxlGAQgASgJIrgBChJJbml0VXBsb2FkUmVzcG9uc2USEQoJdXBsb2FkX2lkGAEgASgJEhgKEGNodW5rX3NpemVfYnl0ZXMYAiABKAMSIAoYYWxyZWFkeV9yZWNlaXZlZF9vZmZzZXRzGAMgAygDEhgKEGFscmVhZHlfY29tcGxldGUYBCABKAgSEQoJb2JqZWN0X2lkGAUgASgJEiYKHmFscmVhZHlfcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgGIAMoBSJzChJVcGxvYWRDaHVua1JlcXVlc3QSEQoJdXBsb2FkX2lkGAEgASgJEg4KBm9mZnNldBgCIAEoAxIMCgRkYXRhGAMgASgMEhcKD3NoYTI1Nl9vZl9jaHVuaxgEIAEoCRITCgtjaHVua19pbmRleBgFIAEoBSJlCg5VcGxvYWRDaHVua0FjaxIRCgl1cGxvYWRfaWQYASABKAkSGAoQb2Zmc2V0X3BlcnNpc3RlZBgCIAEoAxIQCghpc19maW5hbBgDIAEoCBIUCgxkZWR1cGxpY2F0ZWQYBCABKAgiKwoWR2V0VXBsb2FkU3RhdHVzUmVxdWVzdBIRCgl1cGxvYWRfaWQYASABKAkilQEKF0dldFVwbG9hZFN0YXR1c1Jlc3BvbnNlEhEKCXVwbG9hZF9pZBgBIAEoCRIdChVsYXN0X3BlcnNpc3RlZF9vZmZzZXQYAiABKAMSGAoQdG90YWxfc2l6ZV9ieXRlcxgDIAEoAxIOCgZzdGF0dXMYBCABKAkSHgoWcmVjZWl2ZWRfY2h1bmtfaW5kaWNlcxgFIAMoBSJVChVXcml0ZUVkaXRCbG9ja1JlcXVlc3QSDwoHZmlsZV9pZBgBIAEoCRINCgVpbmRleBgCIAEoBRIOCgZzaGEyNTYYAyABKAkSDAoEZGF0YRgEIAEoDCJNChZXcml0ZUVkaXRCbG9ja1Jlc3BvbnNlEg8KB3dyaXR0ZW4YASABKAgSDgoGcmV1c2VkGAIgASgIEhIKCnNpemVfYnl0ZXMYAyABKAMi2AEKEUNvbW1pdEVkaXRSZXF1ZXN0Eg8KB2ZpbGVfaWQYASABKAkSFAoMYmFzZV92ZXJzaW9uGAIgASgFEhEKCWNvbW1pdF9pZBgDIAEoCRISCgpzaXplX2J5dGVzGAQgASgDEhIKCmJsb2NrX3NpemUYBSABKAMSFAoMYmxvY2tfaGFzaGVzGAYgAygJEhMKC2Jsb2NrX3NpemVzGAcgAygDEg4KBmVkaXRvchgIIAEoCRIQCghmaWxlbmFtZRgJIAEoCRIUCgxjb250ZW50X3R5cGUYCiABKAkiqAEKEkNvbW1pdEVkaXRSZXNwb25zZRIRCgljb21taXR0ZWQYASABKAgSEAoIY29uZmxpY3QYAiABKAgSDwoHdmVyc2lvbhgDIAEoBRIUCgxjb250ZW50X2hhc2gYBCABKAkSFAoMaGVhZF92ZXJzaW9uGAUgASgFEhkKEWhlYWRfY29udGVudF9oYXNoGAYgASgJEhUKDWJsb2Nrc19yZXVzZWQYByABKAMyyQMKDVVwbG9hZFNlcnZpY2USQwoKSW5pdFVwbG9hZBIZLnVwbG9hZC5Jbml0VXBsb2FkUmVxdWVzdBoaLnVwbG9hZC5Jbml0VXBsb2FkUmVzcG9uc2USQQoLVXBsb2FkQ2h1bmsSGi51cGxvYWQuVXBsb2FkQ2h1bmtSZXF1ZXN0GhYudXBsb2FkLlVwbG9hZENodW5rQWNrEkYKDFVwbG9hZENodW5rcxIaLnVwbG9hZC5VcGxvYWRDaHVua1JlcXVlc3QaFi51cGxvYWQuVXBsb2FkQ2h1bmtBY2soATABElIKD0dldFVwbG9hZFN0YXR1cxIeLnVwbG9hZC5HZXRVcGxvYWRTdGF0dXNSZXF1ZXN0Gh8udXBsb2FkLkdldFVwbG9hZFN0YXR1c1Jlc3BvbnNlEk8KDldyaXRlRWRpdEJsb2NrEh0udXBsb2FkLldyaXRlRWRpdEJsb2NrUmVxdWVzdBoeLnVwbG9hZC5Xcml0ZUVkaXRCbG9ja1Jlc3BvbnNlEkMKCkNvbW1pdEVkaXQSGS51cGxvYWQuQ29tbWl0RWRpdFJlcXVlc3QaGi51cGxvYWQuQ29tbWl0RWRpdFJlc3BvbnNlQjJaMGdpdGh1Yi5jb20vQWpheTAxMTAzL2dvLWRyb3Bib3gvdXBsb2FkL2dlbi9wYjtwYmIGcHJvdG8z");
 
 /**
  * @generated from message upload.InitUploadRequest
@@ -220,6 +220,192 @@ export const GetUploadStatusResponseSchema: GenMessage<GetUploadStatusResponse> 
   messageDesc(file_upload, 5);
 
 /**
+ * @generated from message upload.WriteEditBlockRequest
+ */
+export type WriteEditBlockRequest = Message<"upload.WriteEditBlockRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * The block's position in the new version's ordered list. Not trusted as
+   * identity (the hash is), but it is what the logs and the ack refer to.
+   *
+   * @generated from field: int32 index = 2;
+   */
+  index: number;
+
+  /**
+   * @generated from field: string sha256 = 3;
+   */
+  sha256: string;
+
+  /**
+   * @generated from field: bytes data = 4;
+   */
+  data: Uint8Array;
+};
+
+/**
+ * Describes the message upload.WriteEditBlockRequest.
+ * Use `create(WriteEditBlockRequestSchema)` to create a new message.
+ */
+export const WriteEditBlockRequestSchema: GenMessage<WriteEditBlockRequest> = /*@__PURE__*/
+  messageDesc(file_upload, 6);
+
+/**
+ * WriteEditBlockResponse reports what happened to one block: written means this
+ * call stored the bytes (staged until a commit references them); reused means
+ * the block was already there and nothing was written.
+ *
+ * @generated from message upload.WriteEditBlockResponse
+ */
+export type WriteEditBlockResponse = Message<"upload.WriteEditBlockResponse"> & {
+  /**
+   * @generated from field: bool written = 1;
+   */
+  written: boolean;
+
+  /**
+   * @generated from field: bool reused = 2;
+   */
+  reused: boolean;
+
+  /**
+   * @generated from field: int64 size_bytes = 3;
+   */
+  sizeBytes: bigint;
+};
+
+/**
+ * Describes the message upload.WriteEditBlockResponse.
+ * Use `create(WriteEditBlockResponseSchema)` to create a new message.
+ */
+export const WriteEditBlockResponseSchema: GenMessage<WriteEditBlockResponse> = /*@__PURE__*/
+  messageDesc(file_upload, 7);
+
+/**
+ * @generated from message upload.CommitEditRequest
+ */
+export type CommitEditRequest = Message<"upload.CommitEditRequest"> & {
+  /**
+   * @generated from field: string file_id = 1;
+   */
+  fileId: string;
+
+  /**
+   * @generated from field: int32 base_version = 2;
+   */
+  baseVersion: number;
+
+  /**
+   * Client-generated, stored on the version row for audit and double-submit
+   * dedup. A retry of the same save keeps the same id.
+   *
+   * @generated from field: string commit_id = 3;
+   */
+  commitId: string;
+
+  /**
+   * @generated from field: int64 size_bytes = 4;
+   */
+  sizeBytes: bigint;
+
+  /**
+   * @generated from field: int64 block_size = 5;
+   */
+  blockSize: bigint;
+
+  /**
+   * The complete new version, in order: every hash, not only the new ones.
+   *
+   * @generated from field: repeated string block_hashes = 6;
+   */
+  blockHashes: string[];
+
+  /**
+   * Positionally paired with block_hashes; the server derives them and treats
+   * a mismatch as a client error.
+   *
+   * @generated from field: repeated int64 block_sizes = 7;
+   */
+  blockSizes: bigint[];
+
+  /**
+   * @generated from field: string editor = 8;
+   */
+  editor: string;
+
+  /**
+   * @generated from field: string filename = 9;
+   */
+  filename: string;
+
+  /**
+   * @generated from field: string content_type = 10;
+   */
+  contentType: string;
+};
+
+/**
+ * Describes the message upload.CommitEditRequest.
+ * Use `create(CommitEditRequestSchema)` to create a new message.
+ */
+export const CommitEditRequestSchema: GenMessage<CommitEditRequest> = /*@__PURE__*/
+  messageDesc(file_upload, 8);
+
+/**
+ * @generated from message upload.CommitEditResponse
+ */
+export type CommitEditResponse = Message<"upload.CommitEditResponse"> & {
+  /**
+   * @generated from field: bool committed = 1;
+   */
+  committed: boolean;
+
+  /**
+   * @generated from field: bool conflict = 2;
+   */
+  conflict: boolean;
+
+  /**
+   * @generated from field: int32 version = 3;
+   */
+  version: number;
+
+  /**
+   * @generated from field: string content_hash = 4;
+   */
+  contentHash: string;
+
+  /**
+   * @generated from field: int32 head_version = 5;
+   */
+  headVersion: number;
+
+  /**
+   * @generated from field: string head_content_hash = 6;
+   */
+  headContentHash: string;
+
+  /**
+   * How many of the version's blocks the file already held — the saving a
+   * client can see and an operator can trend.
+   *
+   * @generated from field: int64 blocks_reused = 7;
+   */
+  blocksReused: bigint;
+};
+
+/**
+ * Describes the message upload.CommitEditResponse.
+ * Use `create(CommitEditResponseSchema)` to create a new message.
+ */
+export const CommitEditResponseSchema: GenMessage<CommitEditResponse> = /*@__PURE__*/
+  messageDesc(file_upload, 9);
+
+/**
  * @generated from service upload.UploadService
  */
 export const UploadService: GenService<{
@@ -254,6 +440,26 @@ export const UploadService: GenService<{
     methodKind: "unary";
     input: typeof GetUploadStatusRequestSchema;
     output: typeof GetUploadStatusResponseSchema;
+  },
+  /**
+   * Editing: write one missing block, then commit the version. Two unary
+   * calls rather than one stream so a save can send its blocks from several
+   * parallel workers and stay inside the per-message size cap.
+   *
+   * @generated from rpc upload.UploadService.WriteEditBlock
+   */
+  writeEditBlock: {
+    methodKind: "unary";
+    input: typeof WriteEditBlockRequestSchema;
+    output: typeof WriteEditBlockResponseSchema;
+  },
+  /**
+   * @generated from rpc upload.UploadService.CommitEdit
+   */
+  commitEdit: {
+    methodKind: "unary";
+    input: typeof CommitEditRequestSchema;
+    output: typeof CommitEditResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_upload, 0);

@@ -25,6 +25,12 @@ z13_purge_drop_jobs_by_file_version.cql
 z14_purge_drop_jobs_by_state.cql
 z15_purge_jobs_drop_has_reconciliation_errors.cql
 z17_drop_folders_by_user.cql
+z18_folder_ancestor_ids.cql
+z19_content_family.cql
+z20_file_manifest.cql
+z21_stitched_objects.cql
+z22_stitched_objects_by_state.cql
+z23_drop_unused_file_sort_indexes.cql
 ```
 
 (The `7_` gap and the `10/11` names are pre-existing history — lexical order

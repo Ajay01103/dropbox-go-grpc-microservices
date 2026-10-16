@@ -46,6 +46,16 @@ type Config struct {
 	StitchInterval   time.Duration `mapstructure:"STITCH_INTERVAL"`
 	StitchBatchSize  int           `mapstructure:"STITCH_BATCH_SIZE"`
 	StitchMinAgeSecs int           `mapstructure:"STITCH_MIN_AGE_SECONDS"`
+	// In-browser editing (PDF / DOCX / XLSX). One kill switch per type so a
+	// bad round-trip can be turned off without touching data or code, and one
+	// size cap per type because the editors hold the whole document in browser
+	// memory: the cap is enforced before the file is loaded, not after.
+	EditPDFEnabled   bool  `mapstructure:"PDF_EDIT_ENABLED"`
+	EditDocxEnabled  bool  `mapstructure:"DOCX_EDIT_ENABLED"`
+	EditXlsxEnabled  bool  `mapstructure:"XLSX_EDIT_ENABLED"`
+	EditPDFMaxBytes  int64 `mapstructure:"EDIT_PDF_MAX_BYTES"`
+	EditDocxMaxBytes int64 `mapstructure:"EDIT_DOCX_MAX_BYTES"`
+	EditXlsxMaxBytes int64 `mapstructure:"EDIT_XLSX_MAX_BYTES"`
 }
 
 // Load reads configuration from environment variables (and optionally a .env file)
@@ -91,6 +101,14 @@ func Load() (Config, error) {
 	viper.SetDefault("STITCH_INTERVAL", time.Minute)
 	viper.SetDefault("STITCH_BATCH_SIZE", 5)
 	viper.SetDefault("STITCH_MIN_AGE_SECONDS", 30)
+	viper.SetDefault("PDF_EDIT_ENABLED", true)
+	viper.SetDefault("DOCX_EDIT_ENABLED", true)
+	viper.SetDefault("XLSX_EDIT_ENABLED", true)
+	// Caps from the edit plan: PDF 50 MiB (the pdf worker's own ceiling is
+	// 100 MiB), DOCX and XLSX 25 MiB each.
+	viper.SetDefault("EDIT_PDF_MAX_BYTES", 50<<20)
+	viper.SetDefault("EDIT_DOCX_MAX_BYTES", 25<<20)
+	viper.SetDefault("EDIT_XLSX_MAX_BYTES", 25<<20)
 
 	var cfg Config
 	if err := viper.Unmarshal(&cfg); err != nil {

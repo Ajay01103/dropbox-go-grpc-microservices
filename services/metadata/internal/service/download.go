@@ -27,6 +27,14 @@ type DownloadTicket struct {
 	UserID      string `json:"uid"`
 	Disposition string `json:"d"` // inline | attachment
 	Filename    string `json:"fn"`
+	// Version and ContentHash pin the ticket to one version's bytes; both are
+	// empty for a plain download ticket (which means "whatever is current").
+	// An edit session mints a pinned ticket so the editor loads exactly the
+	// bytes its commit will be based on, and the content route refuses to
+	// serve a different version under a pinned ticket instead of silently
+	// handing the editor someone else's newer bytes to overwrite.
+	Version     int32  `json:"v,omitempty"`
+	ContentHash string `json:"h,omitempty"`
 	// IssuedAtUnix trades a slightly larger payload for a verification that
 	// needs no key-version tracking: a check against now-TransmissionWindow
 	// bounds clock skew on both sides.
@@ -90,6 +98,19 @@ func MintDownloadTicket(fileID, userID, disposition, filename string, now time.T
 		IssuedAtUnix: now.Unix(),
 		ExpiresUnix:  now.Add(TicketTTL).Unix(),
 	}, nil
+}
+
+// MintVersionedTicket is MintDownloadTicket plus the version pin the edit path
+// needs: the returned ticket names one (file, version, content hash), and a
+// reader serving it can prove it handed over exactly those bytes.
+func MintVersionedTicket(fileID, userID, disposition, filename string, version int32, contentHash string, now time.Time) (DownloadTicket, error) {
+	ticket, err := MintDownloadTicket(fileID, userID, disposition, filename, now)
+	if err != nil {
+		return DownloadTicket{}, err
+	}
+	ticket.Version = version
+	ticket.ContentHash = contentHash
+	return ticket, nil
 }
 
 // sign returns base64url(HMAC-SHA256(key, payload)).

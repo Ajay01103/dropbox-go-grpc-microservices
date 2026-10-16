@@ -39,6 +39,9 @@ const (
 	// MetadataServiceGetThumbnailURLProcedure is the procedure name of the MetadataService's
 	// GetThumbnailURL RPC.
 	MetadataServiceGetThumbnailURLProcedure = "/metadata.MetadataService/GetThumbnailURL"
+	// MetadataServiceGetThumbnailURLsProcedure is the procedure name of the MetadataService's
+	// GetThumbnailURLs RPC.
+	MetadataServiceGetThumbnailURLsProcedure = "/metadata.MetadataService/GetThumbnailURLs"
 	// MetadataServiceGetDownloadTicketProcedure is the procedure name of the MetadataService's
 	// GetDownloadTicket RPC.
 	MetadataServiceGetDownloadTicketProcedure = "/metadata.MetadataService/GetDownloadTicket"
@@ -48,6 +51,15 @@ const (
 	MetadataServiceListFolderProcedure = "/metadata.MetadataService/ListFolder"
 	// MetadataServiceDeleteFileProcedure is the procedure name of the MetadataService's DeleteFile RPC.
 	MetadataServiceDeleteFileProcedure = "/metadata.MetadataService/DeleteFile"
+	// MetadataServiceGetEditSessionProcedure is the procedure name of the MetadataService's
+	// GetEditSession RPC.
+	MetadataServiceGetEditSessionProcedure = "/metadata.MetadataService/GetEditSession"
+	// MetadataServicePrepareCommitProcedure is the procedure name of the MetadataService's
+	// PrepareCommit RPC.
+	MetadataServicePrepareCommitProcedure = "/metadata.MetadataService/PrepareCommit"
+	// MetadataServiceCommitVersionProcedure is the procedure name of the MetadataService's
+	// CommitVersion RPC.
+	MetadataServiceCommitVersionProcedure = "/metadata.MetadataService/CommitVersion"
 	// FileServiceCreateFileProcedure is the procedure name of the FileService's CreateFile RPC.
 	FileServiceCreateFileProcedure = "/metadata.FileService/CreateFile"
 	// FileServiceGetFileProcedure is the procedure name of the FileService's GetFile RPC.
@@ -98,6 +110,9 @@ const (
 	// FolderServiceRestoreFolderProcedure is the procedure name of the FolderService's RestoreFolder
 	// RPC.
 	FolderServiceRestoreFolderProcedure = "/metadata.FolderService/RestoreFolder"
+	// FolderServicePermanentlyDeleteFolderProcedure is the procedure name of the FolderService's
+	// PermanentlyDeleteFolder RPC.
+	FolderServicePermanentlyDeleteFolderProcedure = "/metadata.FolderService/PermanentlyDeleteFolder"
 	// FolderServiceGetBreadcrumbsProcedure is the procedure name of the FolderService's GetBreadcrumbs
 	// RPC.
 	FolderServiceGetBreadcrumbsProcedure = "/metadata.FolderService/GetBreadcrumbs"
@@ -135,6 +150,13 @@ var (
 			Procedure:  MetadataServiceGetThumbnailURLProcedure,
 		}
 	})
+	metadataServiceGetThumbnailURLsSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_metadata_proto.Services().ByName("MetadataService").Methods().ByName("GetThumbnailURLs"),
+			Procedure:  MetadataServiceGetThumbnailURLsProcedure,
+		}
+	})
 	metadataServiceGetDownloadTicketSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -163,6 +185,27 @@ var (
 			Procedure:  MetadataServiceDeleteFileProcedure,
 		}
 	})
+	metadataServiceGetEditSessionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_metadata_proto.Services().ByName("MetadataService").Methods().ByName("GetEditSession"),
+			Procedure:  MetadataServiceGetEditSessionProcedure,
+		}
+	})
+	metadataServicePrepareCommitSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_metadata_proto.Services().ByName("MetadataService").Methods().ByName("PrepareCommit"),
+			Procedure:  MetadataServicePrepareCommitProcedure,
+		}
+	})
+	metadataServiceCommitVersionSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_metadata_proto.Services().ByName("MetadataService").Methods().ByName("CommitVersion"),
+			Procedure:  MetadataServiceCommitVersionProcedure,
+		}
+	})
 )
 
 // MetadataServiceClient is a client for the metadata.MetadataService service.
@@ -171,6 +214,8 @@ type MetadataServiceClient interface {
 	SetThumbnail(context.Context, *pb.SetThumbnailRequest) (*pb.SetThumbnailResponse, error)
 	GetThumbnailStatus(context.Context, *pb.GetThumbnailStatusRequest) (*pb.GetThumbnailStatusResponse, error)
 	GetThumbnailURL(context.Context, *pb.GetThumbnailURLRequest) (*pb.GetThumbnailURLResponse, error)
+	// Batch form of GetThumbnailURL: one round trip for a whole grid of cards.
+	GetThumbnailURLs(context.Context, *pb.GetThumbnailURLsRequest) (*pb.GetThumbnailURLsResponse, error)
 	// Mints a single-file, short-lived download ticket after an ownership
 	// check. The plain-HTTP content server verifies this ticket statelessly;
 	// it never re-checks ACLs.
@@ -178,6 +223,16 @@ type MetadataServiceClient interface {
 	GetFile(context.Context, *pb.GetFileRequest) (*pb.File, error)
 	ListFolder(context.Context, *pb.ListFolderRequest) (*pb.ListFolderResponse, error)
 	DeleteFile(context.Context, *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error)
+	// ─── In-browser editing ───────────────────────────────────────────────────
+	// Authorizes an edit and returns a version-pinned ticket + the parameters a
+	// save must use (block size, caps, sniffed type).
+	GetEditSession(context.Context, *pb.GetEditSessionRequest) (*pb.GetEditSessionResponse, error)
+	// Advisory pre-flight for a save: which blocks this file already has.
+	PrepareCommit(context.Context, *pb.PrepareCommitRequest) (*pb.PrepareCommitResponse, error)
+	// Commits edited bytes as the next immutable version. Called by the upload
+	// service on finalize (it owns block writes and ref-counting), never by the
+	// browser directly.
+	CommitVersion(context.Context, *pb.CommitVersionRequest) (*pb.CommitVersionResponse, error)
 }
 
 // NewMetadataServiceClient constructs a client for the metadata.MetadataService service. Multiple
@@ -192,6 +247,8 @@ type MetadataServiceHandler interface {
 	SetThumbnail(context.Context, *pb.SetThumbnailRequest) (*pb.SetThumbnailResponse, error)
 	GetThumbnailStatus(context.Context, *pb.GetThumbnailStatusRequest) (*pb.GetThumbnailStatusResponse, error)
 	GetThumbnailURL(context.Context, *pb.GetThumbnailURLRequest) (*pb.GetThumbnailURLResponse, error)
+	// Batch form of GetThumbnailURL: one round trip for a whole grid of cards.
+	GetThumbnailURLs(context.Context, *pb.GetThumbnailURLsRequest) (*pb.GetThumbnailURLsResponse, error)
 	// Mints a single-file, short-lived download ticket after an ownership
 	// check. The plain-HTTP content server verifies this ticket statelessly;
 	// it never re-checks ACLs.
@@ -199,6 +256,16 @@ type MetadataServiceHandler interface {
 	GetFile(context.Context, *pb.GetFileRequest) (*pb.File, error)
 	ListFolder(context.Context, *pb.ListFolderRequest) (*pb.ListFolderResponse, error)
 	DeleteFile(context.Context, *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error)
+	// ─── In-browser editing ───────────────────────────────────────────────────
+	// Authorizes an edit and returns a version-pinned ticket + the parameters a
+	// save must use (block size, caps, sniffed type).
+	GetEditSession(context.Context, *pb.GetEditSessionRequest) (*pb.GetEditSessionResponse, error)
+	// Advisory pre-flight for a save: which blocks this file already has.
+	PrepareCommit(context.Context, *pb.PrepareCommitRequest) (*pb.PrepareCommitResponse, error)
+	// Commits edited bytes as the next immutable version. Called by the upload
+	// service on finalize (it owns block writes and ref-counting), never by the
+	// browser directly.
+	CommitVersion(context.Context, *pb.CommitVersionRequest) (*pb.CommitVersionResponse, error)
 }
 
 // RegisterMetadataServiceHandler registers svc as the metadata.MetadataService implementation on
@@ -210,10 +277,14 @@ func RegisterMetadataServiceHandler(server *connect.Server, svc MetadataServiceH
 		connect.Method{Spec: metadataServiceSetThumbnailSpec(), Handler: adapter.setThumbnail},
 		connect.Method{Spec: metadataServiceGetThumbnailStatusSpec(), Handler: adapter.getThumbnailStatus},
 		connect.Method{Spec: metadataServiceGetThumbnailURLSpec(), Handler: adapter.getThumbnailURL},
+		connect.Method{Spec: metadataServiceGetThumbnailURLsSpec(), Handler: adapter.getThumbnailURLs},
 		connect.Method{Spec: metadataServiceGetDownloadTicketSpec(), Handler: adapter.getDownloadTicket},
 		connect.Method{Spec: metadataServiceGetFileSpec(), Handler: adapter.getFile},
 		connect.Method{Spec: metadataServiceListFolderSpec(), Handler: adapter.listFolder},
 		connect.Method{Spec: metadataServiceDeleteFileSpec(), Handler: adapter.deleteFile},
+		connect.Method{Spec: metadataServiceGetEditSessionSpec(), Handler: adapter.getEditSession},
+		connect.Method{Spec: metadataServicePrepareCommitSpec(), Handler: adapter.prepareCommit},
+		connect.Method{Spec: metadataServiceCommitVersionSpec(), Handler: adapter.commitVersion},
 	)
 }
 
@@ -236,6 +307,10 @@ func (UnimplementedMetadataServiceHandler) GetThumbnailURL(context.Context, *pb.
 	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.GetThumbnailURL is not implemented")
 }
 
+func (UnimplementedMetadataServiceHandler) GetThumbnailURLs(context.Context, *pb.GetThumbnailURLsRequest) (*pb.GetThumbnailURLsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.GetThumbnailURLs is not implemented")
+}
+
 func (UnimplementedMetadataServiceHandler) GetDownloadTicket(context.Context, *pb.GetDownloadTicketRequest) (*pb.GetDownloadTicketResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.GetDownloadTicket is not implemented")
 }
@@ -250,6 +325,18 @@ func (UnimplementedMetadataServiceHandler) ListFolder(context.Context, *pb.ListF
 
 func (UnimplementedMetadataServiceHandler) DeleteFile(context.Context, *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.DeleteFile is not implemented")
+}
+
+func (UnimplementedMetadataServiceHandler) GetEditSession(context.Context, *pb.GetEditSessionRequest) (*pb.GetEditSessionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.GetEditSession is not implemented")
+}
+
+func (UnimplementedMetadataServiceHandler) PrepareCommit(context.Context, *pb.PrepareCommitRequest) (*pb.PrepareCommitResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.PrepareCommit is not implemented")
+}
+
+func (UnimplementedMetadataServiceHandler) CommitVersion(context.Context, *pb.CommitVersionRequest) (*pb.CommitVersionResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.MetadataService.CommitVersion is not implemented")
 }
 
 type metadataServiceClient struct {
@@ -288,6 +375,14 @@ func (c *metadataServiceClient) GetThumbnailURL(ctx context.Context, req *pb.Get
 	return &res, nil
 }
 
+func (c *metadataServiceClient) GetThumbnailURLs(ctx context.Context, req *pb.GetThumbnailURLsRequest) (*pb.GetThumbnailURLsResponse, error) {
+	var res pb.GetThumbnailURLsResponse
+	if err := c.client.CallUnary(ctx, metadataServiceGetThumbnailURLsSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
 func (c *metadataServiceClient) GetDownloadTicket(ctx context.Context, req *pb.GetDownloadTicketRequest) (*pb.GetDownloadTicketResponse, error) {
 	var res pb.GetDownloadTicketResponse
 	if err := c.client.CallUnary(ctx, metadataServiceGetDownloadTicketSpec(), req, &res); err != nil {
@@ -315,6 +410,30 @@ func (c *metadataServiceClient) ListFolder(ctx context.Context, req *pb.ListFold
 func (c *metadataServiceClient) DeleteFile(ctx context.Context, req *pb.DeleteFileRequest) (*pb.DeleteFileResponse, error) {
 	var res pb.DeleteFileResponse
 	if err := c.client.CallUnary(ctx, metadataServiceDeleteFileSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metadataServiceClient) GetEditSession(ctx context.Context, req *pb.GetEditSessionRequest) (*pb.GetEditSessionResponse, error) {
+	var res pb.GetEditSessionResponse
+	if err := c.client.CallUnary(ctx, metadataServiceGetEditSessionSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metadataServiceClient) PrepareCommit(ctx context.Context, req *pb.PrepareCommitRequest) (*pb.PrepareCommitResponse, error) {
+	var res pb.PrepareCommitResponse
+	if err := c.client.CallUnary(ctx, metadataServicePrepareCommitSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *metadataServiceClient) CommitVersion(ctx context.Context, req *pb.CommitVersionRequest) (*pb.CommitVersionResponse, error) {
+	var res pb.CommitVersionResponse
+	if err := c.client.CallUnary(ctx, metadataServiceCommitVersionSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -370,6 +489,18 @@ func (h metadataServiceHandler) getThumbnailURL(ctx context.Context, _ connect.S
 	return stream.Send(res)
 }
 
+func (h metadataServiceHandler) getThumbnailURLs(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.GetThumbnailURLsRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetThumbnailURLs(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
 func (h metadataServiceHandler) getDownloadTicket(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
 	var req pb.GetDownloadTicketRequest
 	if err := stream.Receive(&req); err != nil {
@@ -412,6 +543,42 @@ func (h metadataServiceHandler) deleteFile(ctx context.Context, _ connect.Spec, 
 		return err
 	}
 	res, err := h.svc.DeleteFile(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metadataServiceHandler) getEditSession(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.GetEditSessionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.GetEditSession(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metadataServiceHandler) prepareCommit(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.PrepareCommitRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.PrepareCommit(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h metadataServiceHandler) commitVersion(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.CommitVersionRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CommitVersion(ctx, &req)
 	if err != nil {
 		return err
 	}
@@ -956,6 +1123,13 @@ var (
 			Procedure:  FolderServiceRestoreFolderProcedure,
 		}
 	})
+	folderServicePermanentlyDeleteFolderSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_metadata_proto.Services().ByName("FolderService").Methods().ByName("PermanentlyDeleteFolder"),
+			Procedure:  FolderServicePermanentlyDeleteFolderProcedure,
+		}
+	})
 	folderServiceGetBreadcrumbsSpec = sync.OnceValue(func() connect.Spec {
 		return connect.Spec{
 			StreamType: connect.StreamTypeUnary,
@@ -982,6 +1156,10 @@ type FolderServiceClient interface {
 	MoveFolder(context.Context, *pb.MoveFolderRequest) (*pb.Folder, error)
 	DeleteFolder(context.Context, *pb.DeleteFolderRequest) (*pb.DeleteFolderResponse, error)
 	RestoreFolder(context.Context, *pb.RestoreFolderRequest) (*pb.Folder, error)
+	// Permanent deletion of a trashed folder, its descendant folders, and every
+	// file they contain. Requires the folder to be soft-deleted already, so this
+	// can never become a hard-delete back door for live data.
+	PermanentlyDeleteFolder(context.Context, *pb.PermanentlyDeleteFolderRequest) (*pb.PermanentlyDeleteFolderResponse, error)
 	GetBreadcrumbs(context.Context, *pb.GetBreadcrumbsRequest) (*pb.GetBreadcrumbsResponse, error)
 	GetOrCreateRootFolder(context.Context, *pb.GetOrCreateRootFolderRequest) (*pb.GetOrCreateRootFolderResponse, error)
 }
@@ -1002,6 +1180,10 @@ type FolderServiceHandler interface {
 	MoveFolder(context.Context, *pb.MoveFolderRequest) (*pb.Folder, error)
 	DeleteFolder(context.Context, *pb.DeleteFolderRequest) (*pb.DeleteFolderResponse, error)
 	RestoreFolder(context.Context, *pb.RestoreFolderRequest) (*pb.Folder, error)
+	// Permanent deletion of a trashed folder, its descendant folders, and every
+	// file they contain. Requires the folder to be soft-deleted already, so this
+	// can never become a hard-delete back door for live data.
+	PermanentlyDeleteFolder(context.Context, *pb.PermanentlyDeleteFolderRequest) (*pb.PermanentlyDeleteFolderResponse, error)
 	GetBreadcrumbs(context.Context, *pb.GetBreadcrumbsRequest) (*pb.GetBreadcrumbsResponse, error)
 	GetOrCreateRootFolder(context.Context, *pb.GetOrCreateRootFolderRequest) (*pb.GetOrCreateRootFolderResponse, error)
 }
@@ -1019,6 +1201,7 @@ func RegisterFolderServiceHandler(server *connect.Server, svc FolderServiceHandl
 		connect.Method{Spec: folderServiceMoveFolderSpec(), Handler: adapter.moveFolder},
 		connect.Method{Spec: folderServiceDeleteFolderSpec(), Handler: adapter.deleteFolder},
 		connect.Method{Spec: folderServiceRestoreFolderSpec(), Handler: adapter.restoreFolder},
+		connect.Method{Spec: folderServicePermanentlyDeleteFolderSpec(), Handler: adapter.permanentlyDeleteFolder},
 		connect.Method{Spec: folderServiceGetBreadcrumbsSpec(), Handler: adapter.getBreadcrumbs},
 		connect.Method{Spec: folderServiceGetOrCreateRootFolderSpec(), Handler: adapter.getOrCreateRootFolder},
 	)
@@ -1057,6 +1240,10 @@ func (UnimplementedFolderServiceHandler) DeleteFolder(context.Context, *pb.Delet
 
 func (UnimplementedFolderServiceHandler) RestoreFolder(context.Context, *pb.RestoreFolderRequest) (*pb.Folder, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.FolderService.RestoreFolder is not implemented")
+}
+
+func (UnimplementedFolderServiceHandler) PermanentlyDeleteFolder(context.Context, *pb.PermanentlyDeleteFolderRequest) (*pb.PermanentlyDeleteFolderResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "metadata.FolderService.PermanentlyDeleteFolder is not implemented")
 }
 
 func (UnimplementedFolderServiceHandler) GetBreadcrumbs(context.Context, *pb.GetBreadcrumbsRequest) (*pb.GetBreadcrumbsResponse, error) {
@@ -1130,6 +1317,14 @@ func (c *folderServiceClient) DeleteFolder(ctx context.Context, req *pb.DeleteFo
 func (c *folderServiceClient) RestoreFolder(ctx context.Context, req *pb.RestoreFolderRequest) (*pb.Folder, error) {
 	var res pb.Folder
 	if err := c.client.CallUnary(ctx, folderServiceRestoreFolderSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *folderServiceClient) PermanentlyDeleteFolder(ctx context.Context, req *pb.PermanentlyDeleteFolderRequest) (*pb.PermanentlyDeleteFolderResponse, error) {
+	var res pb.PermanentlyDeleteFolderResponse
+	if err := c.client.CallUnary(ctx, folderServicePermanentlyDeleteFolderSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -1243,6 +1438,18 @@ func (h folderServiceHandler) restoreFolder(ctx context.Context, _ connect.Spec,
 		return err
 	}
 	res, err := h.svc.RestoreFolder(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h folderServiceHandler) permanentlyDeleteFolder(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.PermanentlyDeleteFolderRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.PermanentlyDeleteFolder(ctx, &req)
 	if err != nil {
 		return err
 	}

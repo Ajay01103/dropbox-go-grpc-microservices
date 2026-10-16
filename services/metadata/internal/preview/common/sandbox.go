@@ -10,11 +10,15 @@
 //     expiry — no orphaned ffmpeg children outliving the job.
 //  3. Process group: the child runs in its own group so the group kill hits
 //     any helper processes it spawned.
-//  4. Scratch: every job gets a unique temp dir, removed by the CALLER via
-//     defer, regardless of success/failure/timeout.
+//  4. Scratch: every job gets a unique temp dir from the block reassembly
+//     (see ReassembleToFile), removed on SourceFile.Close regardless of
+//     success/failure/timeout.
 //  5. Network: no namespace tricks from Go (they need privileges we don't
 //     assume); in deployment the pod's network policy denies egress for
-//     preview workers. ffmpeg/poppler invocations here never take URLs.
+//     preview workers. A command line naming only a scratch file is NOT a
+//     guarantee on its own — ffmpeg picks its demuxer from the file's
+//     content, and a playlist can name other paths or URLs — so callers must
+//     also pin the input protocol set (see ffmpegFrameArgs).
 package common
 
 import (
@@ -86,12 +90,6 @@ func (s SandboxedExec) Run(ctx context.Context, name string, args ...string) ([]
 		return nil, &sandboxedError{err: fmt.Errorf("%s failed: %w: %s", name, waitErr, boundStderr(stderr.Bytes()))}
 	}
 	return stdout.Bytes(), nil
-}
-
-// ScratchDir creates a unique per-job scratch directory under the OS temp
-// root. The caller owns removal (defer os.RemoveAll(dir)).
-func ScratchDir(prefix string) (string, error) {
-	return os.MkdirTemp("", "preview-"+prefix+"-")
 }
 
 func boundStderr(b []byte) string {

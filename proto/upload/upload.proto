@@ -49,6 +49,60 @@ message GetUploadStatusResponse {
   repeated int32 received_chunk_indices = 5;
 }
 
+// ─── In-browser editing (PDF / DOCX / XLSX) ──────────────────────────────────
+//
+// A save reuses only the blocks the file already holds and writes the rest.
+// Block writes and ref-counting stay here (the upload service owns both); the
+// metadata service owns the version row and the head pointer.
+
+message WriteEditBlockRequest {
+  string file_id = 1;
+  // The block's position in the new version's ordered list. Not trusted as
+  // identity (the hash is), but it is what the logs and the ack refer to.
+  int32 index = 2;
+  string sha256 = 3;
+  bytes data = 4;
+}
+
+// WriteEditBlockResponse reports what happened to one block: written means this
+// call stored the bytes (staged until a commit references them); reused means
+// the block was already there and nothing was written.
+message WriteEditBlockResponse {
+  bool written = 1;
+  bool reused = 2;
+  int64 size_bytes = 3;
+}
+
+message CommitEditRequest {
+  string file_id = 1;
+  int32 base_version = 2;
+  // Client-generated, stored on the version row for audit and double-submit
+  // dedup. A retry of the same save keeps the same id.
+  string commit_id = 3;
+  int64 size_bytes = 4;
+  int64 block_size = 5;
+  // The complete new version, in order: every hash, not only the new ones.
+  repeated string block_hashes = 6;
+  // Positionally paired with block_hashes; the server derives them and treats
+  // a mismatch as a client error.
+  repeated int64 block_sizes = 7;
+  string editor = 8;
+  string filename = 9;
+  string content_type = 10;
+}
+
+message CommitEditResponse {
+  bool committed = 1;
+  bool conflict = 2;
+  int32 version = 3;
+  string content_hash = 4;
+  int32 head_version = 5;
+  string head_content_hash = 6;
+  // How many of the version's blocks the file already held — the saving a
+  // client can see and an operator can trend.
+  int64 blocks_reused = 7;
+}
+
 // ─── Service Definition ──────────────────────────────────────────────────────
 
 service UploadService {
@@ -56,4 +110,9 @@ service UploadService {
   rpc UploadChunk(UploadChunkRequest) returns (UploadChunkAck);
   rpc UploadChunks(stream UploadChunkRequest) returns (stream UploadChunkAck);
   rpc GetUploadStatus(GetUploadStatusRequest) returns (GetUploadStatusResponse);
+  // Editing: write one missing block, then commit the version. Two unary
+  // calls rather than one stream so a save can send its blocks from several
+  // parallel workers and stay inside the per-message size cap.
+  rpc WriteEditBlock(WriteEditBlockRequest) returns (WriteEditBlockResponse);
+  rpc CommitEdit(CommitEditRequest) returns (CommitEditResponse);
 }

@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/drawer";
 import { useContentUrl } from "@/modules/files/api/use-content-url";
 import { useDownloadFile } from "@/modules/files/api/use-download";
-import { useThumbnailUrl } from "@/modules/files/api/use-files";
+import { useThumbnailUrls } from "@/modules/files/api/use-files";
 import { DocxPreviewPanel } from "@/modules/files/components/docx-preview-panel";
 import { PdfPreviewPanel } from "@/modules/files/components/pdf-preview-panel";
 import { cn, formatBytes, formatRelativeTime } from "@/lib/utils";
@@ -63,20 +63,26 @@ function fileExtension(filename: string): string {
   return dot > 0 && dot < filename.length - 1 ? filename.slice(dot + 1).toUpperCase() : "FILE";
 }
 
-type PreviewKind = "image" | "video" | "audio" | "pdf" | "docx" | "doc" | "other";
+type PreviewKind = "image" | "video" | "audio" | "pdf" | "docx" | "xlsx" | "doc" | "other";
 
 const DOCX_CONTENT_TYPE =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+const XLSX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 function previewKind(
   contentType: string | undefined,
   filename: string | undefined,
 ): PreviewKind {
-  // A DOCX is a zip container whose stored content type is client-supplied (the
-  // upload service trusts what the browser sent), so the extension is the more
-  // reliable of the two signals. Legacy .doc stays "other": the viewer marks it
-  // limited and experimental, and a download is the honest fallback.
-  if (filename?.toLowerCase().endsWith(".docx")) return "docx";
+  // A DOCX/XLSX is a zip container whose stored content type is client-supplied
+  // (the upload service trusts what the browser sent), so the extension is the
+  // more reliable of the two signals. Legacy .doc/.xls stay "other": the
+  // viewers mark them limited and experimental, and a download is the honest
+  // fallback.
+  const lowerName = filename?.toLowerCase() ?? "";
+  if (lowerName.endsWith(".xlsx")) return "xlsx";
+  if (contentType === XLSX_CONTENT_TYPE) return "xlsx";
+  if (lowerName.endsWith(".docx")) return "docx";
   if (contentType === DOCX_CONTENT_TYPE) return "docx";
   if (contentType?.startsWith("image/")) return "image";
   if (contentType?.startsWith("video/")) return "video";
@@ -144,7 +150,7 @@ function PreviewSurface({
     }
     return (
       <div className="flex h-full w-full items-center justify-center p-4 sm:p-10">
-        {/* eslint-disable-next-line @next/next/no-img-element -- presigned S3 URLs expire, next/image optimization adds no value */}
+        {/* eslint-disable-next-line @next/next/no-img-element -- the route already serves an immutable-cached 512px JPEG, so next/image adds no value */}
         <img
           alt={name}
           className="max-h-full max-w-full rounded-md shadow-2xl transition-transform duration-150"
@@ -169,14 +175,18 @@ function PreviewSurface({
 /*  hands the content URL to the browser's native download manager.    */
 /* ------------------------------------------------------------------ */
 function ActionBar({
+  canEdit,
   canOpenUrl,
   url,
+  onEdit,
   onUnavailable,
   onDownload,
   downloadPending = false,
 }: {
+  canEdit: boolean;
   canOpenUrl: boolean;
   url: string | undefined;
+  onEdit: () => void;
   onUnavailable: (action: string) => void;
   onDownload: () => void;
   downloadPending?: boolean;
@@ -186,9 +196,16 @@ function ActionBar({
     else onUnavailable("Open in");
   };
 
+  // Edit leads to the edit route only for the formats it can open; every other
+  // type keeps the button that explains itself rather than landing the user in
+  // an editor that will refuse the file.
   const actions = [
     { label: "Open in", icon: ExternalLink, onClick: openInTab },
-    { label: "Edit", icon: Pencil, onClick: () => onUnavailable("Edit") },
+    {
+      label: "Edit",
+      icon: Pencil,
+      onClick: canEdit ? onEdit : () => onUnavailable("Edit"),
+    },
     { label: "Enhance", icon: Sparkles, onClick: () => onUnavailable("Enhance") },
     { label: "Download", icon: Download, onClick: onDownload, disabled: downloadPending },
   ];
@@ -260,10 +277,13 @@ function ZoomControl({
 export function FilePreviewDrawer({
   item,
   open,
+  onEdit,
   onOpenChange,
 }: {
   item: Item | null;
   open: boolean;
+  /** Opens the full-page editor for this file (the edit route). */
+  onEdit?: (item: Item) => void;
   onOpenChange: (open: boolean) => void;
 }) {
   const isMobile = useIsMobile();
@@ -277,18 +297,22 @@ export function FilePreviewDrawer({
   const size = file ? formatBytes(file.sizeBytes) : "";
   const when = formatRelativeTime(file?.createdAt);
 
-  const thumbnail = useThumbnailUrl(
-    item?.itemId ?? "",
-    file?.thumbnailStatus ?? "",
-    file?.thumbnailKey ?? "",
-  );
+  // The same batched presign the grid uses, for a single file here: the panel
+  // shows one preview at a time, so there is nothing to batch with.
+  const thumbnails = useThumbnailUrls(item ? [item.itemId] : []);
+  const thumbnailUrl = item ? thumbnails.urls.get(item.itemId) : undefined;
   // Documents render the real file rather than a server-generated preview JPEG:
   // the viewer streams bytes with range requests from a short-lived ticket URL
   // (see useContentUrl). Image/video keep the JPEG preview. The ticket is only
   // minted while a document preview is actually open.
   const isPdf = kind === "pdf";
   const isDocx = kind === "docx";
+  const isXlsx = kind === "xlsx";
   const isDocument = isPdf || isDocx;
+  // Which types the edit route can open. The route's own session call is the
+  // authority (it sniffs the bytes); this only decides whether the button leads
+  // somewhere useful or explains itself.
+  const isEditable = isPdf || isDocx || isXlsx;
   const content = useContentUrl(item?.itemId ?? "", { enabled: open && isDocument });
   const showUrl = open && (kind === "image" || kind === "video");
 
@@ -380,11 +404,13 @@ export function FilePreviewDrawer({
             </div>
 
             <ActionBar
-              canOpenUrl={showUrl ? Boolean(thumbnail.data) : Boolean(content.data?.url)}
+              canEdit={isEditable}
+              canOpenUrl={showUrl ? Boolean(thumbnailUrl) : Boolean(content.data?.url)}
               downloadPending={isDownloadPending(item.itemId)}
               onDownload={() => void downloadFile(item.itemId, name)}
+              onEdit={() => onEdit?.(item)}
               onUnavailable={(action) => window.alert(`${action} is not available yet.`)}
-              url={showUrl ? thumbnail.data : content.data?.url}
+              url={showUrl ? thumbnailUrl : content.data?.url}
             />
 
             {/* Preview area — the document viewers own their own scroll/zoom,
@@ -419,13 +445,13 @@ export function FilePreviewDrawer({
                 <PreviewSurface
                   item={item}
                   kind={kind}
-                  url={showUrl ? thumbnail.data : undefined}
-                  urlError={showUrl ? thumbnail.error : undefined}
-                  urlLoading={showUrl ? thumbnail.isLoading : false}
+                  url={showUrl ? thumbnailUrl : undefined}
+                  urlError={showUrl ? thumbnails.error : undefined}
+                  urlLoading={showUrl ? thumbnails.isLoading : false}
                   zoom={zoom}
                 />
               )}
-              {showUrl && !thumbnail.isLoading && thumbnail.data && (
+              {showUrl && !thumbnails.isLoading && thumbnailUrl && (
                 <ZoomControl setZoom={setZoom} zoom={zoom} />
               )}
             </div>

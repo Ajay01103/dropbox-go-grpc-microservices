@@ -14,3 +14,10 @@ plugins:
     opt:
       - target=ts
       - import_extension=none
+  # Native (Expo) client: same generated TS, its own out dir so the mobile app
+  # never reaches into the web app's source tree.
+  - remote: buf.build/bufbuild/es
+    out: ../../native/src/gen/pb/upload
+    opt:
+      - target=ts
+      - import_extension=none

@@ -16,8 +16,6 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/Ajay01103/go-dropbox/metadata/config"
 	"github.com/Ajay01103/go-dropbox/metadata/db"
@@ -188,6 +186,37 @@ func run() error {
 		}
 	}
 
+	// Content storage is created before the purge coordinator because the
+	// coordinator deletes consolidated (Tier B) objects during a permanent
+	// delete; the client is built here so the deleter can be wired before the
+	// coordinator starts consuming completions.
+	var stitchRepo *repository.StitchRepo
+	var contentStorage *content.S3Storage
+	var contentServer *content.Server
+	if cfg.S3Endpoint != "" {
+		storage, storageErr := content.NewS3Storage(content.S3Config{
+			Bucket:    cfg.S3Bucket,
+			Region:    cfg.S3Region,
+			Endpoint:  cfg.S3Endpoint,
+			AccessKey: cfg.S3AccessKey,
+			SecretKey: cfg.S3SecretKey,
+		})
+		if storageErr != nil {
+			logger.Warn("content storage unavailable; download tickets disabled", zap.Error(storageErr))
+		} else {
+			contentStorage = storage
+			stitchRepo = repository.NewStitchRepo(session)
+			metadataSvc.SetStitchLookup(stitchRepo)
+			metadataSvc.SetStitchInvalidator(stitchRepo)
+			metadataSvc.SetConsolidatedPresigner(contentStorage)
+			// Editing verifies every committed block against the same storage
+			// the download path reads, and invalidates the consolidated object a
+			// commit superseded. Without this the edit path reports
+			// "disabled" rather than committing bytes nobody can read back.
+			metadataSvc.SetBlockReader(contentStorage, contentStorage)
+		}
+	}
+
 	purgeCoordinator, err := purge.NewCoordinator(cfg.NATSURL, purgeRepo, metadataRepo, logger)
 	if err != nil {
 		logger.Warn("purge coordinator unavailable; permanent deletion disabled", zap.Error(err))
@@ -196,6 +225,12 @@ func run() error {
 		// permanently deleted.
 		if previewStorage != nil {
 			purgeCoordinator.SetThumbnailDeleter(previewStorage)
+		}
+		// ...and object deletion so the assembled Tier B object goes with the
+		// file. Without this a permanently deleted file's consolidated object
+		// outlives every reference to it under consolidated/.
+		if contentStorage != nil {
+			purgeCoordinator.SetConsolidatedDeleter(contentStorage)
 		}
 		if err := purgeCoordinator.Start(context.Background()); err != nil {
 			purgeCoordinator.Close()
@@ -232,32 +267,11 @@ func run() error {
 
 	// 7b. Content server (Tier A: ticket-verified range-aware block streaming)
 	// and Tier B stitcher (server-side UploadPartCopy consolidation).
-	// Both live here so they reuse this process's S3 client and Scylla
-	// session; the /content route speaks plain HTTP — the browser's native
-	// <a download>/<img>/<video> path that can't attach an Authorization
-	// header — while /content's auth is the short-lived HMAC download
-	// ticket minted by GetDownloadTicket (ownership checked THERE).
-	var stitchRepo *repository.StitchRepo
-	var contentStorage *content.S3Storage
-	var contentServer *content.Server
-	if cfg.S3Endpoint != "" {
-		storage, storageErr := content.NewS3Storage(content.S3Config{
-			Bucket:    cfg.S3Bucket,
-			Region:    cfg.S3Region,
-			Endpoint:  cfg.S3Endpoint,
-			AccessKey: cfg.S3AccessKey,
-			SecretKey: cfg.S3SecretKey,
-		})
-		if storageErr != nil {
-			logger.Warn("content storage unavailable; download tickets disabled", zap.Error(storageErr))
-		} else {
-			contentStorage = storage
-			stitchRepo = repository.NewStitchRepo(session)
-			metadataSvc.SetStitchLookup(stitchRepo)
-			metadataSvc.SetConsolidatedPresigner(contentStorage)
-		}
-	}
-
+	// Both live here so they reuse this process's S3 client (built above) and
+	// Scylla session; the /content route speaks plain HTTP — the browser's
+	// native <a download>/<img>/<video> path that can't attach an
+	// Authorization header — while /content's auth is the short-lived HMAC
+	// download ticket minted by GetDownloadTicket (ownership checked THERE).
 	if contentStorage != nil {
 		contentServer = content.NewServer(metadataRepo, contentStorage, cfg.DownloadTicketKey, logger, content.WithStreamWorkers(12))
 		if cfg.StitchEnabled && cfg.S3Endpoint != "" {
@@ -316,12 +330,13 @@ func run() error {
 			zap.String("baseURL", cfg.ContentBaseURL))
 	}
 
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
 	httpServer := &http.Server{
-		Addr: addr,
-		Handler: h2c.NewHandler(
-			corsMiddleware(mux),
-			&http2.Server{},
-		),
+		Addr:              addr,
+		Handler:           corsMiddleware(mux),
+		Protocols:         protocols,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,

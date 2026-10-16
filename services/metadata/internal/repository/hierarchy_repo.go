@@ -67,6 +67,21 @@ func (r *FolderRepo) GetFolder(ctx context.Context, ownerID, folderID string) (F
 	if err != nil {
 		return Folder{}, err
 	}
+	result, err := r.getFolderRow(ctx, folderID)
+	if err != nil {
+		return Folder{}, err
+	}
+	if result.OwnerID != owner.String() {
+		return Folder{}, errors.New("folder not found")
+	}
+	return result, nil
+}
+
+// getFolderRow reads a folder row by id with no owner filter. Callers that
+// enforce ownership themselves use it: "the owner-filtered read says not found"
+// cannot be told apart from "the row is gone", and destructive callers must not
+// treat a folder belonging to somebody else as an already-deleted one.
+func (r *FolderRepo) getFolderRow(ctx context.Context, folderID string) (Folder, error) {
 	folder, err := parseID(folderID)
 	if err != nil {
 		return Folder{}, err
@@ -87,10 +102,21 @@ func (r *FolderRepo) GetFolder(ctx context.Context, ownerID, folderID string) (F
 	result.ParentID = uuidBytesString(storedParentID)
 	result.DeletedBatchID = uuidBytesString(storedDeletedBatchID)
 	result.AncestorIDs = ancestorIDStrings(ancestorIDs)
-	if result.OwnerID != owner.String() {
-		return Folder{}, errors.New("folder not found")
-	}
 	return result, nil
+}
+
+// FolderByID reads one folder row with the owner check applied through the
+// files-side repository. The purge coordinator and the folder-purge walk work
+// from a MetadataRepo alone, so they reach the folder tables through here
+// rather than taking a second repository dependency.
+func (r *MetadataRepo) FolderByID(ctx context.Context, ownerID, folderID string) (Folder, error) {
+	return NewFolderRepo(r.session).GetFolder(ctx, ownerID, folderID)
+}
+
+// FolderRowByID reads a folder row by id without the owner check, for callers
+// that compare the stored owner themselves instead of losing that distinction.
+func (r *MetadataRepo) FolderRowByID(ctx context.Context, folderID string) (Folder, error) {
+	return NewFolderRepo(r.session).getFolderRow(ctx, folderID)
 }
 
 // ancestorIDStrings converts gocql UUIDs to canonical strings.
@@ -274,18 +300,32 @@ func (r *MetadataRepo) GetFileByID(ctx context.Context, ownerID, fileID string) 
 	return result, nil
 }
 
+// UpdateFileName renames a file in its folder index and its authoritative row,
+// then moves the file's row in the folder's updated_at-keyed sort index to the
+// new timestamp (see filesByFolderUpdatedInsert for why that step is required).
 func (r *MetadataRepo) UpdateFileName(ctx context.Context, ownerID, fileID, name string) error {
 	file, err := r.GetFileByID(ctx, ownerID, fileID)
 	if err != nil {
 		return err
 	}
 	now := time.Now().UTC()
-	id, _ := parseID(fileID)
-	folder, _ := parseID(file.FolderID)
+	id, err := parseID(fileID)
+	if err != nil {
+		return fmt.Errorf("parse file id: %w", err)
+	}
+	folder, err := parseID(file.FolderID)
+	if err != nil {
+		return fmt.Errorf("parse folder id: %w", err)
+	}
 	if err := r.session.Query(`UPDATE files_by_folder SET filename = ?, updated_at = ? WHERE folder_id = ? AND file_id = ?`, name, now, folder, id).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("rename file: %w", err)
 	}
-	return r.session.Query(`UPDATE files_by_id SET filename = ?, updated_at = ? WHERE file_id = ?`, name, now, id).WithContext(ctx).Exec()
+	if err := r.session.Query(`UPDATE files_by_id SET filename = ?, updated_at = ? WHERE file_id = ?`, name, now, id).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("rename file: %w", err)
+	}
+	renamed := file
+	renamed.Filename, renamed.UpdatedAt = name, now
+	return r.replaceFilesByFolderUpdated(ctx, file, renamed)
 }
 
 func (r *MetadataRepo) MoveFile(ctx context.Context, ownerID, fileID, folderID string) error {
@@ -322,7 +362,16 @@ func (r *MetadataRepo) MoveFile(ctx context.Context, ownerID, fileID, folderID s
 	if err := r.session.Query(`DELETE FROM files_by_folder WHERE folder_id = ? AND file_id = ?`, oldFolder, id).WithContext(ctx).Exec(); err != nil {
 		return fmt.Errorf("move file delete: %w", err)
 	}
-	return r.session.Query(`UPDATE files_by_id SET folder_id = ?, updated_at = ? WHERE file_id = ?`, newFolder, now, id).WithContext(ctx).Exec()
+	if err := r.session.Query(`UPDATE files_by_id SET folder_id = ?, updated_at = ? WHERE file_id = ?`, newFolder, now, id).WithContext(ctx).Exec(); err != nil {
+		return fmt.Errorf("move file: %w", err)
+	}
+	// The folder's updated_at-keyed sort index is a separate projection: the
+	// file now belongs to another folder's partition, so its row has to leave
+	// the old one and appear in the new one. Without this the old folder keeps
+	// listing a file it no longer holds.
+	moved := file
+	moved.FolderID, moved.UpdatedAt = newFolder.String(), now
+	return r.replaceFilesByFolderUpdated(ctx, file, moved)
 }
 
 func (r *MetadataRepo) SetFileDeleted(ctx context.Context, ownerID, fileID, batchID string, deleted bool) (File, error) {
@@ -344,12 +393,20 @@ func (r *MetadataRepo) SetFileDeleted(ctx context.Context, ownerID, fileID, batc
 	if err := r.session.Query(`UPDATE files_by_id SET is_deleted = ?, deleted_at = ?, deleted_batch_id = ?, updated_at = ? WHERE file_id = ?`, deleted, deletedAt, batch, now, id).WithContext(ctx).Exec(); err != nil {
 		return File{}, err
 	}
+	// The sort index carries is_deleted too, at the timestamp it was written
+	// under; soft delete and restore must move that row along with the file's
+	// updated_at, or a later rename's point delete misses it (see
+	// filesByFolderUpdatedInsert).
+	previous := file
 	file.IsDeleted, file.UpdatedAt = deleted, now
 	file.DeletedBatchID = batchID
 	if deleted {
 		file.DeletedAt = now
 	} else {
 		file.DeletedAt = time.Time{}
+	}
+	if err := r.replaceFilesByFolderUpdated(ctx, previous, file); err != nil {
+		return File{}, err
 	}
 	return file, nil
 }

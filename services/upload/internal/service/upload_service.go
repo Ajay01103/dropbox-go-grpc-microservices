@@ -32,9 +32,13 @@ import (
 )
 
 // FileStoredEvent is the upload-side input to the event publisher: the fields
-// the FileStored proto needs (version is always 1 today).
+// the FileStored proto needs.
 type FileStoredEvent struct {
-	FileID        string
+	FileID string
+	// FileVersion is the version this event describes: 1 for a fresh upload,
+	// and the committed version for an edit (see commit_edit.go). Preview
+	// consumers use it to decide whether the rendition they hold is stale.
+	FileVersion   int64
 	BlockHashList []string
 	ContentType   string
 	SizeBytes     int64
@@ -123,9 +127,13 @@ func (p *NATSEventPublisher) PublishFileStored(ctx context.Context, evt *FileSto
 		}
 		hashes = append(hashes, b)
 	}
+	version := evt.FileVersion
+	if version <= 0 {
+		version = 1
+	}
 	msg := &eventsv2.FileStored{
 		FileId:        evt.FileID,
-		FileVersion:   1, // creation is always version 1 today
+		FileVersion:   version,
 		OwnerId:       evt.OwnerID,
 		ContentType:   evt.ContentType,
 		SizeBytes:     evt.SizeBytes,
@@ -133,7 +141,7 @@ func (p *NATSEventPublisher) PublishFileStored(ctx context.Context, evt *FileSto
 		StoredAt:      timestamppb.New(time.Unix(evt.StoredAtUnix, 0).UTC()),
 		ContentFamily: evt.ContentFamily,
 	}
-	msgID := events.MsgIDFileStored(evt.FileID, 1)
+	msgID := events.MsgIDFileStored(evt.FileID, version)
 
 	const tries = 3
 	var lastErr error

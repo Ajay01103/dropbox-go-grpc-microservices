@@ -33,6 +33,11 @@ const (
 	// UploadServiceGetUploadStatusProcedure is the procedure name of the UploadService's
 	// GetUploadStatus RPC.
 	UploadServiceGetUploadStatusProcedure = "/upload.UploadService/GetUploadStatus"
+	// UploadServiceWriteEditBlockProcedure is the procedure name of the UploadService's WriteEditBlock
+	// RPC.
+	UploadServiceWriteEditBlockProcedure = "/upload.UploadService/WriteEditBlock"
+	// UploadServiceCommitEditProcedure is the procedure name of the UploadService's CommitEdit RPC.
+	UploadServiceCommitEditProcedure = "/upload.UploadService/CommitEdit"
 )
 
 var (
@@ -64,6 +69,20 @@ var (
 			Procedure:  UploadServiceGetUploadStatusProcedure,
 		}
 	})
+	uploadServiceWriteEditBlockSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("WriteEditBlock"),
+			Procedure:  UploadServiceWriteEditBlockProcedure,
+		}
+	})
+	uploadServiceCommitEditSpec = sync.OnceValue(func() connect.Spec {
+		return connect.Spec{
+			StreamType: connect.StreamTypeUnary,
+			Schema:     pb.File_upload_proto.Services().ByName("UploadService").Methods().ByName("CommitEdit"),
+			Procedure:  UploadServiceCommitEditProcedure,
+		}
+	})
 )
 
 // UploadServiceClient is a client for the upload.UploadService service.
@@ -72,6 +91,11 @@ type UploadServiceClient interface {
 	UploadChunk(context.Context, *pb.UploadChunkRequest) (*pb.UploadChunkAck, error)
 	UploadChunks(context.Context) (UploadServiceUploadChunksClientStream, error)
 	GetUploadStatus(context.Context, *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error)
+	// Editing: write one missing block, then commit the version. Two unary
+	// calls rather than one stream so a save can send its blocks from several
+	// parallel workers and stay inside the per-message size cap.
+	WriteEditBlock(context.Context, *pb.WriteEditBlockRequest) (*pb.WriteEditBlockResponse, error)
+	CommitEdit(context.Context, *pb.CommitEditRequest) (*pb.CommitEditResponse, error)
 }
 
 // NewUploadServiceClient constructs a client for the upload.UploadService service. Multiple service
@@ -123,6 +147,11 @@ type UploadServiceHandler interface {
 	UploadChunk(context.Context, *pb.UploadChunkRequest) (*pb.UploadChunkAck, error)
 	UploadChunks(context.Context, UploadServiceUploadChunksServerStream) error
 	GetUploadStatus(context.Context, *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error)
+	// Editing: write one missing block, then commit the version. Two unary
+	// calls rather than one stream so a save can send its blocks from several
+	// parallel workers and stay inside the per-message size cap.
+	WriteEditBlock(context.Context, *pb.WriteEditBlockRequest) (*pb.WriteEditBlockResponse, error)
+	CommitEdit(context.Context, *pb.CommitEditRequest) (*pb.CommitEditResponse, error)
 }
 
 // RegisterUploadServiceHandler registers svc as the upload.UploadService implementation on server.
@@ -133,6 +162,8 @@ func RegisterUploadServiceHandler(server *connect.Server, svc UploadServiceHandl
 		connect.Method{Spec: uploadServiceUploadChunkSpec(), Handler: adapter.uploadChunk},
 		connect.Method{Spec: uploadServiceUploadChunksSpec(), Handler: adapter.uploadChunks},
 		connect.Method{Spec: uploadServiceGetUploadStatusSpec(), Handler: adapter.getUploadStatus},
+		connect.Method{Spec: uploadServiceWriteEditBlockSpec(), Handler: adapter.writeEditBlock},
+		connect.Method{Spec: uploadServiceCommitEditSpec(), Handler: adapter.commitEdit},
 	)
 }
 
@@ -180,6 +211,14 @@ func (UnimplementedUploadServiceHandler) GetUploadStatus(context.Context, *pb.Ge
 	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.GetUploadStatus is not implemented")
 }
 
+func (UnimplementedUploadServiceHandler) WriteEditBlock(context.Context, *pb.WriteEditBlockRequest) (*pb.WriteEditBlockResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.WriteEditBlock is not implemented")
+}
+
+func (UnimplementedUploadServiceHandler) CommitEdit(context.Context, *pb.CommitEditRequest) (*pb.CommitEditResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, "upload.UploadService.CommitEdit is not implemented")
+}
+
 type uploadServiceClient struct {
 	client *connect.Client
 }
@@ -211,6 +250,22 @@ func (c *uploadServiceClient) UploadChunks(ctx context.Context) (UploadServiceUp
 func (c *uploadServiceClient) GetUploadStatus(ctx context.Context, req *pb.GetUploadStatusRequest) (*pb.GetUploadStatusResponse, error) {
 	var res pb.GetUploadStatusResponse
 	if err := c.client.CallUnary(ctx, uploadServiceGetUploadStatusSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *uploadServiceClient) WriteEditBlock(ctx context.Context, req *pb.WriteEditBlockRequest) (*pb.WriteEditBlockResponse, error) {
+	var res pb.WriteEditBlockResponse
+	if err := c.client.CallUnary(ctx, uploadServiceWriteEditBlockSpec(), req, &res); err != nil {
+		return nil, err
+	}
+	return &res, nil
+}
+
+func (c *uploadServiceClient) CommitEdit(ctx context.Context, req *pb.CommitEditRequest) (*pb.CommitEditResponse, error) {
+	var res pb.CommitEditResponse
+	if err := c.client.CallUnary(ctx, uploadServiceCommitEditSpec(), req, &res); err != nil {
 		return nil, err
 	}
 	return &res, nil
@@ -252,6 +307,30 @@ func (h uploadServiceHandler) getUploadStatus(ctx context.Context, _ connect.Spe
 		return err
 	}
 	res, err := h.svc.GetUploadStatus(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h uploadServiceHandler) writeEditBlock(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.WriteEditBlockRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.WriteEditBlock(ctx, &req)
+	if err != nil {
+		return err
+	}
+	return stream.Send(res)
+}
+
+func (h uploadServiceHandler) commitEdit(ctx context.Context, _ connect.Spec, stream connect.ServerStream) error {
+	var req pb.CommitEditRequest
+	if err := stream.Receive(&req); err != nil {
+		return err
+	}
+	res, err := h.svc.CommitEdit(ctx, &req)
 	if err != nil {
 		return err
 	}

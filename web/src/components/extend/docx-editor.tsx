@@ -22,6 +22,7 @@ import {
 } from "@extend-ai/react-docx"
 
 import { cn } from "@/lib/utils"
+import { captureBlobDownload } from "@/lib/capture-blob-download"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -1393,21 +1394,44 @@ function DocxEditorToolbar({
     </div>
   )
 }
-export function DocxEditorPreview({
-  className,
-  defaultZoomScale = DOCX_EDITOR_DEFAULT_ZOOM_SCALE,
-  fileName,
-  isDark,
-  onIsDarkChange,
-  src,
-}: {
-  className?: string
-  defaultZoomScale?: number
-  fileName?: string
-  isDark: boolean
-  onIsDarkChange: (isDark: boolean) => void
-  src?: string
-}) {
+/**
+ * Handle the host can call to save the document through its own flow.
+ *
+ * The editor's export is a download (`editor.exportDocx`), so the bytes are
+ * taken from the download it builds rather than re-serialized here — see
+ * capture-blob-download.ts. Nothing about the editor's own toolbar changes;
+ * this only makes the same bytes reachable from outside.
+ */
+export type DocxEditorSaveHandle = {
+  /** Serializes the current document exactly as the editor's own export does. */
+  getDocumentBytes: () => Promise<Uint8Array>
+}
+
+/**
+ * DocxEditorPreview is the editor surface plus a save handle: pass a ref and
+ * the host can save the document without owning the toolbar.
+ */
+export const DocxEditorPreview = React.forwardRef<
+  DocxEditorSaveHandle,
+  {
+    className?: string
+    defaultZoomScale?: number
+    fileName?: string
+    isDark: boolean
+    onIsDarkChange: (isDark: boolean) => void
+    src?: string
+  }
+>(function DocxEditorPreview(
+  {
+    className,
+    defaultZoomScale = DOCX_EDITOR_DEFAULT_ZOOM_SCALE,
+    fileName,
+    isDark,
+    onIsDarkChange,
+    src,
+  },
+  saveHandle
+) {
   return (
     <DocxEditorContent
       key={src}
@@ -1415,17 +1439,19 @@ export function DocxEditorPreview({
       defaultZoomScale={defaultZoomScale}
       effectiveIsDark={isDark}
       fileName={fileName}
+      saveHandle={saveHandle}
       setIsDark={onIsDarkChange}
       shouldRenderNightMode
       url={src}
     />
   )
-}
+})
 function DocxEditorContent({
   className,
   defaultZoomScale,
   effectiveIsDark,
   fileName,
+  saveHandle,
   setIsDark,
   shouldRenderNightMode,
   url,
@@ -1434,6 +1460,7 @@ function DocxEditorContent({
   defaultZoomScale?: number
   effectiveIsDark: boolean
   fileName?: string
+  saveHandle?: React.ForwardedRef<DocxEditorSaveHandle>
   setIsDark: (checked: boolean) => void
   shouldRenderNightMode: boolean
   url?: string
@@ -1478,6 +1505,14 @@ function DocxEditorContent({
   const editor = useDocxEditor(editorOptions)
   const { layout: pageLayout } = useDocxPageLayout(editor)
   const { importDocxFile, setDocumentTheme, status } = editor
+  const { exportDocx } = editor
+  React.useImperativeHandle(
+    saveHandle,
+    () => ({
+      getDocumentBytes: () => captureBlobDownload(exportDocx),
+    }),
+    [exportDocx]
+  )
   const [reportedPageCount, setReportedPageCount] = React.useState(0)
   const thumbnailEditor = React.useMemo<DocxEditorController>(
     () => ({

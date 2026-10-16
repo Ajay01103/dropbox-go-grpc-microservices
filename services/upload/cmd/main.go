@@ -15,8 +15,6 @@ import (
 
 	"github.com/dgraph-io/ristretto"
 	"github.com/gocql/gocql"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 
 	"github.com/Ajay01103/go-dropbox/pkg/interceptor"
 	"github.com/Ajay01103/go-dropbox/pkg/jwks"
@@ -241,12 +239,13 @@ func run() error {
 	// handed, so one full chunk plus its envelope stays legal.
 	server.Mount(mux, connectSrv, cfg.ChunkSizeBytes)
 
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
 	httpServer := &http.Server{
-		Addr: addr,
-		Handler: h2c.NewHandler(
-			corsMiddleware(mux),
-			&http2.Server{},
-		),
+		Addr:              addr,
+		Handler:           corsMiddleware(mux),
+		Protocols:         protocols,
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      30 * time.Second,

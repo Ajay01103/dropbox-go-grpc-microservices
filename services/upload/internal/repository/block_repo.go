@@ -93,6 +93,28 @@ func (r *BlockRepo) InsertBlock(ctx context.Context, hash string, sizeBytes int6
 	).WithContext(ctx).Exec()
 }
 
+// InsertStagedBlock records a block whose bytes are in storage but which no
+// file version references yet, with ref_count = 0.
+//
+// Editing needs this: a save uploads only the blocks that changed, before the
+// commit that will reference them is allowed to run (the commit refuses to
+// name bytes it cannot read back). InsertBlock would start the block at
+// ref_count = 1, so an abandoned or losing save would leave a permanently
+// referenced block behind — a leak that no ref-counting path could ever
+// notice. A staged block instead starts at zero, and the block GC reaps it if
+// no commit claims it (the caller registers it as a GC candidate).
+func (r *BlockRepo) InsertStagedBlock(ctx context.Context, hash string, sizeBytes int64, etag, backend string) error {
+	if len(hash) < 4 || sizeBytes < 0 {
+		return errors.New("block hash and non-negative size are required")
+	}
+	now := time.Now().UTC()
+	return r.session.Query(
+		`INSERT INTO blocks (block_hash, size_bytes, ref_count, storage_backend, etag, created_at)
+		VALUES (?, ?, 0, ?, ?, ?) IF NOT EXISTS`,
+		hash, sizeBytes, backend, etag, now,
+	).WithContext(ctx).Exec()
+}
+
 func (r *BlockRepo) IncrementRefCount(ctx context.Context, hash string) error {
 	if hash == "" {
 		return errors.New("block hash is required")

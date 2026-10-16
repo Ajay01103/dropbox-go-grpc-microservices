@@ -119,6 +119,34 @@ func (s *MetadataServer) GetThumbnailURL(ctx context.Context, req *pb.GetThumbna
 	return &pb.GetThumbnailURLResponse{Url: url, ThumbnailStatus: status}, nil
 }
 
+// GetThumbnailURLs is the batch form of GetThumbnailURL. Bad file ids are
+// reported per entry so one unreadable card never fails the whole grid.
+func (s *MetadataServer) GetThumbnailURLs(ctx context.Context, req *pb.GetThumbnailURLsRequest) (*pb.GetThumbnailURLsResponse, error) {
+	userID, err := authenticatedUserID(ctx)
+	if err != nil {
+		return nil, newConnectError(connect.CodeUnauthenticated, err)
+	}
+	if len(req.GetFileIds()) == 0 {
+		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("file_ids is required"))
+	}
+
+	results, err := s.svc.GetThumbnailURLs(ctx, userID, req.GetFileIds())
+	if err != nil {
+		return nil, newConnectError(connect.CodeInvalidArgument, err)
+	}
+
+	thumbnails := make([]*pb.ThumbnailURL, len(results))
+	for i, result := range results {
+		thumbnails[i] = &pb.ThumbnailURL{
+			FileId:          result.FileID,
+			Url:             result.URL,
+			ThumbnailStatus: result.ThumbnailStatus,
+			Error:           result.Error,
+		}
+	}
+	return &pb.GetThumbnailURLsResponse{Thumbnails: thumbnails}, nil
+}
+
 func (s *MetadataServer) GetThumbnailStatus(ctx context.Context, req *pb.GetThumbnailStatusRequest) (*pb.GetThumbnailStatusResponse, error) {
 	userID, err := authenticatedUserID(ctx)
 	if err != nil {

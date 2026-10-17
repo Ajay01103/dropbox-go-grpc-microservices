@@ -99,6 +99,20 @@ func (s *MetadataService) SetStitchInvalidator(invalidator StitchInvalidator) {
 	s.stitchInvalidator = invalidator
 }
 
+// ManifestInvalidator drops a file's cached download manifest after a commit.
+// The content server caches manifests per file for a few minutes; without this
+// the editor's reload of the version it just saved can be answered from the
+// superseded manifest and refused as a stale base.
+type ManifestInvalidator interface {
+	InvalidateManifest(fileID string)
+}
+
+// SetManifestInvalidator wires the content server whose manifest cache the
+// edit path has to drop after a commit. Nil leaves the cache to its TTL.
+func (s *MetadataService) SetManifestInvalidator(invalidator ManifestInvalidator) {
+	s.manifestInvalidator = invalidator
+}
+
 // SetBlockReader wires the content store the edit path verifies commits
 // against. Nil disables editing entirely (every session reports disabled).
 func (s *MetadataService) SetBlockReader(reader BlockReader, invalidator ConsolidatedInvalidator) {
@@ -306,7 +320,7 @@ func (s *MetadataService) GetEditSession(ctx context.Context, ownerID, fileID st
 	}
 	encoded := EncodeTicket(ticket, s.cfg.DownloadTicketKey)
 	session.TicketURL = fmt.Sprintf("%s/content/%s?ticket=%s&disposition=inline",
-		strings.TrimRight(s.cfg.ContentBaseURL, "/"), url.PathEscape(fileID), url.QueryEscape(encoded))
+		strings.TrimRight(s.cfg.ClientContentBaseURL(), "/"), url.PathEscape(fileID), url.QueryEscape(encoded))
 	return session, nil
 }
 
@@ -725,6 +739,13 @@ func (s *MetadataService) applyCommittedVersion(
 		}
 	}
 	record(s.metadataRepo.ApplyHeadContent(ctx, file, next, manifest))
+	// The manifest on disk is now the new version, but the content server holds
+	// an L1 copy of the old one. Drop it before any reader (the editor's own
+	// reload, pinned to the version just committed) can be served the previous
+	// version's bytes.
+	if s.manifestInvalidator != nil {
+		s.manifestInvalidator.InvalidateManifest(req.FileID)
+	}
 	if hasPreviewRendition(file.ContentFamily) {
 		// Best-effort like the create path: the file row is authoritative, so a
 		// failed insert only costs the sweeper this one file.

@@ -4,6 +4,8 @@ import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
 import { Pressable, StyleSheet, useColorScheme } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, {
+  Extrapolation,
+  interpolate,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -11,6 +13,9 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Button, Input, Text, XStack, YStack } from "tamagui";
+
+import { useTabScrollY } from "@/components/tab-scroll";
+import { useCreateSheet } from "@/modules/upload/components/create-sheet";
 
 type TabsProps = ComponentProps<typeof Tabs>;
 
@@ -214,13 +219,49 @@ function SearchBar({ iconColor }: { iconColor: string }) {
   );
 }
 
+/**
+ * The search field above the tab bar.
+ *
+ * It collapses out of the bar as the active tab scrolls, driven by the same
+ * shared value the screen writes (see `tab-scroll`): the transition runs on the
+ * UI thread, so it stays glued to the list instead of trailing a render. It
+ * comes back when the list returns to the top.
+ */
+function CollapsibleSearch({ iconColor }: { iconColor: string }) {
+  const scrollY = useTabScrollY();
+
+  const collapsedStyle = useAnimatedStyle(() => {
+    const progress = interpolate(scrollY.value, [0, 48], [0, 1], Extrapolation.CLAMP);
+    return {
+      height: 64 * (1 - progress),
+      opacity: 1 - progress,
+      transform: [{ translateY: -8 * progress }],
+    };
+  });
+
+  return (
+    <Animated.View style={[styles.searchWrap, collapsedStyle]}>
+      <SearchBar iconColor={iconColor} />
+    </Animated.View>
+  );
+}
+
 export function BottomNav({ state, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const scheme = useColorScheme();
   const reduceMotion = useReducedMotion();
+  const { openCreateSheet } = useCreateSheet();
+  const scrollY = useTabScrollY();
   const colors = PALETTE[scheme === "dark" ? "dark" : "light"];
 
   const focusedKey = state.routes[state.index]?.key;
+
+  // Only screens that report a scroll offset (Home) collapse the search field.
+  // Resetting on a tab change keeps the bar expanded when arriving at a screen
+  // that never writes the value, instead of inheriting a stale offset.
+  useEffect(() => {
+    scrollY.set(0);
+  }, [focusedKey, scrollY]);
 
   const goTo = (routeName: string) => {
     const route = state.routes.find((r) => r.name === routeName);
@@ -255,7 +296,7 @@ export function BottomNav({ state, navigation }: TabBarProps) {
 
   return (
     <YStack bg="background">
-      <SearchBar iconColor={colors.active} />
+      <CollapsibleSearch iconColor={colors.active} />
       <YStack h="px" bg="border-color" />
       <XStack
         w="100%"
@@ -268,7 +309,7 @@ export function BottomNav({ state, navigation }: TabBarProps) {
         pb={insets.bottom + 8}
       >
         {left.map(renderTab)}
-        <CreateButton reduceMotion={reduceMotion} onPress={() => goTo("files")} />
+        <CreateButton reduceMotion={reduceMotion} onPress={openCreateSheet} />
         {right.map(renderTab)}
       </XStack>
     </YStack>
@@ -276,6 +317,9 @@ export function BottomNav({ state, navigation }: TabBarProps) {
 }
 
 const styles = StyleSheet.create({
+  searchWrap: {
+    overflow: "hidden",
+  },
   tabItem: {
     flex: 1,
     alignItems: "center",

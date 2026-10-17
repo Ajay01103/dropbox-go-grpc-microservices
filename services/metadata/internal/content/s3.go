@@ -29,6 +29,13 @@ type S3Config struct {
 	Endpoint  string
 	AccessKey string
 	SecretKey string
+	// PublicEndpoint is the endpoint clients (browsers, phones) can reach, used
+	// only when signing presigned GETs. In dev the service talks to the store
+	// over localhost while a phone must use the machine's LAN address; the host
+	// is part of the SigV4 canonical request, so it cannot be rewritten after
+	// signing — the URL has to be signed against the public host instead.
+	// Empty means "same as Endpoint".
+	PublicEndpoint string
 }
 
 // S3Storage implements BlockFetcher (per-block ranged reads) and the
@@ -36,7 +43,11 @@ type S3Config struct {
 // connection pooling amortizes TLS handshakes across the worker pool.
 type S3Storage struct {
 	client *s3.Client
-	bucket string
+	// presigner is a second client pinned to PublicEndpoint, so presigned URLs
+	// carry a host the client can actually resolve. It shares the internal
+	// client when no public endpoint is configured.
+	presigner *s3.Client
+	bucket    string
 }
 
 // NewS3Storage builds the shared S3 client. Requires an explicit endpoint
@@ -48,25 +59,44 @@ func NewS3Storage(cfg S3Config) (*S3Storage, error) {
 	if cfg.Endpoint == "" {
 		return nil, errors.New("S3 endpoint is required for content storage (no implicit AWS mode)")
 	}
-	loadOptions := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(cfg.Region)}
-	if cfg.AccessKey != "" || cfg.SecretKey != "" {
+	client, err := newS3Client(cfg.Endpoint, cfg.Region, cfg.AccessKey, cfg.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	presigner := client
+	if cfg.PublicEndpoint != "" && cfg.PublicEndpoint != cfg.Endpoint {
+		publicClient, publicErr := newS3Client(cfg.PublicEndpoint, cfg.Region, cfg.AccessKey, cfg.SecretKey)
+		if publicErr != nil {
+			return nil, fmt.Errorf("load public S3 config: %w", publicErr)
+		}
+		presigner = publicClient
+	}
+	return &S3Storage{
+		client:    client,
+		presigner: presigner,
+		bucket:    cfg.Bucket,
+	}, nil
+}
+
+// newS3Client builds a path-style client against one explicit endpoint. No
+// implicit AWS mode: dev runs RustFS/MinIO, and a typo must fail loudly.
+func newS3Client(endpoint, region, accessKey, secretKey string) (*s3.Client, error) {
+	loadOptions := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(region)}
+	if accessKey != "" || secretKey != "" {
 		loadOptions = append(loadOptions, awsconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+			credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
 		))
 	}
 	loadOptions = append(loadOptions, awsconfig.WithEndpointResolverWithOptions(
 		aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{URL: cfg.Endpoint, SigningRegion: cfg.Region, HostnameImmutable: true}, nil
+			return aws.Endpoint{URL: endpoint, SigningRegion: region, HostnameImmutable: true}, nil
 		}),
 	))
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(), loadOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("load S3 config: %w", err)
 	}
-	return &S3Storage{
-		client: s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = true }),
-		bucket: cfg.Bucket,
-	}, nil
+	return s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = true }), nil
 }
 
 func blockObjectKey(hash string) (string, error) {
@@ -178,7 +208,7 @@ func (s *S3Storage) PresignFileGET(ctx context.Context, key string, request serv
 	if request.ContentType != "" {
 		input.ResponseContentType = aws.String(request.ContentType)
 	}
-	presigner := s3.NewPresignClient(s.client)
+	presigner := s3.NewPresignClient(s.presigner)
 	result, err := presigner.PresignGetObject(ctx, input, func(options *s3.PresignOptions) {
 		options.Expires = request.Expiry
 	})
@@ -209,11 +239,19 @@ func (s *S3Storage) DeleteConsolidated(ctx context.Context, fileID string) error
 	return nil
 }
 
+// ErrStitchNotEligible reports that a manifest can never be assembled by S3's
+// server-side copy API: a non-final block is below the multipart part minimum.
+// It is a permanent property of the layout, not a transient failure, so callers
+// park the file on Tier A instead of retrying it.
+var ErrStitchNotEligible = errors.New("file layout cannot be consolidated server-side")
+
 // Stitcher consolidates a file's block objects into one S3 object using
 // CreateMultipartUpload + UploadPartCopy — pure server-side S3→S3 copies,
-// zero bytes through this service. (Multipart parts must be ≥5 MiB except
-// the last; the upload service's 4 MiB chunk size means every block except
-// the final one qualifies.)
+// zero bytes through this service. Multipart parts must be ≥5 MiB except the
+// last, and one part is one block, so a file can only be consolidated when its
+// non-final blocks clear that minimum: files written with a smaller block size
+// (every legacy single-block file records its own size as its block size) stay
+// on Tier A. See ErrStitchNotEligible.
 type Stitcher struct {
 	client *s3.Client
 	bucket string
@@ -236,9 +274,20 @@ func consolidatedKey(fileID string) string {
 
 // Stitch performs the multipart copy of every block into one object.
 // blocks are the ordered manifest entries. Returns the object key and ETag.
+//
+// An ineligible layout (a non-final block below minPartSize) is refused before
+// any upload is created and wraps ErrStitchNotEligible: no key, no part copy,
+// and nothing left behind in the store.
 func (s *Stitcher) Stitch(ctx context.Context, fileID string, blocks []repository.ManifestBlock, minPartSize int64) (string, string, error) {
 	if len(blocks) == 0 {
 		return "", "", errors.New("no blocks to stitch")
+	}
+	// Refuse an ineligible layout before creating the multipart upload: the
+	// error is permanent (the worker parks the file on Tier A), so there is no
+	// reason to leave an upload session behind for the store to reap.
+	if idx := firstIneligibleBlock(blocks, minPartSize); idx >= 0 {
+		return "", "", fmt.Errorf("%w: block %d (%d bytes) smaller than minimum part size %d",
+			ErrStitchNotEligible, idx, blocks[idx].SizeBytes, minPartSize)
 	}
 	key := consolidatedKey(fileID)
 
@@ -257,16 +306,7 @@ func (s *Stitcher) Stitch(ctx context.Context, fileID string, blocks []repositor
 
 	parts := make([]types.CompletedPart, 0, len(blocks))
 	partNumber := int32(1)
-	for i, block := range blocks {
-		// S3 multipart requires ≥minPartSize for every part except the last.
-		// Intermediate sub-minimum merge tails would break hash
-		// content-addressing, so a violating manifest fails permanently here
-		// (the upload service's 4 MiB chunks mean this fires only on the
-		// final block, which is exempt).
-		if i < len(blocks)-1 && block.SizeBytes < minPartSize {
-			abort()
-			return "", "", fmt.Errorf("block %d (%d bytes) smaller than minimum part size %d", i, block.SizeBytes, minPartSize)
-		}
+	for _, block := range blocks {
 		key2, err := blockObjectKey(block.Hash)
 		if err != nil {
 			abort()

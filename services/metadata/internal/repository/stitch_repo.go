@@ -12,7 +12,9 @@ import (
 // StitchState is the Tier B lifecycle of a file's consolidated object.
 // 'stitching' is a claim marker (crash-safe retry); 'ready' means the S3
 // multipart object is complete and presignable; 'failed' is permanent-for-now
-// (retried by a later sweep pass with a fresh claim).
+// (retried by a later sweep pass with a fresh claim); 'skipped' is permanent
+// for this block layout (the multipart API cannot assemble it), so it is pulled
+// from the work index until a content change re-enqueues the file.
 type StitchState string
 
 const (
@@ -23,15 +25,34 @@ const (
 	StitchStateStitching StitchState = "stitching"
 	StitchStateReady     StitchState = "ready"
 	StitchStateFailed    StitchState = "failed"
+	// StitchStateSkipped parks a file whose non-final blocks are below the
+	// multipart part minimum. Tier A (live block reconstruction) serves it, and
+	// the row is deliberately revisitable: the edit path deletes and re-enqueues
+	// it on every content change, so a layout that becomes eligible gets a
+	// fresh chance.
+	StitchStateSkipped StitchState = "skipped"
 )
 
 // StitchPendingRef is one Tier B work item (a file awaiting consolidation).
 type StitchPendingRef = StitchRecord
 
 // stitchIndexStates are the states mirrored into the stitched_objects_by_state
-// work index. 'ready' is deliberately absent: a consolidated file is finished
-// work, so dropping its index row is what removes it from the sweep forever.
+// work index. 'ready' and 'skipped' are deliberately absent: finished work and
+// permanently ineligible work both leave the sweeper's list by dropping their
+// index row.
 var stitchIndexStates = []StitchState{StitchStatePending, StitchStateStitching, StitchStateFailed}
+
+// indexedStitchState reports whether a state belongs in the work index. A state
+// that does is one the sweeper should pick up; 'ready' and 'skipped' are
+// terminal answers, not work.
+func indexedStitchState(state StitchState) bool {
+	for _, indexed := range stitchIndexStates {
+		if state == indexed {
+			return true
+		}
+	}
+	return false
+}
 
 // Enqueue records that fileID awaits Tier B consolidation and asserts its work
 // index entry so the stitcher can actually find it. Idempotent: a replayed
@@ -129,6 +150,11 @@ func (r *StitchRepo) ClaimForStitch(ctx context.Context, fileID string, staleCla
 		// Fall through: stale claim is re-claimed below.
 	case StitchStateFailed:
 		// Retry with a fresh claim.
+	case StitchStateSkipped:
+		// Permanently ineligible for this block layout. Only a re-enqueue (a
+		// committed content change) makes it actionable again, and that path
+		// deletes this row first.
+		return current, false, nil
 	default:
 		return StitchRecord{}, false, fmt.Errorf("unknown stitch state %q", current.State)
 	}
@@ -191,6 +217,41 @@ func (r *StitchRepo) MarkFailed(ctx context.Context, fileID string, now time.Tim
 	// A failed row stays in the work index on purpose: the next sweep retries
 	// it until MaxAttempts retires it for good.
 	return r.indexSet(ctx, id, previous, StitchStateFailed)
+}
+
+// MarkSkipped parks a file whose block layout S3's multipart API can never
+// assemble (a non-final block below the part minimum). The row keeps its
+// attempts and leaves the work index, so the sweeper stops reading it and the
+// operator sees one decision instead of an endless retry stream. The file
+// stays fully readable on Tier A.
+func (r *StitchRepo) MarkSkipped(ctx context.Context, fileID string, now time.Time) error {
+	id, err := parseID(fileID)
+	if err != nil {
+		return fmt.Errorf("parse file id: %w", err)
+	}
+	previous, err := r.stateOf(ctx, id)
+	if err == gocql.ErrNotFound {
+		return nil // purged mid-sweep: nothing left to park
+	}
+	if err != nil {
+		return err
+	}
+	if previous == StitchStateReady {
+		return nil // a consolidated object exists; never un-ready it
+	}
+	// LWT-guarded like MarkReady so a purge racing the sweep cannot resurrect a
+	// row for a file that no longer exists.
+	applied, err := r.session.Query(
+		`UPDATE stitched_objects SET state = ?, completed_at = ? WHERE file_id = ? IF EXISTS`,
+		string(StitchStateSkipped), now, id,
+	).WithContext(ctx).MapScanCAS(map[string]any{})
+	if err != nil {
+		return fmt.Errorf("mark stitch skipped: %w", err)
+	}
+	if !applied {
+		return nil
+	}
+	return r.indexSet(ctx, id, previous, StitchStateSkipped)
 }
 
 // MarkStitchingReset re-clauses a failed row (keeps attempts) after a purge
@@ -366,8 +427,9 @@ func (r *StitchRepo) indexClear(ctx context.Context, state StitchState, id gocql
 
 // indexSet reconciles a file's work-index entry across a state transition:
 // retire the entry for from and publish one for to. An empty from means "no
-// previous entry"; 'ready' as to retires without replacing, which is how a
-// consolidated file leaves the sweeper's work list for good. Index writes are
+// previous entry"; a terminal to ('ready', 'skipped') retires without
+// replacing, which is how finished and permanently ineligible files leave the
+// sweeper's work list for good. Index writes are
 // best-effort in the sense that the base row always wins: a stale entry only
 // costs the sweeper one claim that ClaimForStitch declines.
 func (r *StitchRepo) indexSet(ctx context.Context, id gocql.UUID, from, to StitchState) error {
@@ -376,7 +438,7 @@ func (r *StitchRepo) indexSet(ctx context.Context, id gocql.UUID, from, to Stitc
 			return err
 		}
 	}
-	if to == "" || to == StitchStateReady || to == from {
+	if to == "" || to == from || !indexedStitchState(to) {
 		return nil
 	}
 	if err := r.session.Query(

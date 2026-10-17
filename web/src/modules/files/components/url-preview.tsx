@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { create } from "@bufbuild/protobuf";
@@ -40,10 +40,18 @@ export function UrlFilePreview({ fileId, folderId }: { fileId: string; folderId:
   const router = useRouter();
   // Set while navigating to the editor. Closing the drawer calls router.back()
   // to restore the grid underneath the modal, but that would cancel an edit
-  // navigation that is still in flight: the drawer unmounts as the edit route
-  // takes over, and the back() would win. The flag makes "we are leaving on
-  // purpose" distinguishable from "the user dismissed the preview".
+  // navigation that is still in flight: the URL change closes the drawer as
+  // the edit route takes over, and the back() would win. The flag makes "we are
+  // leaving on purpose" distinguishable from "the user dismissed the preview".
   const leavingForEditor = useRef(false);
+
+  // The @modal slot survives soft navigation: moving to a route with no
+  // matching intercepted page (the editor, a folder, …) can leave the last
+  // rendered drawer mounted. Deriving `open` from the URL closes the preview
+  // the moment the route stops naming it — including the Edit navigation —
+  // and reopens it if Back returns here, without relying on an unmount.
+  const pathname = usePathname();
+  const isPreviewRoute = pathname === `/files/${folderId}/preview/${fileId}`;
 
   const query = useQuery({
     queryKey: ["preview-file", fileId],
@@ -66,7 +74,7 @@ export function UrlFilePreview({ fileId, folderId }: { fileId: string; folderId:
   return (
     <FilePreviewDrawer
       item={file ? itemFromFile(file) : null}
-      open={Boolean(file)}
+      open={Boolean(file) && isPreviewRoute}
       onEdit={(item) => {
         // Edit is a real route, not an overlay: the editor replaces the preview
         // (push, so Back returns here) and the grid is left behind because a

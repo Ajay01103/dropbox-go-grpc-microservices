@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
@@ -59,25 +58,31 @@ func NewStorage(cfg S3Config) (*Storage, error) {
 	if cfg.Endpoint == "" {
 		return nil, errors.New("S3 endpoint is required for preview storage (no implicit AWS mode)")
 	}
-	loadOptions := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(cfg.Region)}
-	if cfg.AccessKey != "" || cfg.SecretKey != "" {
+	client, err := newS3Client(cfg.Endpoint, cfg.Region, cfg.AccessKey, cfg.SecretKey)
+	if err != nil {
+		return nil, err
+	}
+	return &Storage{client: client, bucket: cfg.Bucket}, nil
+}
+
+// newS3Client builds a path-style client against one explicit endpoint.
+func newS3Client(endpoint, region, accessKey, secretKey string) (*s3.Client, error) {
+	loadOptions := []func(*awsconfig.LoadOptions) error{awsconfig.WithRegion(region)}
+	if accessKey != "" || secretKey != "" {
 		loadOptions = append(loadOptions, awsconfig.WithCredentialsProvider(
-			credentials.NewStaticCredentialsProvider(cfg.AccessKey, cfg.SecretKey, ""),
+			credentials.NewStaticCredentialsProvider(accessKey, secretKey, ""),
 		))
 	}
 	loadOptions = append(loadOptions, awsconfig.WithEndpointResolverWithOptions(
 		aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-			return aws.Endpoint{URL: cfg.Endpoint, SigningRegion: cfg.Region, HostnameImmutable: true}, nil
+			return aws.Endpoint{URL: endpoint, SigningRegion: region, HostnameImmutable: true}, nil
 		}),
 	))
 	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(), loadOptions...)
 	if err != nil {
 		return nil, fmt.Errorf("load S3 config: %w", err)
 	}
-	return &Storage{
-		client: s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = true }),
-		bucket: cfg.Bucket,
-	}, nil
+	return s3.NewFromConfig(awsCfg, func(options *s3.Options) { options.UsePathStyle = true }), nil
 }
 
 // blockObjectKey mirrors the upload service's S3BlockGateway key scheme —
@@ -251,20 +256,26 @@ func (s *Storage) ThumbnailExists(ctx context.Context, key string) (bool, error)
 	return false, fmt.Errorf("check preview in S3: %w", err)
 }
 
-// PresignThumbnail returns a presigned GET URL for a preview key.
-func (s *Storage) PresignThumbnail(ctx context.Context, key string, expiry time.Duration) (string, error) {
+// OpenThumbnail opens one stored preview for streaming to a client. The
+// metadata HTTP server proxies previews through itself because the object
+// store is not client-reachable (loopback in dev, private in production): a
+// presigned link would only work from the machine that signed it.
+func (s *Storage) OpenThumbnail(ctx context.Context, key string) (io.ReadCloser, int64, string, error) {
 	if key == "" {
-		return "", errors.New("thumbnail key is empty")
+		return nil, 0, "", errors.New("thumbnail key is empty")
 	}
-	presigner := s3.NewPresignClient(s.client)
-	result, err := presigner.PresignGetObject(ctx, &s3.GetObjectInput{
+	out, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(key),
-	}, func(options *s3.PresignOptions) { options.Expires = expiry })
+	})
 	if err != nil {
-		return "", fmt.Errorf("presign thumbnail: %w", err)
+		return nil, 0, "", fmt.Errorf("read thumbnail from S3: %w", err)
 	}
-	return result.URL, nil
+	contentType := aws.ToString(out.ContentType)
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+	return out.Body, aws.ToInt64(out.ContentLength), contentType, nil
 }
 
 // DeleteThumbnail removes a preview object from storage. It is called by the

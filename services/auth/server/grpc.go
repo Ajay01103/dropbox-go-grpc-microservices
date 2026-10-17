@@ -93,7 +93,9 @@ func (s *AuthServer) RefreshToken(ctx context.Context, req *pb.RefreshTokenReque
 	}, nil
 }
 
-// Logout invalidates a refresh token in Redis.
+// Logout revokes the session the presented refresh token belongs to: the
+// session row is deleted, so both the refresh token and the access token minted
+// alongside it stop validating.
 func (s *AuthServer) Logout(ctx context.Context, req *pb.LogoutRequest) (*pb.LogoutResponse, error) {
 	if req.GetRefreshToken() == "" {
 		return nil, newConnectError(connect.CodeInvalidArgument, errors.New("missing refresh token"))

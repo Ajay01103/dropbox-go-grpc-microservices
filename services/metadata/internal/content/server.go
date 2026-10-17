@@ -56,7 +56,15 @@ type ObjectFetcher interface {
 	ReadObjectRange(ctx context.Context, key string, offset, length int64) (io.ReadCloser, error)
 }
 
-// Server serves /content/{file_id}?ticket=... with full HTTP Range support.
+// ThumbnailFetcher opens one stored preview object. The object store is not
+// reachable from clients (loopback in dev, private in production), so previews
+// are streamed through this server instead of handed out as presigned links.
+type ThumbnailFetcher interface {
+	OpenThumbnail(ctx context.Context, key string) (io.ReadCloser, int64, string, error)
+}
+
+// Server serves /content/{file_id}?ticket=... with full HTTP Range support,
+// and /thumbnails/{file_id}?ticket=... for stored previews.
 type Server struct {
 	repo          ManifestStore
 	fetcher       BlockFetcher
@@ -64,6 +72,7 @@ type Server struct {
 	stitchRepo    StitchLookup
 	presigner     BlockPresigner
 	objectFetcher ObjectFetcher
+	thumbnails    ThumbnailFetcher
 	streamWorkers int
 	maxRange      int64
 	logger        *zap.Logger
@@ -122,6 +131,13 @@ func WithObjectFetcher(fetcher ObjectFetcher) Option {
 	return func(s *Server) { s.objectFetcher = fetcher }
 }
 
+// WithThumbnails mounts the /thumbnails/ route, streaming stored previews
+// through this server so image URLs work from any device that can reach the
+// RPC port — no separate route to the object store required.
+func WithThumbnails(fetcher ThumbnailFetcher) Option {
+	return func(s *Server) { s.thumbnails = fetcher }
+}
+
 // WithStreamWorkers bounds the parallel block-fetch pool (default 12).
 func WithStreamWorkers(n int) Option {
 	return func(s *Server) {
@@ -138,10 +154,77 @@ type BlockPresigner interface {
 	PresignFileGET(ctx context.Context, key string, request service.PresignRequest) (string, error)
 }
 
-// Handler mounts the /content/ route on the given mux.
+// Handler mounts the /content/ and /thumbnails/ routes on the given mux.
 func (s *Server) Handler(mux *http.ServeMux) {
 	mux.HandleFunc("GET /content/{file_id}", s.handleContent)
 	mux.HandleFunc("HEAD /content/{file_id}", s.handleContent)
+	if s.thumbnails != nil {
+		mux.HandleFunc("GET /thumbnails/{file_id}", s.handleThumbnail)
+		mux.HandleFunc("HEAD /thumbnails/{file_id}", s.handleThumbnail)
+	}
+}
+
+// handleThumbnail streams one stored preview. The ticket scopes it to exactly
+// one object (see service.MintThumbnailTicket): it names the file AND the
+// thumbnail key, and the prefix check below pins that key inside the file's
+// own directory before a single byte is read.
+func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
+	fileID := r.PathValue("file_id")
+	ticketParam := r.URL.Query().Get("ticket")
+	if fileID == "" || ticketParam == "" {
+		http.Error(w, "missing file id or ticket", http.StatusBadRequest)
+		return
+	}
+	ticket, err := service.VerifyTicket(ticketParam, s.ticketKey, time.Now())
+	if err != nil {
+		s.logger.Warn("thumbnail access denied", zap.String("fileID", fileID), zap.Error(err))
+		w.Header().Set("WWW-Authenticate", `Bearer realm="thumbnails", error="invalid_ticket"`)
+		http.Error(w, "invalid or expired ticket", http.StatusUnauthorized)
+		return
+	}
+	if ticket.FileID != fileID || ticket.ThumbnailKey == "" {
+		http.Error(w, "ticket does not cover this preview", http.StatusForbidden)
+		return
+	}
+	if !strings.HasPrefix(ticket.ThumbnailKey, "thumbnails/"+fileID+"/") {
+		http.Error(w, "ticket does not cover this preview", http.StatusForbidden)
+		return
+	}
+
+	body, size, contentType, err := s.thumbnails.OpenThumbnail(r.Context(), ticket.ThumbnailKey)
+	if err != nil {
+		s.logger.Warn("thumbnail read failed",
+			zap.String("fileID", fileID), zap.String("key", ticket.ThumbnailKey), zap.Error(err))
+		http.Error(w, "preview unavailable", http.StatusNotFound)
+		return
+	}
+	defer body.Close()
+
+	if contentType == "" {
+		contentType = "image/jpeg"
+	}
+	// The key is content-addressed (thumbnails/<file>/<sha>.jpg), so it is a
+	// stable validator: a new version gets a new key and a new URL.
+	etag := `"` + ticket.ThumbnailKey + `"`
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("ETag", etag)
+	w.Header().Set("Cache-Control", "private, max-age=300")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if etagMatches(r.Header.Get("If-None-Match"), etag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	w.Header().Set("Content-Length", strconv.FormatInt(size, 10))
+	w.WriteHeader(http.StatusOK)
+	if r.Method == http.MethodHead {
+		return
+	}
+	if _, err := io.Copy(w, body); err != nil {
+		// Headers are committed; the truncated body tells the client the
+		// preview did not finish.
+		s.logger.Warn("thumbnail stream aborted",
+			zap.String("fileID", fileID), zap.Error(err))
+	}
 }
 
 // handleContent verifies the ticket (stateless), then serves 200/206 with
@@ -177,13 +260,32 @@ func (s *Server) handleContent(w http.ResponseWriter, r *http.Request) {
 	// current bytes under that ticket would hand the editor somebody else's
 	// version to overwrite (and the commit would be refused as stale anyway).
 	// 409 says "reload, your base is gone" instead of mixing two versions.
+	//
+	// The manifest cache is an L1 with a multi-minute TTL and it is not shared
+	// between replicas, so a commit that just landed (the editor's own save
+	// included) can still be invisible here. A pinned ticket is always a fresh
+	// read of one known version — the editor minted it moments ago — so a
+	// mismatch means either the cache or the ticket is stale. Re-read once
+	// before refusing: otherwise every first load after a save would 409 until
+	// the TTL runs out, while a genuinely stale ticket still mismatches after
+	// the re-read.
 	if ticket.ContentHash != "" && manifest.ContentHash != ticket.ContentHash {
-		s.logger.Info("version-pinned ticket refused: stored version moved on",
-			zap.String("fileID", fileID),
-			zap.Int32("ticketVersion", ticket.Version))
-		w.Header().Set("ETag", `"`+manifest.ContentHash+`"`)
-		http.Error(w, "the file changed since this ticket was issued", http.StatusConflict)
-		return
+		manifest, stitchedKey, err = s.reloadManifest(r.Context(), fileID)
+		if err != nil {
+			s.logger.Warn("manifest reload failed", zap.String("fileID", fileID), zap.Error(err))
+			http.Error(w, "manifest unavailable", http.StatusNotFound)
+			return
+		}
+		if manifest.ContentHash != ticket.ContentHash {
+			s.logger.Info("version-pinned ticket refused: stored version moved on",
+				zap.String("fileID", fileID),
+				zap.Int32("ticketVersion", ticket.Version),
+				zap.String("ticketHash", ticket.ContentHash),
+				zap.String("storedHash", manifest.ContentHash))
+			w.Header().Set("ETag", `"`+manifest.ContentHash+`"`)
+			http.Error(w, "the file changed since this ticket was issued", http.StatusConflict)
+			return
+		}
 	}
 
 	disposition := ticket.Disposition
@@ -324,13 +426,35 @@ func (s *Server) streamObjectRange(ctx context.Context, w io.Writer, key string,
 	return nil
 }
 
+// InvalidateManifest drops a file's cached manifest so the next request reads
+// the current one. The edit path calls this right after a commit: without it
+// the content server keeps serving the superseded version's manifest (and its
+// version pin) for up to manifestCacheTTL, which refuses the editor's reload
+// of the version it just saved.
+func (s *Server) InvalidateManifest(fileID string) {
+	s.manifestMu.Lock()
+	delete(s.manifestCache, fileID)
+	s.manifestMu.Unlock()
+}
+
 // loadManifest returns the cached manifest (single-partition read on miss)
 // and whether a Tier B consolidated object is ready.
 func (s *Server) loadManifest(ctx context.Context, fileID string) (repository.FileManifestRow, string, error) {
+	return s.loadManifestCached(ctx, fileID, false)
+}
+
+// reloadManifest bypasses the cache and replaces its entry with the stored
+// manifest. Used when a version-pinned ticket disagrees with what the cache
+// holds: the ticket is the newer fact, so the cache must not decide.
+func (s *Server) reloadManifest(ctx context.Context, fileID string) (repository.FileManifestRow, string, error) {
+	return s.loadManifestCached(ctx, fileID, true)
+}
+
+func (s *Server) loadManifestCached(ctx context.Context, fileID string, fresh bool) (repository.FileManifestRow, string, error) {
 	s.manifestMu.Lock()
 	entry, ok := s.manifestCache[fileID]
 	s.manifestMu.Unlock()
-	if ok && time.Since(entry.fetchedAt) < manifestCacheTTL && entry.stitchedLoaded {
+	if !fresh && ok && time.Since(entry.fetchedAt) < manifestCacheTTL && entry.stitchedLoaded {
 		return entry.manifest, entry.stitchedKey, nil
 	}
 

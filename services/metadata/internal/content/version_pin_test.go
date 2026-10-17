@@ -80,6 +80,83 @@ func TestVersionPinnedTicketServesOnlyThatVersion(t *testing.T) {
 	}
 }
 
+// TestPinnedTicketRefreshesAStaleManifestCache covers the save-then-reload
+// path: the editor commits version N, refetches its session, and loads the new
+// pinned ticket while the content server still holds version N-1 in its L1.
+// The pinned read must re-read the store instead of answering 409 — the ticket
+// is the newer fact.
+func TestPinnedTicketRefreshesAStaleManifestCache(t *testing.T) {
+	repo := &manifestRepoStub{manifest: manifestWithHash("hash-v1")}
+	blocks := map[string][]byte{"a": bytes.Repeat([]byte("x"), 100)}
+	server := NewServer(repo, &fakeFetcher{blocks: blocks}, "ticket-key", zap.NewNop(), WithStreamWorkers(1))
+	mux := http.NewServeMux()
+	server.Handler(mux)
+
+	fetch := func(version int32, hash string) *httptest.ResponseRecorder {
+		t.Helper()
+		ticket, err := service.MintVersionedTicket("file-1", "user-1", "inline", "doc.pdf", version, hash, time.Now())
+		if err != nil {
+			t.Fatalf("MintVersionedTicket() error = %v", err)
+		}
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/content/file-1?ticket="+service.EncodeTicket(ticket, "ticket-key"), nil))
+		return rec
+	}
+
+	if rec := fetch(1, "hash-v1"); rec.Code != http.StatusOK {
+		t.Fatalf("v1 load status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+	}
+
+	// The commit lands: the stored manifest now describes v2 while the cache
+	// still describes v1.
+	repo.manifest = manifestWithHash("hash-v2")
+	rec := fetch(2, "hash-v2")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("v2 load after commit status = %d, want 200 (a stale cache entry must not refuse the newest pin; body %q)", rec.Code, rec.Body.String())
+	}
+	if got := rec.Header().Get("ETag"); got != `"hash-v2"` {
+		t.Fatalf("ETag = %q, want the reloaded manifest's hash", got)
+	}
+}
+
+// TestInvalidateManifestServesTheNewVersionImmediately covers the commit from
+// the other side: unpinned readers (previews, downloads) must not keep seeing
+// the superseded version for the rest of the cache TTL.
+func TestInvalidateManifestServesTheNewVersionImmediately(t *testing.T) {
+	repo := &manifestRepoStub{manifest: manifestWithHash("hash-v1")}
+	blocks := map[string][]byte{"a": bytes.Repeat([]byte("x"), 100)}
+	server := NewServer(repo, &fakeFetcher{blocks: blocks}, "ticket-key", zap.NewNop(), WithStreamWorkers(1))
+	mux := http.NewServeMux()
+	server.Handler(mux)
+
+	ticket, err := service.MintDownloadTicket("file-1", "user-1", "inline", "doc.pdf", time.Now())
+	if err != nil {
+		t.Fatalf("MintDownloadTicket() error = %v", err)
+	}
+	url := "/content/file-1?ticket=" + service.EncodeTicket(ticket, "ticket-key")
+	fetchETag := func() string {
+		t.Helper()
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, url, nil))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (body %q)", rec.Code, rec.Body.String())
+		}
+		return rec.Header().Get("ETag")
+	}
+
+	if got := fetchETag(); got != `"hash-v1"` {
+		t.Fatalf("ETag = %q, want hash-v1", got)
+	}
+	repo.manifest = manifestWithHash("hash-v2")
+	if got := fetchETag(); got != `"hash-v1"` {
+		t.Fatalf("ETag before invalidation = %q, want the cached hash-v1", got)
+	}
+	server.InvalidateManifest("file-1")
+	if got := fetchETag(); got != `"hash-v2"` {
+		t.Fatalf("ETag after invalidation = %q, want hash-v2", got)
+	}
+}
+
 func TestUnpinnedTicketStillServesWhateverIsCurrent(t *testing.T) {
 	// Plain downloads are not version-pinned: they mean "the current bytes",
 	// and they must keep working after an edit.

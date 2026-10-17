@@ -175,9 +175,8 @@ func run() error {
 		SecretKey: cfg.S3SecretKey,
 	})
 	if err != nil {
-		logger.Warn("preview storage unavailable; continuing without thumbnail URLs", zap.Error(err))
+		logger.Warn("preview storage unavailable; continuing without previews", zap.Error(err))
 	} else {
-		metadataSvc.SetThumbnailURLer(previewStorage)
 		previewCloser, err := preview.StartAll(context.Background(), cfg, metadataRepo, logger)
 		if err != nil {
 			logger.Warn("preview pipeline failed to start", zap.Error(err))
@@ -195,11 +194,12 @@ func run() error {
 	var contentServer *content.Server
 	if cfg.S3Endpoint != "" {
 		storage, storageErr := content.NewS3Storage(content.S3Config{
-			Bucket:    cfg.S3Bucket,
-			Region:    cfg.S3Region,
-			Endpoint:  cfg.S3Endpoint,
-			AccessKey: cfg.S3AccessKey,
-			SecretKey: cfg.S3SecretKey,
+			Bucket:         cfg.S3Bucket,
+			Region:         cfg.S3Region,
+			Endpoint:       cfg.S3Endpoint,
+			AccessKey:      cfg.S3AccessKey,
+			SecretKey:      cfg.S3SecretKey,
+			PublicEndpoint: cfg.S3PublicEndpoint,
 		})
 		if storageErr != nil {
 			logger.Warn("content storage unavailable; download tickets disabled", zap.Error(storageErr))
@@ -274,6 +274,16 @@ func run() error {
 	// download ticket minted by GetDownloadTicket (ownership checked THERE).
 	if contentStorage != nil {
 		contentServer = content.NewServer(metadataRepo, contentStorage, cfg.DownloadTicketKey, logger, content.WithStreamWorkers(12))
+		// Previews stream through this same port: the object store is bound to
+		// loopback in dev and private in production, so a presigned thumbnail
+		// URL only ever works from the machine that signed it.
+		if previewStorage != nil {
+			content.WithThumbnails(previewStorage)(contentServer)
+		}
+		// A commit rewrites the manifest; the content server must hear about it
+		// immediately, or the editor's pinned reload of the version it just
+		// saved is answered from the cached predecessor and refused as stale.
+		metadataSvc.SetManifestInvalidator(contentServer)
 		if cfg.StitchEnabled && cfg.S3Endpoint != "" {
 			stitcher, stitcherErr := content.NewStitcher(content.S3Config{
 				Bucket:    cfg.S3Bucket,
@@ -327,7 +337,8 @@ func run() error {
 	if contentServer != nil {
 		contentServer.Handler(mux)
 		logger.Info("content server mounted", zap.String("route", "/content/{file_id}"),
-			zap.String("baseURL", cfg.ContentBaseURL))
+			zap.String("baseURL", cfg.ContentBaseURL),
+			zap.String("clientBaseURL", cfg.ClientContentBaseURL()))
 	}
 
 	protocols := new(http.Protocols)

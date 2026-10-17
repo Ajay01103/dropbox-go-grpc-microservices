@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import HomeView from '@/modules/home/views/home-view';
 
 export default function HomeScreen() {
-  return <ScreenPlaceholder title="Home" subtitle="Your recent files will appear here." />;
+  return <HomeView />;
 }

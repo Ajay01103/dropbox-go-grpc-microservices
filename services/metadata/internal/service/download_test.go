@@ -156,3 +156,35 @@ func TestMintDownloadTicketNormalizesDisposition(t *testing.T) {
 		t.Fatalf("Filename = %q, want download fallback", ticket.Filename)
 	}
 }
+
+// A preview ticket is the same signed envelope as a download ticket, scoped to
+// one stored preview. It outlives the download TTL because clients cache the
+// image URL alongside the list that showed it.
+func TestMintThumbnailTicketRoundTrip(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	const key = "thumbnails/file-1/preview.jpg"
+	ticket, err := MintThumbnailTicket("file-1", "user-1", key, now)
+	if err != nil {
+		t.Fatalf("MintThumbnailTicket() error = %v", err)
+	}
+	if ticket.ExpiresUnix != now.Add(ThumbnailTicketTTL).Unix() {
+		t.Fatalf("ExpiresUnix = %d, want %d", ticket.ExpiresUnix, now.Add(ThumbnailTicketTTL).Unix())
+	}
+
+	decoded, err := VerifyTicket(EncodeTicket(ticket, "test-key"), "test-key", now.Add(20*time.Minute))
+	if err != nil {
+		t.Fatalf("VerifyTicket() error = %v", err)
+	}
+	if decoded.ThumbnailKey != key {
+		t.Fatalf("ThumbnailKey = %q, want %q", decoded.ThumbnailKey, key)
+	}
+	if decoded.FileID != "file-1" || decoded.Disposition != "inline" {
+		t.Fatalf("decoded = (%q, %q), want (file-1, inline)", decoded.FileID, decoded.Disposition)
+	}
+}
+
+func TestMintThumbnailTicketRequiresKey(t *testing.T) {
+	if _, err := MintThumbnailTicket("file-1", "user-1", "", time.Now()); err == nil {
+		t.Fatal("MintThumbnailTicket() accepted an empty key")
+	}
+}

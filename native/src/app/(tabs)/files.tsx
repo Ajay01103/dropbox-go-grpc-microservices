@@ -1,5 +1,5 @@
-import { ScreenPlaceholder } from '@/components/screen-placeholder';
+import FilesView from '@/modules/files/views/files-view';
 
 export default function FilesScreen() {
-  return <ScreenPlaceholder title="Files" subtitle="Files you create or save will show up here." />;
+  return <FilesView />;
 }

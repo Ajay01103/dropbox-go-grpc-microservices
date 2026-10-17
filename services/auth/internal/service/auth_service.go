@@ -22,11 +22,21 @@ import (
 type AuthService struct {
 	userRepo        *repository.UserRepo
 	tokenMaker      token.TokenMaker
-	sessionStore    *scyllastore.SessionStore
+	sessionStore    sessionStore
 	revocationStore revocationStore
 	cache           *ristretto.Cache
 	cfg             config.Config
 	logger          *zap.Logger
+}
+
+// sessionStore is the session anchor as the service needs it. The concrete
+// *scyllastore.SessionStore satisfies it; keeping the seam here lets the
+// revocation paths be exercised without a live ScyllaDB.
+type sessionStore interface {
+	GetSession(ctx context.Context, userID, sessionID string) (*scyllastore.SessionRecord, error)
+	StoreSession(ctx context.Context, rec scyllastore.SessionRecord, ttl time.Duration) error
+	AtomicBumpGen(ctx context.Context, userID, sessionID string, expectGen, newGen int64) (bool, error)
+	DeleteSession(ctx context.Context, userID, sessionID string) error
 }
 
 type revocationStore interface {
@@ -219,6 +229,14 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 		return nil, fmt.Errorf("bump session gen: %w", err)
 	}
 	if !ok {
+		// The row can be gone rather than contended: a logout (or a theft
+		// cleanup) deleted it after the read above. A vacated session is a
+		// revocation, not a retryable race, so it must never be answered with a
+		// replacement pair.
+		if gone, goneErr := s.sessionVacated(ctx, uid, sid); goneErr == nil && gone {
+			s.evictSessionState(sid, payload.Gen)
+			return nil, ErrSessionNotFound
+		}
 		// The first overlapping request may have completed the rotation just
 		// before this CAS lost. Reuse its replacement pair if available.
 		if cached, found := s.cache.Get(tokencache.RotatedTokenKey(sid, payload.Gen)); found {
@@ -268,6 +286,22 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string) 
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 
+// Logout revokes the session the presented refresh token belongs to.
+//
+// The ScyllaDB session row is the anchor the whole token family hangs from: the
+// generation counter lives on it, refresh compares the token's gen against it,
+// and access validation refuses a token whose session is gone. Dropping only the
+// cache entry left the row in place, so the next refresh took its miss path
+// straight back to Scylla, found a matching generation, and minted a brand-new
+// pair — logout revoked nothing. Deleting the row is what makes both tokens of
+// the session stop working:
+//
+//   - refresh fails on this process (cache miss → row gone) and on any other
+//     process whose compare-and-set on the row can no longer apply;
+//   - access validation fails as soon as it leaves the cache.
+//
+// Idempotent: a repeated logout, or one for a session another device already
+// revoked, still reports success, because the row is simply absent.
 func (s *AuthService) Logout(ctx context.Context, refreshTokenStr string) error {
 	payload, err := s.tokenMaker.VerifySessionRefreshToken(refreshTokenStr)
 	if err != nil {
@@ -277,15 +311,50 @@ func (s *AuthService) Logout(ctx context.Context, refreshTokenStr string) error 
 		return ErrInvalidToken
 	}
 
+	uid := payload.UserID.String()
 	sid := payload.SessionID.String()
 
-	// Delete session from cache
-	s.cache.Del(tokencache.SessionKey(sid))
+	if s.sessionStore != nil {
+		if err := s.sessionStore.DeleteSession(ctx, uid, sid); err != nil {
+			// Evict this process's copy anyway: a failed delete must not leave
+			// the session looking alive locally, and the caller has to hear that
+			// the revocation did not stick.
+			s.evictSessionState(sid, payload.Gen)
+			s.logger.Error("logout: failed to delete session",
+				zap.String("userID", uid),
+				zap.String("sessionID", sid),
+				zap.Error(err),
+			)
+			return fmt.Errorf("delete session on logout: %w", err)
+		}
+	}
 
-	// Delete session from Scylla (TTL will eventually clean it up, but we can accelerate)
-	// For now, we rely on TTL; explicit delete is optional
+	s.evictSessionState(sid, payload.Gen)
 
+	s.logger.Info("session revoked by logout",
+		zap.String("userID", uid),
+		zap.String("sessionID", sid),
+	)
 	return nil
+}
+
+// evictSessionState drops this process's cached view of a session:
+//
+//   - the session state that validates the generation and global version, so
+//     access validation and refresh must consult ScyllaDB instead of trusting a
+//     warm copy;
+//   - the replacement pair minted from this token's own generation, which would
+//     otherwise answer a replay with a fresh pair for up to RotatedTokenTTL.
+//
+// The cache is per-process and its entries expire; the ScyllaDB row is the
+// cross-process truth, which is why Logout deletes it rather than relying on
+// these evictions.
+func (s *AuthService) evictSessionState(sessionID string, generation int64) {
+	if s.cache == nil {
+		return
+	}
+	s.cache.Del(tokencache.SessionKey(sessionID))
+	s.cache.Del(tokencache.RotatedTokenKey(sessionID, generation))
 }
 
 func (s *AuthService) LogoutAllDevices(ctx context.Context, userID string) error {
@@ -498,6 +567,14 @@ func (s *AuthService) issueAndUpdateSessionCache(
 		return nil, fmt.Errorf("bump session gen: %w", err)
 	}
 	if !ok {
+		// This process cached the session, so the CAS losing means either a
+		// parallel rotation or a revocation that happened underneath the cache
+		// (another process's logout, or theft cleanup). Revocation is decided
+		// first: a warm local cache must not keep a revoked session alive.
+		if gone, goneErr := s.sessionVacated(ctx, userID, sessionID); goneErr == nil && gone {
+			s.evictSessionState(sessionID, currentGen)
+			return nil, ErrSessionNotFound
+		}
 		if cached, found := s.cache.Get(tokencache.RotatedTokenKey(sessionID, currentGen)); found {
 			if pair, valid := cached.(*RotatedTokenPair); valid {
 				return &RefreshResult{AccessToken: pair.AccessToken, RefreshToken: pair.RefreshToken}, nil
@@ -543,6 +620,22 @@ func (s *AuthService) issueAndUpdateSessionCache(
 	)
 
 	return &RefreshResult{AccessToken: newAccessStr, RefreshToken: newRefreshStr}, nil
+}
+
+// sessionVacated reports whether a session row no longer exists. It is how a
+// failed compare-and-set is told apart from a row that was revoked underneath
+// the caller: a vacated session has to fail as revoked so the client clears its
+// credentials, instead of as a concurrency race that invites a retry the
+// revoked session could never satisfy.
+func (s *AuthService) sessionVacated(ctx context.Context, userID, sessionID string) (bool, error) {
+	if s.sessionStore == nil {
+		return false, nil
+	}
+	rec, err := s.sessionStore.GetSession(ctx, userID, sessionID)
+	if err != nil {
+		return false, err
+	}
+	return rec == nil, nil
 }
 
 func (s *AuthService) handleTheftDetected(userID, sessionID string) {

@@ -35,6 +35,12 @@ type DownloadTicket struct {
 	// handing the editor someone else's newer bytes to overwrite.
 	Version     int32  `json:"v,omitempty"`
 	ContentHash string `json:"h,omitempty"`
+	// ThumbnailKey, when set, scopes the ticket to one stored preview object
+	// instead of the file's blocks: clients read previews through this service
+	// (`/thumbnails/{file_id}`) so the object store never has to be reachable
+	// from a phone. A ticket without it cannot read a preview, and one with it
+	// cannot read content.
+	ThumbnailKey string `json:"tk,omitempty"`
 	// IssuedAtUnix trades a slightly larger payload for a verification that
 	// needs no key-version tracking: a check against now-TransmissionWindow
 	// bounds clock skew on both sides.
@@ -50,6 +56,10 @@ const (
 	// TransmissionWindow bounds accepted clock skew between ticket mint
 	// (metadata) and verification (content server).
 	TransmissionWindow = 90 * time.Second
+	// ThumbnailTicketTTL is deliberately longer than TicketTTL: a preview URL
+	// is cached with the image list (minutes) while a download URL is opened
+	// the moment it is minted.
+	ThumbnailTicketTTL = 30 * time.Minute
 	// maxFilenameInTicket keeps the signed payload tiny; real filenames are
 	// capped at 255 bytes by validateName anyway.
 	maxFilenameInTicket = 255
@@ -113,6 +123,31 @@ func MintVersionedTicket(fileID, userID, disposition, filename string, version i
 	return ticket, nil
 }
 
+// MintThumbnailTicket signs a ticket for one stored preview object. The
+// caller has already checked that the file is the user's and that its preview
+// is ready (GetThumbnailURL does that upstream).
+//
+// Previews are served through this service rather than as a presigned object
+// URL: the store is bound to loopback in dev and private in production, so a
+// presigned link is only reachable from the machine that signed it.
+func MintThumbnailTicket(fileID, userID, thumbnailKey string, now time.Time) (DownloadTicket, error) {
+	if fileID == "" || userID == "" {
+		return DownloadTicket{}, errors.New("file id and user id are required")
+	}
+	if thumbnailKey == "" {
+		return DownloadTicket{}, errors.New("thumbnail key is required")
+	}
+	return DownloadTicket{
+		FileID:       fileID,
+		UserID:       userID,
+		Disposition:  "inline",
+		Filename:     "preview",
+		ThumbnailKey: thumbnailKey,
+		IssuedAtUnix: now.Unix(),
+		ExpiresUnix:  now.Add(ThumbnailTicketTTL).Unix(),
+	}, nil
+}
+
 // sign returns base64url(HMAC-SHA256(key, payload)).
 func sign(payload []byte, key string) string {
 	mac := hmac.New(sha256.New, []byte(key))
@@ -158,6 +193,12 @@ func VerifyTicket(encoded, key string, now time.Time) (DownloadTicket, error) {
 	}
 	if t.FileID == "" || t.UserID == "" {
 		return DownloadTicket{}, errors.New("ticket missing scope")
+	}
+	// A preview key is a path inside the bucket; refuse anything that is not
+	// the per-file prefix the minting side always uses, so a forgotten check
+	// upstream cannot turn a ticket into a read of somebody else's object.
+	if t.ThumbnailKey != "" && !strings.HasPrefix(t.ThumbnailKey, "thumbnails/"+t.FileID+"/") {
+		return DownloadTicket{}, errors.New("thumbnail key does not belong to this file")
 	}
 	return t, nil
 }
@@ -242,8 +283,9 @@ func (s *MetadataService) GetDownloadTicket(ctx context.Context, ownerID, fileID
 			zap.String("fileID", fileID), zap.Error(presignErr))
 	}
 
-	// Tier A path: the content endpoint streams block ranges itself.
-	base := strings.TrimRight(s.cfg.ContentBaseURL, "/")
+	// Tier A path: the content endpoint streams block ranges itself. The URL is
+	// for the client, so it uses the public base when one is configured.
+	base := strings.TrimRight(s.cfg.ClientContentBaseURL(), "/")
 	result.URL = fmt.Sprintf("%s/content/%s?ticket=%s&disposition=%s",
 		base, url.PathEscape(fileID), url.QueryEscape(encoded), url.QueryEscape(ticket.Disposition))
 	return result, nil

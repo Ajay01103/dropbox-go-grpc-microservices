@@ -2,12 +2,36 @@ package content
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/Ajay01103/go-dropbox/metadata/internal/repository"
 	"go.uber.org/zap"
 )
+
+// minStitchPartSize is S3's multipart minimum for every part but the last.
+// Server-side assembly (UploadPartCopy) cannot merge blocks into parts, so a
+// file whose non-final blocks are smaller than this can never be consolidated.
+const minStitchPartSize = 5 << 20
+
+// firstIneligibleBlock returns the index of the first non-final block below the
+// multipart part minimum, or -1 when every block qualifies and the file can be
+// stitched.
+//
+// The final block is exempt, which is why a small single-block file stitches
+// fine while the same bytes split across two blocks cannot.
+func firstIneligibleBlock(blocks []repository.ManifestBlock, minPartSize int64) int {
+	for i, block := range blocks {
+		if i == len(blocks)-1 {
+			return -1
+		}
+		if block.SizeBytes < minPartSize {
+			return i
+		}
+	}
+	return -1
+}
 
 // StitcherConfig tunes the Tier B sweep.
 type StitcherConfig struct {
@@ -16,9 +40,10 @@ type StitcherConfig struct {
 	BatchSize       int
 	MinAge          time.Duration
 	StaleClaimAfter time.Duration
-	// MaxAttempts bounds retries per file so a permanently ineligible file
-	// (e.g. legacy 4 MiB blocks, below the multipart part minimum) stops
-	// costing an S3 round-trip on every sweep. Zero means the default.
+	// MaxAttempts bounds retries per file so a transient S3 failure cannot be
+	// retried forever. Layouts that can never be consolidated are parked
+	// outright (see StitchStateSkipped) and never reach this bound.
+	// Zero means the default.
 	MaxAttempts int
 }
 
@@ -96,9 +121,9 @@ func (w *StitchWorker) sweepOnce(ctx context.Context) error {
 		if fresh && now.Sub(rec.ClaimedAt) < w.cfg.MinAge {
 			continue
 		}
-		// Give up after MaxAttempts: a file whose block layout can never be
-		// stitched (legacy sub-5 MiB blocks) must not be retried forever. It
-		// keeps working on Tier A live reconstruction.
+		// Give up after MaxAttempts: a transient failure must not cost an S3
+		// round-trip on every sweep forever. The file keeps working on Tier A
+		// live reconstruction.
 		if rec.State == repository.StitchStateFailed && rec.Attempts >= maxAttempts {
 			continue
 		}
@@ -115,8 +140,22 @@ func (w *StitchWorker) sweepOnce(ctx context.Context) error {
 				zap.String("fileID", fileID), zap.Error(manifestErr))
 			continue
 		}
-		key, etag, stitchErr := w.stitch.Stitch(ctx, fileID, manifest.Blocks, 5<<20)
+		// Eligibility first: a layout S3 cannot assemble is parked once instead
+		// of being handed to the multipart API five times per content change.
+		if w.parkIfIneligible(ctx, fileID, manifest, now) {
+			continue
+		}
+		key, etag, stitchErr := w.stitch.Stitch(ctx, fileID, manifest.Blocks, minStitchPartSize)
 		if stitchErr != nil {
+			if errors.Is(stitchErr, ErrStitchNotEligible) {
+				// The manifest changed under us (a commit landed between the check
+				// and the stitch). Park it the same way; the next content change
+				// re-enqueues.
+				_ = w.repo.MarkSkipped(ctx, fileID, now)
+				w.logger.Info("file parked on Tier A: layout cannot be consolidated server-side",
+					zap.String("fileID", fileID), zap.Error(stitchErr))
+				continue
+			}
 			_ = w.repo.MarkFailed(ctx, fileID, now)
 			w.logger.Warn("stitch failed",
 				zap.String("fileID", fileID),
@@ -140,6 +179,27 @@ func (w *StitchWorker) sweepOnce(ctx context.Context) error {
 	return nil
 }
 
+// parkIfIneligible checks whether S3's multipart API could ever assemble this
+// manifest and, when it could not, parks the file on Tier A (StitchStateSkipped)
+// so no sweep or save ever retries it: the sweeper stops reading the row, and
+// only a committed content change re-enqueues the file. Reports whether the
+// file was parked, in which case the caller must not stitch it.
+func (w *StitchWorker) parkIfIneligible(ctx context.Context, fileID string, manifest repository.FileManifestRow, now time.Time) bool {
+	idx := firstIneligibleBlock(manifest.Blocks, minStitchPartSize)
+	if idx < 0 {
+		return false
+	}
+	if err := w.repo.MarkSkipped(ctx, fileID, now); err != nil {
+		w.logger.Warn("mark stitch skipped failed", zap.String("fileID", fileID), zap.Error(err))
+	}
+	w.logger.Info("file parked on Tier A: layout cannot be consolidated server-side",
+		zap.String("fileID", fileID),
+		zap.Int("blockIndex", idx),
+		zap.Int64("blockSizeBytes", manifest.Blocks[idx].SizeBytes),
+		zap.Int64("minPartSize", minStitchPartSize))
+	return true
+}
+
 // StitchFile stitches one file now. Exposed for tests and manual triggers.
 func (w *StitchWorker) StitchFile(ctx context.Context, fileID string) error {
 	now := time.Now().UTC()
@@ -154,8 +214,17 @@ func (w *StitchWorker) StitchFile(ctx context.Context, fileID string) error {
 		_ = w.repo.MarkFailed(ctx, fileID, now)
 		return fmt.Errorf("load manifest: %w", err)
 	}
-	key, etag, err := w.stitch.Stitch(ctx, fileID, manifest.Blocks, 5<<20)
+	if w.parkIfIneligible(ctx, fileID, manifest, now) {
+		return nil
+	}
+	key, etag, err := w.stitch.Stitch(ctx, fileID, manifest.Blocks, minStitchPartSize)
 	if err != nil {
+		if errors.Is(err, ErrStitchNotEligible) {
+			_ = w.repo.MarkSkipped(ctx, fileID, now)
+			w.logger.Info("file parked on Tier A: layout cannot be consolidated server-side",
+				zap.String("fileID", fileID), zap.Error(err))
+			return nil
+		}
 		_ = w.repo.MarkFailed(ctx, fileID, now)
 		return fmt.Errorf("stitch: %w", err)
 	}

@@ -34,12 +34,20 @@ type Config struct {
 	S3Bucket                    string        `mapstructure:"S3_BUCKET"`
 	S3Region                    string        `mapstructure:"S3_REGION"`
 	S3Endpoint                  string        `mapstructure:"S3_ENDPOINT"`
-	S3AccessKey                 string        `mapstructure:"AWS_ACCESS_KEY_ID"`
-	S3SecretKey                 string        `mapstructure:"AWS_SECRET_ACCESS_KEY"`
+	// S3PublicEndpoint is the object-store address clients can reach, used only
+	// for presigning URLs (host is signed, so it cannot be rewritten). Empty
+	// means the same as S3_ENDPOINT.
+	S3PublicEndpoint string `mapstructure:"S3_PUBLIC_ENDPOINT"`
+	S3AccessKey      string `mapstructure:"AWS_ACCESS_KEY_ID"`
+	S3SecretKey      string `mapstructure:"AWS_SECRET_ACCESS_KEY"`
 	// Download-ticket and content-serving settings. DownloadTicketKey must
 	// be shared with the content server (it verifies statelessly).
 	DownloadTicketKey string `mapstructure:"DOWNLOAD_TICKET_KEY"`
 	ContentBaseURL    string `mapstructure:"CONTENT_BASE_URL"`
+	// ContentPublicBaseURL is the content-server address handed to clients. In
+	// dev the service answers on localhost, but a phone on the LAN needs the
+	// machine's address. Empty means the same as CONTENT_BASE_URL.
+	ContentPublicBaseURL string `mapstructure:"CONTENT_PUBLIC_BASE_URL"`
 	// Tier B: async stitcher that consolidates per-block objects into one
 	// object per file via UploadPartCopy (server-side copy, zero egress).
 	StitchEnabled    bool          `mapstructure:"STITCH_ENABLED"`
@@ -56,6 +64,18 @@ type Config struct {
 	EditPDFMaxBytes  int64 `mapstructure:"EDIT_PDF_MAX_BYTES"`
 	EditDocxMaxBytes int64 `mapstructure:"EDIT_DOCX_MAX_BYTES"`
 	EditXlsxMaxBytes int64 `mapstructure:"EDIT_XLSX_MAX_BYTES"`
+}
+
+// ClientContentBaseURL is the base URL clients should fetch content from.
+//
+// It exists separately from ContentBaseURL because the two audiences differ: the
+// service reaches itself over loopback, while a phone on the LAN (or a browser
+// on another machine) needs an address it can resolve.
+func (c Config) ClientContentBaseURL() string {
+	if c.ContentPublicBaseURL != "" {
+		return c.ContentPublicBaseURL
+	}
+	return c.ContentBaseURL
 }
 
 // Load reads configuration from environment variables (and optionally a .env file)

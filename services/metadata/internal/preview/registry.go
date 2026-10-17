@@ -7,7 +7,6 @@ package preview
 import (
 	"context"
 	"io"
-	"time"
 
 	"go.uber.org/zap"
 
@@ -29,11 +28,6 @@ func NewStorage(cfg common.S3Config) (*Storage, error) { return common.NewStorag
 
 // S3Config re-exports the shared config type.
 type S3Config = common.S3Config
-
-// Presigner is what the metadata service needs to serve GetThumbnailURL.
-type Presigner interface {
-	PresignThumbnail(ctx context.Context, key string, expiry time.Duration) (string, error)
-}
 
 // Deleter is what the purge coordinator needs to remove preview objects.
 type Deleter interface {

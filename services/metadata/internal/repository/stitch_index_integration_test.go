@@ -128,6 +128,56 @@ func TestIntegrationStitchWorkIndex(t *testing.T) {
 		}
 	}
 
+	// A layout the multipart API can never assemble is parked: it leaves the
+	// work index like a ready row, so the sweeper stops reading it, and it
+	// cannot be claimed again until a content change re-enqueues the file.
+	third := uuid.NewString()
+	t.Cleanup(func() { _ = repo.Delete(context.Background(), third) })
+	if err := repo.Enqueue(ctx, third, now); err != nil {
+		t.Fatalf("Enqueue(%s): %v", third, err)
+	}
+	if _, ok, err := repo.ClaimForStitch(ctx, third, 10*time.Minute, now); err != nil || !ok {
+		t.Fatalf("ClaimForStitch(%s) = (ok=%v, err=%v), want claimed", third, ok, err)
+	}
+	if err := repo.MarkSkipped(ctx, third, now); err != nil {
+		t.Fatalf("MarkSkipped: %v", err)
+	}
+	if states := indexStatesFor(t, ctx, session, mustTestUUID(t, third)); len(states) != 0 {
+		t.Fatalf("index states after skip = %v, want none (ineligible work is parked)", states)
+	}
+	records, err = repo.ListPending(ctx, 200)
+	if err != nil {
+		t.Fatalf("ListPending after skip: %v", err)
+	}
+	for _, rec := range records {
+		if rec.FileID == third {
+			t.Fatalf("parked file %s reappeared in the sweep work list as %s", third, rec.State)
+		}
+	}
+	if _, ok, err := repo.ClaimForStitch(ctx, third, 10*time.Minute, now); err != nil || ok {
+		t.Fatalf("ClaimForStitch on a parked row = (ok=%v, err=%v), want not claimed", ok, err)
+	}
+	// A skipped row must never un-ready a consolidated file.
+	if err := repo.MarkSkipped(ctx, first, now); err != nil {
+		t.Fatalf("MarkSkipped on a ready row: %v", err)
+	}
+	ready, err := repo.getByID(ctx, mustTestUUID(t, first))
+	if err != nil {
+		t.Fatalf("read ready row: %v", err)
+	}
+	if ready.State != StitchStateReady {
+		t.Fatalf("state after MarkSkipped on a ready row = %s, want ready", ready.State)
+	}
+	// The edit path re-enqueues a file whose bytes changed (Delete + Enqueue),
+	// which is what gives a parked layout a fresh eligibility check.
+	if err := repo.Delete(ctx, third); err != nil {
+		t.Fatalf("Delete(%s): %v", third, err)
+	}
+	if err := repo.Enqueue(ctx, third, now); err != nil {
+		t.Fatalf("re-enqueue(%s): %v", third, err)
+	}
+	assertListed(t, StitchStatePending, third)
+
 	// Deletion (the purge path) clears the registry and the index together.
 	if err := repo.Delete(ctx, second); err != nil {
 		t.Fatalf("Delete: %v", err)
